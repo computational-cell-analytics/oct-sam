@@ -20,12 +20,14 @@ def get_loaders(input_folder, patch_shape, batch_size, val_size=0.1):
     train_loader = torch_em.default_segmentation_loader(
         train_paths, image_key, train_paths, label_key,
         batch_size=batch_size, patch_shape=patch_shape,
-        label_transform=label_transform, is_seg_dataset=True
+        label_transform=label_transform, is_seg_dataset=True,
+        n_samples=100 * batch_size,
     )
     val_loader = torch_em.default_segmentation_loader(
         val_paths, image_key, val_paths, label_key,
         batch_size=batch_size, patch_shape=patch_shape,
-        label_transform=label_transform, is_seg_dataset=True
+        label_transform=label_transform, is_seg_dataset=True,
+        n_samples=2 * batch_size,
     )
     return train_loader, val_loader
 
@@ -33,7 +35,7 @@ def get_loaders(input_folder, patch_shape, batch_size, val_size=0.1):
 def train_boundaries(input_folder, check=False):
     model = UNet2d(in_channels=1, out_channels=2, initial_features=32, final_activation="Sigmoid")
 
-    patch_shape = (374, 998)
+    patch_shape = (384, 992)
     train_loader, val_loader = get_loaders(input_folder, patch_shape, batch_size=8)
 
     if check:
@@ -48,13 +50,14 @@ def train_boundaries(input_folder, check=False):
         val_loader=val_loader,
         learning_rate=1e-4,
         mixed_precision=True,
-        log_image_interval=100
+        log_image_interval=100,
+        compile_model=False,
     )
-    trainer.fit(iterations=int(1e5))
+    trainer.fit(iterations=int(2.5e4))
 
 
 def main():
-    input_folder = "../data/data_20250619_resaved"
+    input_folder = "/mnt/lustre-grete/usr/u12086/data/oct/data_20250619_resaved"
     train_boundaries(input_folder, check=False)
 
 
