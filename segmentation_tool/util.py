@@ -3,6 +3,7 @@ from collections import deque
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 import imageio.v3 as imageio
 
@@ -66,10 +67,10 @@ def predict_with_padding(
     return output
 
 
-def run_prediction(volume, model_path):
+def run_prediction(volume, model_path, out_channels=2):
     # Load the model.
-    model_state = torch.load(model_path, weights_only=True)
-    model = UNet2d(in_channels=1, out_channels=2, initial_features=32, final_activation="Sigmoid")
+    model_state = torch.load(model_path, weights_only=True, map_location="cpu")
+    model = UNet2d(in_channels=1, out_channels=out_channels, initial_features=32, final_activation="Sigmoid")
     model.load_state_dict(model_state)
 
     prediction = []
@@ -221,3 +222,22 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     node_labels = multicut_kernighan_lin(rag, costs)
     seg = project_node_labels_to_pixels(rag, node_labels)
     return seg
+
+
+# TODO figure out spacing
+def run_measurement(segmentation, spacing=None):
+    props = regionprops(segmentation, spacing=spacing)
+    measurement = {
+        "label_id": [],
+        "area": [],
+    }
+    for prop in props:
+        measurement["label_id"].append(prop.label)
+        measurement["area"].append(prop.area)
+        bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
+        mask = (segmentation[bb] == prop.label)
+        # TODO compute the centerline to measure the length
+        # TODO compute the width by distance from upper to lower boundary
+
+    measurement = pd.DataFrame(measurement)
+    return measurement

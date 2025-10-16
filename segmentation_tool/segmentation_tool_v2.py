@@ -1,13 +1,15 @@
 import argparse
+from pathlib import Path
 
 import magicgui
 import napari
 import numpy as np
+import pandas as pd
 import vigra
 
 from skimage.measure import label
 from skimage.segmentation import watershed
-from util import load_volume, run_prediction
+from util import load_volume, run_prediction, run_measurement
 from util import normalize_sliding_max_2d, merge_overseg
 
 
@@ -43,7 +45,6 @@ def segmentation_tool(input_path, prediction_path, model_path):
     viewer = napari.Viewer()
 
     @magicgui.magicgui(call_button="Segment")
-    # def segment_widget(viewer: napari.Viewer, n_layers: int = 6, merge: bool = True):
     def segment_widget(viewer: napari.Viewer, seed_threshold: float = 0.6, merge: bool = True):
         pos = viewer.cursor.position
         z = int(pos[0]) if len(pos) == 3 else int(pos[1])
@@ -51,12 +52,34 @@ def segmentation_tool(input_path, prediction_path, model_path):
         viewer.layers["segmentation"].data[z] = seg
         viewer.layers["segmentation"].refresh()
 
+    @magicgui.magicgui(call_button="Measure")
+    def measure_widget(viewer: napari.Viewer, table_path: Path):
+        pos = viewer.cursor.position
+        z = int(pos[0]) if len(pos) == 3 else int(pos[1])
+        seg = viewer.layers["segmentation"].data[z]
+        if seg.max() == 0:
+            print("The segmentation in slice", z, "is empty. Please click 'segment' first.")
+            return
+
+        this_measurements = run_measurement(seg)
+        this_measurements["z-slice"] = [z] * len(this_measurements)
+        this_measurements["layer_name"] = [" "] * len(this_measurements)
+
+        out_path = table_path.with_suffix(".xlsx")
+        if out_path.exists():
+            measurements = pd.read_excel(out_path)
+            measurements = pd.concat([measurements, this_measurements])
+        else:
+            measurements = this_measurements
+        measurements.to_excel(out_path, index=False)
+
     segmentation = np.zeros(tomogram.shape, dtype="uint8")
     viewer.add_image(tomogram)
     viewer.add_image(prediction, name="prediction", visible=False)
     viewer.add_labels(segmentation)
 
     viewer.window.add_dock_widget(segment_widget)
+    viewer.window.add_dock_widget(measure_widget)
 
     napari.run()
 
