@@ -2,19 +2,27 @@ import os
 from collections import deque
 from typing import Tuple
 
+import imageio.v3 as imageio
+import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
-import imageio.v3 as imageio
+import vigra
 
 from tqdm import tqdm
 from unet import UNet2d
-from skimage.measure import regionprops
+from skimage.measure import regionprops, label
+from skimage.morphology import skeletonize
+from skimage.segmentation import find_boundaries
 
 try:
     import eyepy as ep
 except ImportError:
     ep = None
+
+# This is the informaiton about the voxel / pixel size extracted from one
+# tomogram in eyepy. The unit is millimeteter. This has to be double checked!
+VOXEL_SIZE = (0.12141720950603485, 0.0038716697599738836, 0.0056914291344583035)
 
 
 def standardize(raw: np.ndarray, eps: float = 1e-7) -> np.ndarray:
@@ -224,20 +232,168 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     return seg
 
 
-# TODO figure out spacing
+def _compute_thickness(mask, spacing):
+    boundaries = find_boundaries(mask, mode="outer")
+    boundary_components = label(boundaries)
+
+    # Determine the largest two boundary components and assign them
+    # to the upper / lower boundary.
+    props = regionprops(boundary_components)
+    ids = np.array([prop.label for prop in props])
+    sizes = np.array([prop.area for prop in props])
+    heights = np.array([prop.centroid[0] for prop in props])
+
+    two_largest = ids[np.argsort(sizes)[::-1][:2]]
+    h1, h2 = heights[two_largest - 1]
+    upper_id, lower_id = two_largest if h1 < h2 else two_largest[::-1]
+    upper_mask, lower_mask = boundary_components == upper_id, boundary_components == lower_id
+
+    # TODO spacig in the distance trafos
+    distance_to_upper = vigra.filters.vectorDistanceTransform(upper_mask.astype("float32"))
+    distance_to_upper = np.abs(distance_to_upper[..., 0])
+    lower_thickness = distance_to_upper[lower_mask]
+
+    distance_to_lower = vigra.filters.vectorDistanceTransform(lower_mask.astype("float32"))
+    distance_to_lower = np.abs(distance_to_lower[..., 0])
+    upper_thickness = distance_to_lower[upper_mask]
+
+    # import napari
+    # v = napari.Viewer()
+    # v.add_image(mask)
+    # v.add_image(distance_to_upper)
+    # v.add_labels(upper_mask)
+    # v.add_labels(lower_mask)
+    # napari.run()
+
+    return upper_thickness, lower_thickness
+
+
+def _skel_coords(skel: np.ndarray) -> np.ndarray:
+    """Return (row, col) coordinates of foreground skeleton pixels."""
+    return np.column_stack(np.nonzero(skel))
+
+
+def _build_skeleton_graph(coords: np.ndarray, pixel_spacing):
+    """
+    Build an 8-neighborhood graph on skeleton pixels with physical edge weights.
+    """
+    sy, sx = pixel_spacing
+    index_of = {tuple(p): i for i, p in enumerate(map(tuple, coords))}
+    G = nx.Graph()
+
+    for i, (r, c) in enumerate(coords):
+        G.add_node(i, pos=(int(r), int(c)))
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if dr == 0 and dc == 0:
+                    continue
+                nbr = (r + dr, c + dc)
+                j = index_of.get(nbr)
+                if j is None:
+                    continue
+                # Undirected; let NetworkX handle duplicate edge attempts
+                w = float(np.hypot(dr * sy, dc * sx))
+                G.add_edge(i, j, weight=w)
+    return G
+
+
+def _longest_geodesic_path(G: nx.Graph):
+    """
+    Among all endpoint pairs (degree == 1), return the weighted-longest
+    shortest path. If no endpoints exist (e.g., small loop), use a double sweep.
+    """
+    if len(G) == 0:
+        return [], 0.0
+
+    degrees = dict(G.degree)
+    endpoints = [n for n, d in degrees.items() if d == 1]
+
+    def _path_len(path_nodes):
+        return sum(G[a][b]["weight"] for a, b in zip(path_nodes[:-1], path_nodes[1:]))
+
+    best_nodes, best_len = [], 0.0
+
+    if len(endpoints) >= 2:
+        # Try all endpoint pairs; for long thin objects this is typically tiny.
+        for i in range(len(endpoints)):
+            for j in range(i + 1, len(endpoints)):
+                s, t = endpoints[i], endpoints[j]
+                try:
+                    nodes = nx.shortest_path(G, s, t, weight="weight")
+                except nx.NetworkXNoPath:
+                    continue
+                L = _path_len(nodes)
+                if L > best_len:
+                    best_nodes, best_len = nodes, L
+    else:
+        # Fallback: double sweep on the largest connected component
+        comp = max(nx.connected_components(G), key=len)
+        sub = G.subgraph(comp).copy()
+        n0 = next(iter(sub.nodes))
+        far1 = max(
+            nx.single_source_dijkstra_path_length(sub, n0, weight="weight").items(),
+            key=lambda x: x[1],
+        )[0]
+        far2 = max(
+            nx.single_source_dijkstra_path_length(sub, far1, weight="weight").items(),
+            key=lambda x: x[1],
+        )[0]
+        best_nodes = nx.shortest_path(sub, far1, far2, weight="weight")
+        best_len = _path_len(best_nodes)
+
+    return best_nodes, best_len
+
+
+def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
+    skel = skeletonize(mask.astype(bool))
+    coords = _skel_coords(skel)
+    if coords.size == 0:
+        return np.empty((0, 2), dtype=int), 0.0
+
+    G = _build_skeleton_graph(coords, pixel_spacing)
+    nodes, length = _longest_geodesic_path(G)
+    if not nodes:
+        length = 0
+    # polyline = np.array([G.nodes[n]["pos"] for n in nodes], dtype=int)
+    return float(length)
+
+
 def run_measurement(segmentation, spacing=None):
+    if spacing is None:
+        spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in millimeter.
+
     props = regionprops(segmentation, spacing=spacing)
     measurement = {
         "label_id": [],
         "area": [],
+        "length": [],
+        "max_thickness": [],
+        "min_thickness": [],
+        "mean_thickness": [],
+        "stdev_thickness": [],
     }
     for prop in props:
         measurement["label_id"].append(prop.label)
         measurement["area"].append(prop.area)
         bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
         mask = (segmentation[bb] == prop.label)
-        # TODO compute the centerline to measure the length
-        # TODO compute the width by distance from upper to lower boundary
+
+        # Compute the centerline to measure the length.
+        length = _compute_length(mask, spacing)
+        measurement["length"].append(length)
+
+        # Compute the layer thickness by distance from upper to lower boundary.
+        # This computes the thickness across each point for both the upper and lower boundary.
+        # We then compute statistics over this.
+        # Later, we also want to estimate the thickness at certain radii.
+        upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
+        thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
+        max_thickness, min_thickness = thickness.max(), thickness.min()
+        mean_thickness, stdev_thickness = thickness.mean(), thickness.std()
+        measurement["max_thickness"].append(max_thickness)
+        measurement["min_thickness"].append(min_thickness)
+        measurement["mean_thickness"].append(mean_thickness)
+        measurement["stdev_thickness"].append(stdev_thickness)
 
     measurement = pd.DataFrame(measurement)
     return measurement

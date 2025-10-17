@@ -1,0 +1,14 @@
+name: oct-segmentation
+channels:
+    - conda-forge
+dependencies:
+    - imageio
+    - nifty >=1.2.3
+    - magicgui
+    - napari
+    - natsort
+    - pip
+    - python-elf >=0.7.1
+    - pytorch >=2.5
+    - scikit-image
+    - tqdm

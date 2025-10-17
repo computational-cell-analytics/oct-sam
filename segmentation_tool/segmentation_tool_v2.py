@@ -9,6 +9,7 @@ import vigra
 
 from skimage.measure import label
 from skimage.segmentation import watershed
+from napari.utils.notifications import show_info, show_warning
 from util import load_volume, run_prediction, run_measurement
 from util import normalize_sliding_max_2d, merge_overseg
 
@@ -58,7 +59,7 @@ def segmentation_tool(input_path, prediction_path, model_path):
         z = int(pos[0]) if len(pos) == 3 else int(pos[1])
         seg = viewer.layers["segmentation"].data[z]
         if seg.max() == 0:
-            print("The segmentation in slice", z, "is empty. Please click 'segment' first.")
+            show_warning(f"The segmentation in slice {z} is empty. Please click 'segment' first.")
             return
 
         this_measurements = run_measurement(seg)
@@ -67,11 +68,13 @@ def segmentation_tool(input_path, prediction_path, model_path):
 
         out_path = table_path.with_suffix(".xlsx")
         if out_path.exists():
+            show_info(f"Found an existing table at {out_path}, will add measurements to it.")
             measurements = pd.read_excel(out_path)
             measurements = pd.concat([measurements, this_measurements])
         else:
             measurements = this_measurements
         measurements.to_excel(out_path, index=False)
+        show_info(f"Saved table with measurements to {out_path}.")
 
     segmentation = np.zeros(tomogram.shape, dtype="uint8")
     viewer.add_image(tomogram)
