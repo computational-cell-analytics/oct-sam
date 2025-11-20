@@ -68,7 +68,7 @@ def export_finetuned_model():
 
 
 def main():
-    input_folder = "/mnt/lustre-grete/usr/u12086/data/oct/data_20250619_resaved"
+    input_folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data_v2"
     finetune_medicosam(input_folder, check=False)
     export_finetuned_model()
 

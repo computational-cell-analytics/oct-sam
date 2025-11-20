@@ -4,7 +4,7 @@ from glob import glob
 import imageio.v3 as imageio
 import numpy as np
 
-ROOT = "/mnt/lustre-grete/usr/u12086/data/oct/data_20250625"
+ROOT = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/data_20250625"
 
 
 def predict_volume(model, volume):
