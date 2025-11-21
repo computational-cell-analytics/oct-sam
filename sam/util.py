@@ -209,7 +209,7 @@ def mask_data_to_segmentation(masks, min_object_size):
     return segmentation
 
 
-def _derive_prompts(model, image, seed_threshold=0.6):
+def _derive_prompts(model, image, seed_threshold=0.6, return_pred=False):
     input_ = standardize(image)
     pred = predict_with_padding(model, input_, min_divisible=(16, 16))
     pred = pred.squeeze()[:2]
@@ -226,6 +226,8 @@ def _derive_prompts(model, image, seed_threshold=0.6):
     seeds = label(directed_dist > seed_threshold)
     props = regionprops(seeds)
     prompts = np.array([prop.centroid for prop in props])
+    if return_pred:
+        return prompts, pred
     return prompts
 
 

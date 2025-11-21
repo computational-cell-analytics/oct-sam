@@ -14,12 +14,12 @@ def main():
     model = _load_model(model_path)
     predictor = get_sam_model(model_type="vit_b", checkpoint_path=sam_path)
 
-    prompts = _derive_prompts(model, im)
+    prompts, pred = _derive_prompts(model, im, return_pred=True)
     segmentation = _segment_from_prompts(predictor, im, prompts, min_size=150)
 
     v = napari.Viewer()
     v.add_image(im)
-    # v.add_image(pred)
+    v.add_image(pred)
     v.add_labels(segmentation)
     v.add_points(prompts)
     napari.run()
