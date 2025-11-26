@@ -2,6 +2,28 @@
 
 Segmentation and measurements for retinal layers in OCT data.
 
+## Literature:
+
+ChatGPT overview: https://chatgpt.com/share/6926b1ee-8ce8-8000-b4b9-1adc54159d74
+
+Recommended data for pre-training:
+- OCT5k (multi-disease, 5 layers, strong multi-grader).
+    - https://www.nature.com/articles/s41597-024-04259-z
+    - https://doi.org/10.5522/04/22128671
+    - I checked this out and converted it, but it's not detailed enough in the layer annotations.
+      Pretraining on this data would be detrimental.
+- HCMS (35 vols, 9 layers each B-scan).
+    - https://www.sciencedirect.com/science/article/pii/S2352340918316135
+    - https://medic.rad.jhmi.edu/index.php?title=OCT_Data
+- Duke DME (110 B-scans, 7–8 layers + fluids).
+    - https://biblio.imi.uni-luebeck.de/pdf/SPIE2023_CAD_Kepp.pdf
+    - https://people.duke.edu/~sf59/software.html
+- OCTID normals (25 images with layers).
+    - https://www.sciencedirect.com/science/article/pii/S0045790618330842
+
+All the preprocessed pre-training data is located at:
+`/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data`
+
 ## Overview
 
 The following scripts are relevant:
