@@ -86,7 +86,7 @@ def finetune_medicosam(version, check):
         name=f"oct-sam-v{version}", train_loader=train_loader, val_loader=val_loader,
         configuration="V100", with_segmentation_decoder=True,
         model_type=model_type, checkpoint_path=checkpoint_path,
-        verify_n_labels_in_loader=5,
+        verify_n_labels_in_loader=5, early_stopping=20,
     )
 
 
