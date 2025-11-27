@@ -11,10 +11,27 @@ def raw_trafo(x):
     return x
 
 
-def get_loaders(input_folder, patch_shape, batch_size, val_size=0.1):
-    paths = sorted(glob(os.path.join(input_folder, "*.h5")))
+def _get_loaders(version, patch_shape, batch_size, val_size=0.1):
+    if version == 1:
+        input_folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250619"
+        paths = sorted(glob(os.path.join(input_folder, "*.h5")))
+    elif version in (2, 3):
+        input_folders = [
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250619",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20251126"
+        ]
+        paths = []
+        for input_folder in input_folders:
+            paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
+    else:
+        raise ValueError(f"Version {version} not yet supported.")
+
     assert len(paths) > 0
     train_paths, val_paths = train_test_split(paths, test_size=val_size, random_state=42)
+
+    print("Intialize data loaders with:")
+    print(len(train_paths), "training images.")
+    print(len(val_paths), "val images.")
 
     image_key = "image"
     label_key = "labels/original"
@@ -42,35 +59,57 @@ def get_loaders(input_folder, patch_shape, batch_size, val_size=0.1):
     return train_loader, val_loader
 
 
-def finetune_medicosam(input_folder, check):
+def _get_initialization(version):
+    if version in (1, 2):
+        model_type = "vit_b_medical_imaging"
+        checkpoint_path = None
+    elif version == 3:
+        model_type = "vit_b"
+        checkpoint_path = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-pretrained-v1.pt"
+    else:
+        raise ValueError(f"Version {version} not yet supported.")
+    return model_type, checkpoint_path
+
+
+def finetune_medicosam(version, check):
     patch_shape = (384, 992)
-    train_loader, val_loader = get_loaders(input_folder, patch_shape, batch_size=1)
+    train_loader, val_loader = _get_loaders(version, patch_shape, batch_size=1)
 
     if check:
         from torch_em.util.debug import check_loader
         check_loader(train_loader, n_samples=8)
         check_loader(val_loader, n_samples=8)
 
+    model_type, checkpoint_path = _get_initialization(version)
+
     train_sam_for_configuration(
-        name="oct-sam-v1", train_loader=train_loader, val_loader=val_loader,
+        name=f"oct-sam-v{version}", train_loader=train_loader, val_loader=val_loader,
         configuration="V100", with_segmentation_decoder=True,
-        model_type="vit_b_medical_imaging",
+        model_type=model_type, checkpoint_path=checkpoint_path,
         verify_n_labels_in_loader=5,
     )
 
 
-def export_finetuned_model():
+def export_finetuned_model(version):
     from micro_sam.util import export_custom_sam_model
     export_custom_sam_model(
-        "./checkpoints/oct-sam-v1/best.pt", model_type="vit_b", save_path="./oct-sam-v1.pt",
+        f"./checkpoints/oct-sam-v{version}/best.pt", model_type="vit_b", save_path=f"./oct-sam-v{version}.pt",
         with_segmentation_decoder=True
     )
 
 
+# The version determines which data is used for training and how the model is initialized.
+# v1: trained on 20250619; initialized with MedicoSAM
+# v2: trained on 20250619, 20251126; initialized with MedicoSAM
+# v3: trained on 20250619, 20251126; initialized with pretraiend OCT model
 def main():
-    input_folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data_v2"
-    finetune_medicosam(input_folder, check=False)
-    export_finetuned_model()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--version", type=int)
+    parser.add_argument("-c", "--check", action="store_true")
+    args = parser.parse_args()
+    finetune_medicosam(args.version, check=args.check)
+    export_finetuned_model(args.version)
 
 
 if __name__ == "__main__":
