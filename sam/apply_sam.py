@@ -4,8 +4,9 @@ import os
 import imageio.v3 as imageio
 from micro_sam.util import get_sam_model
 from micro_sam.sam_annotator import image_series_annotator
-
-from util import _derive_prompts, _segment_from_prompts, _load_model
+from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from util import _derive_prompts_sam, _segment_from_prompts, _filter_prompts
+from util import _derive_prompts, _load_model
 
 
 def _precompute_segmentation(images, model_path, sam_model_path, output_folder):
@@ -21,27 +22,62 @@ def _precompute_segmentation(images, model_path, sam_model_path, output_folder):
         imageio.imwrite(output_path, seg)
 
 
-def run_annotator(input_path, output_folder, slices, model, sam_model, precompute_segmentation):
+def _precompute_segmentation_sam(images, sam_model_path, output_folder):
+
+    predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
+
+    # Create the segmenter.
+    segmenter = get_amg(predictor, is_tiled=False, decoder=decoder)
+
+    for i, image in enumerate(images):
+        print(image.shape)
+        print(image.dtype)
+        output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+        # Init the segmenter for this image.
+        segmenter.initialize(image)
+
+        foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
+
+        prompts = _derive_prompts_sam(foreground, boundary_distances)
+        filtered_prompts = _filter_prompts(prompts)
+        seg = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
+        imageio.imwrite(output_path, seg)
+
+
+def run_annotator(input_path, output_folder, slices, model, sam_model, precompute_unet,
+                  precompute_sam):
     image_vol = imageio.imread(input_path)
     images = [image_vol[z] for z in slices]
-    if precompute_segmentation:
+    if precompute_unet and precompute_sam:
+        raise ValueError("Choose either 'precompute_unet' or 'precompute_sam', not both.")
+
+    if precompute_unet:
         _precompute_segmentation(images, model, sam_model, output_folder)
+    if precompute_sam:
+        _precompute_segmentation_sam(images, sam_model, output_folder)
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
     )
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", required=True)
-    parser.add_argument("-o", "--output", required=True)
-    parser.add_argument("-z", "--slices", nargs="+", type=int, required=True)
-    parser.add_argument("--model", default="./oct-2d-v2.pt")
-    parser.add_argument("--sam_model", default="./oct-sam-v1.pt")
-    parser.add_argument("--precompute_segmentation", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Apply micro-sam model on a single or multiple slices of input data."
+    )
+    parser.add_argument("-i", "--input", required=True, help="Input image.")
+    parser.add_argument("-o", "--output", required=True, help="Output folder.")
+    parser.add_argument("-z", "--slices", nargs="+", type=int, required=True,
+                        help="Slice(s) in z-direction.")
+    parser.add_argument("--model", default="./oct-2d-v2.pt", help="U-Net model.")
+    parser.add_argument("--sam_model", default="./oct-sam-v3.pt", help="micro-sam model.")
+    parser.add_argument("--precompute_unet", action="store_true",
+                        help="Pre-compute segmentation using prompts derived from U-Net prediction.")
+    parser.add_argument("--precompute_sam", action="store_true",
+                        help="Pre-compute segmentation using prompts derived from micro-sam prediction.")
     args = parser.parse_args()
 
-    run_annotator(args.input, args.output, args.slices, args.model, args.sam_model, args.precompute_segmentation)
+    run_annotator(args.input, args.output, args.slices, args.model, args.sam_model, args.precompute_unet,
+                  args.precompute_sam)
 
 
 if __name__ == "__main__":

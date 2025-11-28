@@ -231,6 +231,61 @@ def _derive_prompts(model, image, seed_threshold=0.6, return_pred=False):
     return prompts
 
 
+def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
+    mask = foreground > 0.5
+    bd_mask = boundary_distances > 0.5
+
+    directed_dist = vigra.filters.vectorDistanceTransform(bd_mask.astype("float32"))
+    directed_dist[~mask] = 0
+    directed_dist = np.abs(directed_dist.transpose((2, 0, 1)))[0]
+    directed_dist = normalize_sliding_max_2d(directed_dist, window_y=1, window_x=255)
+
+    seeds = label(directed_dist > seed_threshold)
+    props = regionprops(seeds)
+    prompts = np.array([prop.centroid for prop in props])
+    return prompts
+
+
+def _filter_prompts(
+    prompts,
+    cross_section_dim=0,
+    sigma=1.96,          # ~95% CI
+    min_points=3
+):
+    """Filters prompts by rejecting outliers along the cross-section dimension.
+    Designed for curved but narrow profiles.
+
+    Args:
+        prompts: Coordinates of segmentation prompts.
+        cross_section_dim: Dimension along cross-section of the retina.
+        sigma: Factor for bandwith of filter.
+        min_points: Minimal number of prompts.
+
+    Returns:
+        Filtered prompts.
+    """
+
+    if len(prompts) < min_points:
+        return prompts
+
+    arr = np.asarray(prompts, dtype=np.float32)
+
+    # compute statistics to exclude outliers
+    cs_vals = arr[:, cross_section_dim]
+
+    cs_mean = np.mean(cs_vals)
+    cs_std = np.std(cs_vals)
+
+    lower = cs_mean - sigma * cs_std
+    upper = cs_mean + sigma * cs_std
+
+    # filter outliers
+    mask = (cs_vals >= lower) & (cs_vals <= upper)
+    arr_filt = arr[mask]
+
+    return arr_filt
+
+
 def _segment_from_prompts(predictor, image, prompts, min_size):
     points = prompts[:, None, ::-1]
     labels = np.ones((len(prompts), 1))
