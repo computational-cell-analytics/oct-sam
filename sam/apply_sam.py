@@ -44,16 +44,11 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder):
         imageio.imwrite(output_path, seg)
 
 
-def run_annotator(input_path, output_folder, slices, model, sam_model, precompute_unet,
-                  precompute_sam):
+def run_annotator(input_path, output_folder, slices, sam_model, precompute_segmentation):
     image_vol = imageio.imread(input_path)
     images = [image_vol[z] for z in slices]
-    if precompute_unet and precompute_sam:
-        raise ValueError("Choose either 'precompute_unet' or 'precompute_sam', not both.")
 
-    if precompute_unet:
-        _precompute_segmentation(images, model, sam_model, output_folder)
-    if precompute_sam:
+    if precompute_segmentation:
         _precompute_segmentation_sam(images, sam_model, output_folder)
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
@@ -68,16 +63,14 @@ def main():
     parser.add_argument("-o", "--output", required=True, help="Output folder.")
     parser.add_argument("-z", "--slices", nargs="+", type=int, required=True,
                         help="Slice(s) in z-direction.")
-    parser.add_argument("--model", default="./oct-2d-v2.pt", help="U-Net model.")
-    parser.add_argument("--sam_model", default="./oct-sam-v3.pt", help="micro-sam model.")
-    parser.add_argument("--precompute_unet", action="store_true",
-                        help="Pre-compute segmentation using prompts derived from U-Net prediction.")
-    parser.add_argument("--precompute_sam", action="store_true",
+    parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data segmentation.")
+    parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from micro-sam prediction.")
     args = parser.parse_args()
 
-    run_annotator(args.input, args.output, args.slices, args.model, args.sam_model, args.precompute_unet,
-                  args.precompute_sam)
+    run_annotator(
+        args.input, args.output, args.slices, args.model, args.precompute_segmentation,
+    )
 
 
 if __name__ == "__main__":
