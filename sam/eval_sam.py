@@ -2,95 +2,39 @@ import argparse
 import os
 
 import h5py
+import napari
 import numpy as np
-from scipy.optimize import linear_sum_assignment
-from skimage.measure import label as label_mask
+from tqdm import tqdm
 
+from elf.evaluation import matching
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts, _filter_prompts
+from util import _derive_prompts_sam, _segment_from_prompts
 
 
-def compute_iou_matrix(gt, pred):
-    """
-    gt, pred: labeled integer masks (0 = background)
-    returns: IoU matrix (N_gt x N_pred)
-    """
-    gt_ids = np.unique(gt)[1:]
-    pred_ids = np.unique(pred)[1:]
+def _segment_image(predictor, segmenter, image, save_path):
+    if save_path is not None and os.path.exists(save_path):
+        with h5py.File(save_path, "r") as f:
+            return f["segmentation"][:], f["prompts"][:], f["filtered_prompts"][:]
 
-    iou = np.zeros((len(gt_ids), len(pred_ids)), dtype=np.float32)
+    segmenter.initialize(image)
+    foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
-    for i, g in enumerate(gt_ids):
-        g_mask = gt == g
-        g_area = g_mask.sum()
+    prompts = _derive_prompts_sam(foreground, boundary_distances)
+    # NOTE: this has filtered valid prompts, so I deactivated it and updated derive_prompts_from_sam
+    # instead in order to filter out prompts away from the retina.
+    # filtered_prompts = _filter_prompts(prompts)
+    filtered_prompts = prompts
+    seg = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
 
-        for j, p in enumerate(pred_ids):
-            p_mask = pred == p
-            inter = np.logical_and(g_mask, p_mask).sum()
-            union = g_area + p_mask.sum() - inter
-
-            if union > 0:
-                iou[i, j] = inter / union
-
-    return iou
+    if save_path is not None:
+        with h5py.File(save_path, "a") as f:
+            f.create_dataset("segmentation", data=seg, compression="gzip")
+            f.create_dataset("prompts", data=prompts, compression="gzip")
+            f.create_dataset("filtered_prompts", data=filtered_prompts, compression="gzip")
+    return seg, prompts, filtered_prompts
 
 
-def match_instances_by_iou(iou, iou_threshold=0.5):
-    """
-    Hungarian matching with IoU threshold.
-    """
-    if iou.size == 0:
-        return [], [], []
-
-    cost = 1 - iou
-    gt_idx, pred_idx = linear_sum_assignment(cost)
-
-    matches = []
-    for g, p in zip(gt_idx, pred_idx):
-        if iou[g, p] >= iou_threshold:
-            matches.append((g, p))
-
-    matched_gt = set(g for g, _ in matches)
-    matched_pred = set(p for _, p in matches)
-
-    return matches, matched_gt, matched_pred
-
-
-def compute_instance_metrics(gt_mask, pred_mask, iou_threshold=0.5):
-    """
-    Instance-level Precision, Recall, F1
-    """
-
-    gt_lab = label_mask(gt_mask)
-    pred_lab = label_mask(pred_mask)
-
-    iou = compute_iou_matrix(gt_lab, pred_lab)
-    matches, matched_gt, matched_pred = match_instances_by_iou(
-        iou, iou_threshold
-    )
-
-    n_gt = len(np.unique(gt_lab)) - 1
-    n_pred = len(np.unique(pred_lab)) - 1
-
-    TP = len(matches)
-    FP = n_pred - TP
-    FN = n_gt - TP
-
-    precision = TP / (TP + FP + 1e-9)
-    recall = TP / (TP + FN + 1e-9)
-    f1 = 2 * precision * recall / (precision + recall + 1e-9)
-
-    return {
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
-        "tp": TP,
-        "fp": FP,
-        "fn": FN,
-    }
-
-
-def eval_model_sam(input_dir, model_path):
+def eval_model_sam(input_dir, model_path, save_folder=None, view=False):
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=model_path)
 
     # Create the segmenter.
@@ -98,39 +42,50 @@ def eval_model_sam(input_dir, model_path):
 
     h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
     h5_paths.sort()
-    images = [np.array(h5py.File(p, 'r')["image"]) for p in h5_paths]
-    labels = [np.array(h5py.File(p, 'r')["labels"]["original"]) for p in h5_paths]
+    images = [np.array(h5py.File(p, "r")["image"]) for p in h5_paths]
+    labels = [np.array(h5py.File(p, "r")["labels"]["original"]) for p in h5_paths]
 
-    total_tp = total_fp = total_fn = 0
-    for i, (image, label) in enumerate(zip(images, labels)):
+    if save_folder is not None:
+        os.makedirs(save_folder, exist_ok=True)
 
-        segmenter.initialize(image)
-        foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
+    segmentations, prompts, filtered_prompts = [], [], []
+    for path, image in tqdm(zip(h5_paths, images), total=len(images), desc="Segment images"):
+        save_path = None if save_folder is None else os.path.join(save_folder, os.path.basename(path))
+        seg, this_prompts, this_filtered_prompts = _segment_image(predictor, segmenter, image, save_path)
+        segmentations.append(seg)
+        prompts.append(this_prompts)
+        filtered_prompts.append(this_filtered_prompts)
 
-        prompts = _derive_prompts_sam(foreground, boundary_distances)
-        filtered_prompts = _filter_prompts(prompts)
-        seg = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
+    precisions, recalls, f1s = [], [], []
+    for i, (image, label, seg) in enumerate(zip(images, labels, segmentations)):
+        path = h5_paths[i]
+        fname = os.path.basename(path)
+        metrics = matching(seg, label)
 
-        # compare seg and labels
-        metrics = compute_instance_metrics(label, seg)
-        total_tp += metrics["tp"]
-        total_fp += metrics["fp"]
-        total_fn += metrics["fn"]
+        msg = f"Image {fname}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1']:.3f}"
+        if view:
+            point_prompts = prompts[i]
+            filtered_point_prompts = filtered_prompts[i]
+            v = napari.Viewer()
+            v.add_image(image)
+            v.add_labels(label)
+            v.add_labels(seg)
+            v.add_points(point_prompts, visible=False)
+            v.add_points(filtered_point_prompts, visible=False)
+            v.title = msg
+            napari.run()
+        else:
+            print(msg)
+        precisions.append(metrics["precision"])
+        recalls.append(metrics["recall"])
+        f1s.append(metrics["f1"])
 
-        print(f"Image {i}: "
-              f"P={metrics['precision']:.3f}, "
-              f"R={metrics['recall']:.3f}, "
-              f"F1={metrics['f1']:.3f}, "
-              f"TP={metrics['tp']}, "
-              f"FP={metrics['fp']}, "
-              f"FN={metrics['fn']}")
-
-    precision = total_tp / (total_tp + total_fp + 1e-9)
-    recall = total_tp / (total_tp + total_fn + 1e-9)
-    f1 = 2 * precision * recall / (precision + recall + 1e-9)
-    print(f"Precision {precision}")
-    print(f"Recall {recall}")
-    print(f"F1-score {f1}")
+    precision = np.round(np.mean(precisions), 3)
+    recall = np.round(np.mean(recalls), 3)
+    f1 = np.round(np.mean(f1s), 3)
+    print("Overall precision:", precision)
+    print("Overall recall:", recall)
+    print("Overall f1-sore:", f1)
 
 
 def main():
@@ -139,9 +94,11 @@ def main():
     )
     parser.add_argument("-i", "--input_dir", required=True)
     parser.add_argument("--model", default="./oct-sam-v3.pt")
+    parser.add_argument("-o", "--output_dir")
+    parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
-    eval_model_sam(args.input_dir, args.model,)
+    eval_model_sam(args.input_dir, args.model, args.output_dir, args.check)
 
 
 if __name__ == "__main__":

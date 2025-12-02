@@ -194,7 +194,6 @@ def mask_data_to_segmentation(masks, min_object_size):
     def require_numpy(mask):
         return mask.cpu().numpy() if torch.is_tensor(mask) else mask
 
-    seg_id = 1
     for seg_id, mask in enumerate(masks, 1):
         this_mask = require_numpy(mask["segmentation"])
         this_mask = np.logical_and(this_mask, segmentation == 0)
@@ -232,7 +231,13 @@ def _derive_prompts(model, image, seed_threshold=0.6, return_pred=False):
 
 
 def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
-    mask = foreground > 0.5
+    # Find the largest foregorund piece, we only keep the prompts in there.
+    mask = label(foreground > 0.5)
+    ids, sizes = np.unique(mask, return_counts=True)
+    ids, sizes = ids[1:], sizes[1:]
+    mask = mask == ids[np.argmax(sizes)]
+
+    # Get the boundary mask and compute the distances for seeding.
     bd_mask = boundary_distances > 0.5
 
     directed_dist = vigra.filters.vectorDistanceTransform(bd_mask.astype("float32"))
@@ -246,6 +251,9 @@ def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
     return prompts
 
 
+# NOTE: this one filters out valid prompts
+# I have updated derive prompts from SAM instead to only keep prompts
+# in the main mask component.
 def _filter_prompts(
     prompts,
     cross_section_dim=0,
