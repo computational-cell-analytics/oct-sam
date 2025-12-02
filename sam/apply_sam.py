@@ -5,8 +5,9 @@ import imageio.v3 as imageio
 from micro_sam.util import get_sam_model
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts, _filter_prompts
+from util import _derive_prompts_sam, _segment_from_prompts
 from util import _derive_prompts, _load_model
+from tqdm import tqdm
 
 
 def _precompute_segmentation(images, model_path, sam_model_path, output_folder):
@@ -29,18 +30,16 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder):
     # Create the segmenter.
     segmenter = get_amg(predictor, is_tiled=False, decoder=decoder)
 
-    for i, image in enumerate(images):
-        print(image.shape)
-        print(image.dtype)
+    for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+
         # Init the segmenter for this image.
-        segmenter.initialize(image)
+        segmenter.initialize(image, verbose=False)
 
         foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
         prompts = _derive_prompts_sam(foreground, boundary_distances)
-        filtered_prompts = _filter_prompts(prompts)
-        seg = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
+        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
         imageio.imwrite(output_path, seg)
 
 
@@ -61,9 +60,8 @@ def main():
     )
     parser.add_argument("-i", "--input", required=True, help="Input image.")
     parser.add_argument("-o", "--output", required=True, help="Output folder.")
-    parser.add_argument("-z", "--slices", nargs="+", type=int, required=True,
-                        help="Slice(s) in z-direction.")
-    parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data segmentation.")
+    parser.add_argument("-z", "--slices", nargs="+", type=int, required=True, help="Slice(s) in z-direction.")
+    parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data model.")
     parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from micro-sam prediction.")
     args = parser.parse_args()
