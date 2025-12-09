@@ -4,16 +4,10 @@ import os
 import imageio.v3 as imageio
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
-from oct_tools.precompute_segmentation import fill_gaps_watershed, filter_min_thickness
 from oct_tools.segmentation_utils import run_measurement
 from tqdm import tqdm
-
-
-def _postprocess_segmentation(seg, img, min_thickness=5):
-    seg = filter_min_thickness(seg, min_thickness=min_thickness)
-    seg = fill_gaps_watershed(seg, img)
-    return seg
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
@@ -37,7 +31,7 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
         prompts = _derive_prompts_sam(foreground, boundary_distances)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
         if postprocess:
-            seg = _postprocess_segmentation(seg, image)
+            seg = postprocess_segmentation(seg, image)
 
         tab = run_measurement(seg)
         tab.to_csv(table_out, sep="\t", index=False)
