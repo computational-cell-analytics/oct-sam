@@ -232,7 +232,14 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     return seg
 
 
-def _compute_thickness_naive(mask, spacing):
+def _compute_thickness_per_column(mask, spacing, exclude_zeros=False):
+    """Compute thickness values per column for segmentation mask.
+
+    Args:
+        mask: Binary segmentation mask.
+        spacing: Pixel spacing.
+        exclude_zeros: Calculate thickness only for columns in which segmentation is present.
+    """
     height, width = mask.shape
     thicknesses = []
     for idx in [1]:
@@ -240,6 +247,8 @@ def _compute_thickness_naive(mask, spacing):
             col = mask[:, x]
             seg_mask = (col == idx)
             thicknesses.append(sum(seg_mask) * spacing[0])
+    if exclude_zeros:
+        thicknesses = [i for i in thicknesses if i != 0]
     return thicknesses
 
 
@@ -402,20 +411,14 @@ def run_measurement(segmentation, spacing=None):
         # This computes the thickness across each point for both the upper and lower boundary.
         # We then compute statistics over this.
         # Later, we also want to estimate the thickness at certain radii.
-        upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
-        thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
-        max_thickness, min_thickness = thickness.max(), thickness.min()
-        mean_thickness, stdev_thickness = thickness.mean(), thickness.std()
-        measurement["max_thickness"].append(max_thickness)
-        measurement["min_thickness"].append(min_thickness)
-        measurement["mean_thickness"].append(mean_thickness)
-        measurement["stdev_thickness"].append(stdev_thickness)
-
-        thicknesses = _compute_thickness_naive(mask, spacing)
-        measurement["naive_max_thickness"].append(max(thicknesses))
-        measurement["naive_min_thickness"].append(min(thicknesses))
-        measurement["naive_mean_thickness"].append(np.mean(thicknesses))
-        measurement["naive_stdev_thickness"].append(np.std(thicknesses))
+        # NOTE: I have changed the function for calculating the thickness because I seemed to get odd results.
+        # upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
+        # thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
+        thickness = _compute_thickness_per_column(mask, spacing)
+        measurement["max_thickness"].append(max(thickness))
+        measurement["min_thickness"].append(min(thickness))
+        measurement["mean_thickness"].append(np.mean(thickness))
+        measurement["stdev_thickness"].append(np.std(thickness))
 
     measurement = pd.DataFrame(measurement)
     return measurement
