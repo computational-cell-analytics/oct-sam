@@ -2,7 +2,7 @@ import imageio.v3 as imageio
 import napari
 
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts, _filter_prompts
+from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
 
 def test_segmentation_with_sam(image, model_path):
@@ -31,8 +31,7 @@ def test_segmentation_with_sam(image, model_path):
         segmenter._foreground, segmenter._center_distances, segmenter._boundary_distances
 
     prompts = _derive_prompts_sam(foreground, boundary_distances)
-    filtered_prompts = _filter_prompts(prompts)
-    segmentation = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
+    segmentation = _segment_from_prompts(predictor, image, prompts, min_size=150)
 
     v = napari.Viewer()
     v.add_image(image)
@@ -41,7 +40,6 @@ def test_segmentation_with_sam(image, model_path):
     v.add_image(boundary_distances)
     v.add_labels(segmentation)
     v.add_points(prompts)
-    v.add_points(filtered_prompts)
     napari.run()
 
 

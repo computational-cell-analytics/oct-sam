@@ -327,49 +327,6 @@ def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
     return prompts
 
 
-# NOTE: this one filters out valid prompts
-# I have updated derive prompts from SAM instead to only keep prompts
-# in the main mask component.
-def _filter_prompts(
-    prompts,
-    cross_section_dim=0,
-    sigma=1.96,          # ~95% CI
-    min_points=3
-):
-    """Filters prompts by rejecting outliers along the cross-section dimension.
-    Designed for curved but narrow profiles.
-
-    Args:
-        prompts: Coordinates of segmentation prompts.
-        cross_section_dim: Dimension along cross-section of the retina.
-        sigma: Factor for bandwith of filter.
-        min_points: Minimal number of prompts.
-
-    Returns:
-        Filtered prompts.
-    """
-
-    if len(prompts) < min_points:
-        return prompts
-
-    arr = np.asarray(prompts, dtype=np.float32)
-
-    # compute statistics to exclude outliers
-    cs_vals = arr[:, cross_section_dim]
-
-    cs_mean = np.mean(cs_vals)
-    cs_std = np.std(cs_vals)
-
-    lower = cs_mean - sigma * cs_std
-    upper = cs_mean + sigma * cs_std
-
-    # filter outliers
-    mask = (cs_vals >= lower) & (cs_vals <= upper)
-    arr_filt = arr[mask]
-
-    return arr_filt
-
-
 def _segment_from_prompts(predictor, image, prompts, min_size):
     points = prompts[:, None, ::-1]
     labels = np.ones((len(prompts), 1))

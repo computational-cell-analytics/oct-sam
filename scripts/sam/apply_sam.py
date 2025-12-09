@@ -2,27 +2,12 @@ import argparse
 import os
 
 import imageio.v3 as imageio
-from micro_sam.util import get_sam_model
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts
-from util import _derive_prompts, _load_model, fill_gaps_watershed, filter_min_thickness
+from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
+from oct_tools.precompute_segmentation import fill_gaps_watershed, filter_min_thickness
+from oct_tools.segmentation_utils import run_measurement
 from tqdm import tqdm
-
-
-def _precompute_segmentation(images, model_path, sam_model_path, output_folder, postprocess=True):
-    os.makedirs(output_folder, exist_ok=True)
-
-    model = _load_model(model_path)
-    predictor = get_sam_model(model_type="vit_b", checkpoint_path=sam_model_path)
-
-    for i, image in enumerate(images):
-        output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
-        prompts = _derive_prompts(model, image)
-        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
-        if postprocess:
-            seg = _postprocess_segmentation(seg, image)
-        imageio.imwrite(output_path, seg)
 
 
 def _postprocess_segmentation(seg, img, min_thickness=5):
@@ -31,7 +16,9 @@ def _postprocess_segmentation(seg, img, min_thickness=5):
     return seg
 
 
-def _precompute_segmentation_sam(images, sam_model_path, output_folder, postprocess=True):
+def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
+    """Precompute segmentation using micro-sam.
+    """
 
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
 
@@ -40,6 +27,7 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder, postproc
 
     for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+        table_out = os.path.join(output_folder, f"meas_{i:05}.tsv")
 
         # Init the segmenter for this image.
         segmenter.initialize(image, verbose=False)
@@ -50,6 +38,10 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder, postproc
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
         if postprocess:
             seg = _postprocess_segmentation(seg, image)
+
+        tab = run_measurement(seg)
+        tab.to_csv(table_out, sep="\t", index=False)
+
         imageio.imwrite(output_path, seg)
 
 
@@ -58,7 +50,7 @@ def run_annotator(input_path, output_folder, slices, sam_model, precompute_segme
     images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
-        _precompute_segmentation_sam(images, sam_model, output_folder, postprocess=postprocess)
+        _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
     )

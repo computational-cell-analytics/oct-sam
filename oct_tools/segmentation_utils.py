@@ -232,6 +232,17 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     return seg
 
 
+def _compute_thickness_naive(mask, spacing):
+    height, width = mask.shape
+    thicknesses = []
+    for idx in [1]:
+        for x in range(width):
+            col = mask[:, x]
+            seg_mask = (col == idx)
+            thicknesses.append(sum(seg_mask) * spacing[0])
+    return thicknesses
+
+
 def _compute_thickness(mask, spacing):
     boundaries = find_boundaries(mask, mode="outer")
     boundary_components = label(boundaries)
@@ -248,7 +259,7 @@ def _compute_thickness(mask, spacing):
     upper_id, lower_id = two_largest if h1 < h2 else two_largest[::-1]
     upper_mask, lower_mask = boundary_components == upper_id, boundary_components == lower_id
 
-    # TODO spacig in the distance trafos
+    # TODO spacing in the distance trafos
     distance_to_upper = vigra.filters.vectorDistanceTransform(upper_mask.astype("float32"))
     distance_to_upper = np.abs(distance_to_upper[..., 0])
     lower_thickness = distance_to_upper[lower_mask]
@@ -371,6 +382,11 @@ def run_measurement(segmentation, spacing=None):
         "min_thickness": [],
         "mean_thickness": [],
         "stdev_thickness": [],
+
+        "naive_max_thickness": [],
+        "naive_min_thickness": [],
+        "naive_mean_thickness": [],
+        "naive_stdev_thickness": [],
     }
     for prop in props:
         measurement["label_id"].append(prop.label)
@@ -394,6 +410,12 @@ def run_measurement(segmentation, spacing=None):
         measurement["min_thickness"].append(min_thickness)
         measurement["mean_thickness"].append(mean_thickness)
         measurement["stdev_thickness"].append(stdev_thickness)
+
+        thicknesses = _compute_thickness_naive(mask, spacing)
+        measurement["naive_max_thickness"].append(max(thicknesses))
+        measurement["naive_min_thickness"].append(min(thicknesses))
+        measurement["naive_mean_thickness"].append(np.mean(thicknesses))
+        measurement["naive_stdev_thickness"].append(np.std(thicknesses))
 
     measurement = pd.DataFrame(measurement)
     return measurement

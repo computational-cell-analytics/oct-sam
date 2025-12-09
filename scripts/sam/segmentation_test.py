@@ -2,7 +2,7 @@ import imageio.v3 as imageio
 import napari
 
 from micro_sam.util import get_sam_model
-from util import _derive_prompts, _segment_from_prompts, _load_model
+from oct_tools.precompute_segmentation import _derive_prompts, _segment_from_prompts, _load_model
 
 
 def main():

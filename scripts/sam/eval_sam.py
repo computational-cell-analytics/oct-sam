@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from elf.evaluation import matching
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts
+from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
 
 def _segment_image(predictor, segmenter, image, save_path):
@@ -20,9 +20,6 @@ def _segment_image(predictor, segmenter, image, save_path):
     foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
     prompts = _derive_prompts_sam(foreground, boundary_distances)
-    # NOTE: this has filtered valid prompts, so I deactivated it and updated derive_prompts_from_sam
-    # instead in order to filter out prompts away from the retina.
-    # filtered_prompts = _filter_prompts(prompts)
     filtered_prompts = prompts
     seg = _segment_from_prompts(predictor, image, filtered_prompts, min_size=150)
 
