@@ -6,11 +6,11 @@ from micro_sam.util import get_sam_model
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
 from util import _derive_prompts_sam, _segment_from_prompts
-from util import _derive_prompts, _load_model
+from util import _derive_prompts, _load_model, fill_gaps_watershed, filter_min_thickness
 from tqdm import tqdm
 
 
-def _precompute_segmentation(images, model_path, sam_model_path, output_folder):
+def _precompute_segmentation(images, model_path, sam_model_path, output_folder, postprocess=True):
     os.makedirs(output_folder, exist_ok=True)
 
     model = _load_model(model_path)
@@ -20,10 +20,18 @@ def _precompute_segmentation(images, model_path, sam_model_path, output_folder):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
         prompts = _derive_prompts(model, image)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+        if postprocess:
+            seg = _postprocess_segmentation(seg, image)
         imageio.imwrite(output_path, seg)
 
 
-def _precompute_segmentation_sam(images, sam_model_path, output_folder):
+def _postprocess_segmentation(seg, img, min_thickness=5):
+    seg = filter_min_thickness(seg, min_thickness=min_thickness)
+    seg = fill_gaps_watershed(seg, img)
+    return seg
+
+
+def _precompute_segmentation_sam(images, sam_model_path, output_folder, postprocess=True):
 
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
 
@@ -40,15 +48,17 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder):
 
         prompts = _derive_prompts_sam(foreground, boundary_distances)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+        if postprocess:
+            seg = _postprocess_segmentation(seg, image)
         imageio.imwrite(output_path, seg)
 
 
-def run_annotator(input_path, output_folder, slices, sam_model, precompute_segmentation):
+def run_annotator(input_path, output_folder, slices, sam_model, precompute_segmentation, postprocess=True):
     image_vol = imageio.imread(input_path)
     images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
-        _precompute_segmentation_sam(images, sam_model, output_folder)
+        _precompute_segmentation_sam(images, sam_model, output_folder, postprocess=postprocess)
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
     )
@@ -64,6 +74,7 @@ def main():
     parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data model.")
     parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from micro-sam prediction.")
+
     args = parser.parse_args()
 
     run_annotator(
