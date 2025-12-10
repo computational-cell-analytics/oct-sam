@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 
 from elf.evaluation import matching
+from elf.evaluation.dice import symmetric_best_dice_score
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
@@ -55,10 +56,12 @@ def eval_model_sam(input_dir, model_path, save_folder=None, view=False, postproc
         filtered_prompts.append(this_filtered_prompts)
 
     precisions, recalls, f1s = [], [], []
+    symm_dice_scores = []
     for i, (image, label, seg) in enumerate(zip(images, labels, segmentations)):
         path = h5_paths[i]
         fname = os.path.basename(path)
         metrics = matching(seg, label)
+        symm_dice = symmetric_best_dice_score(seg, label)
 
         msg = f"Image {fname}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1']:.3f}"
         if view:
@@ -77,13 +80,17 @@ def eval_model_sam(input_dir, model_path, save_folder=None, view=False, postproc
         precisions.append(metrics["precision"])
         recalls.append(metrics["recall"])
         f1s.append(metrics["f1"])
+        symm_dice_scores.append(symm_dice)
 
     precision = np.round(np.mean(precisions), 3)
     recall = np.round(np.mean(recalls), 3)
     f1 = np.round(np.mean(f1s), 3)
+    symm_dice_score = np.round(np.mean(symm_dice_scores), 3)
+
     print("Overall precision:", precision)
     print("Overall recall:", recall)
-    print("Overall f1-sore:", f1)
+    print("Overall f1-score:", f1)
+    print("Overall symm-dice:", symm_dice_score)
 
 
 def main():

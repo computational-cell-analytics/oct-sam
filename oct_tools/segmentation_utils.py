@@ -1,6 +1,6 @@
 import os
 from collections import deque
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import imageio.v3 as imageio
 import networkx as nx
@@ -10,7 +10,7 @@ import torch
 import vigra
 
 from tqdm import tqdm
-from unet import UNet2d
+from .unet import UNet2d
 from skimage.measure import regionprops, label
 from skimage.morphology import skeletonize
 from skimage.segmentation import find_boundaries
@@ -232,13 +232,18 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     return seg
 
 
-def _compute_thickness_per_column(mask, spacing, exclude_zeros=False):
+def _compute_thickness_per_column(
+    mask: np.ndarray,
+    spacing: Tuple[float],
+) -> List[float]:
     """Compute thickness values per column for segmentation mask.
 
     Args:
         mask: Binary segmentation mask.
         spacing: Pixel spacing.
-        exclude_zeros: Calculate thickness only for columns in which segmentation is present.
+
+    Returns:
+        List of thicknesses per column. Only shows values if segmentation mask is present in a column.
     """
     height, width = mask.shape
     thicknesses = []
@@ -247,8 +252,7 @@ def _compute_thickness_per_column(mask, spacing, exclude_zeros=False):
             col = mask[:, x]
             seg_mask = (col == idx)
             thicknesses.append(sum(seg_mask) * spacing[0])
-    if exclude_zeros:
-        thicknesses = [i for i in thicknesses if i != 0]
+
     return thicknesses
 
 
@@ -378,7 +382,19 @@ def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
     return float(length)
 
 
-def run_measurement(segmentation, spacing=None):
+def run_measurement(
+    segmentation: np.ndarray,
+    spacing: Optional[Tuple[float]] = None,
+) -> pd.DataFrame:
+    """Calculate measurements for OCT tailored metrics.
+
+    Args:
+        segmentation: 2D OCT segmentation.
+        spacing: Voxel size.
+
+    Returns:
+        Measurement values as dataframe.
+    """
     if spacing is None:
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in millimeter.
 
@@ -391,11 +407,6 @@ def run_measurement(segmentation, spacing=None):
         "min_thickness": [],
         "mean_thickness": [],
         "stdev_thickness": [],
-
-        "naive_max_thickness": [],
-        "naive_min_thickness": [],
-        "naive_mean_thickness": [],
-        "naive_stdev_thickness": [],
     }
     for prop in props:
         measurement["label_id"].append(prop.label)
