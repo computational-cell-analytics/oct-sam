@@ -1,37 +1,22 @@
 import argparse
 import os
+from typing import List
 
+import h5py
 import imageio.v3 as imageio
-from micro_sam.util import get_sam_model
+import numpy as np
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
-from util import _derive_prompts_sam, _segment_from_prompts
-from util import _derive_prompts, _load_model, fill_gaps_watershed, filter_min_thickness
 from tqdm import tqdm
 
-
-def _precompute_segmentation(images, model_path, sam_model_path, output_folder, postprocess=True):
-    os.makedirs(output_folder, exist_ok=True)
-
-    model = _load_model(model_path)
-    predictor = get_sam_model(model_type="vit_b", checkpoint_path=sam_model_path)
-
-    for i, image in enumerate(images):
-        output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
-        prompts = _derive_prompts(model, image)
-        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
-        if postprocess:
-            seg = _postprocess_segmentation(seg, image)
-        imageio.imwrite(output_path, seg)
+from oct_tools.postprocessing import postprocess_segmentation
+from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
+from oct_tools.segmentation_utils import run_measurement
 
 
-def _postprocess_segmentation(seg, img, min_thickness=5):
-    seg = filter_min_thickness(seg, min_thickness=min_thickness)
-    seg = fill_gaps_watershed(seg, img)
-    return seg
-
-
-def _precompute_segmentation_sam(images, sam_model_path, output_folder, postprocess=True):
+def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
+    """Precompute segmentation using micro-sam.
+    """
 
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
 
@@ -40,6 +25,7 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder, postproc
 
     for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+        table_out = os.path.join(output_folder, f"meas_{i:05}.tsv")
 
         # Init the segmenter for this image.
         segmenter.initialize(image, verbose=False)
@@ -49,16 +35,42 @@ def _precompute_segmentation_sam(images, sam_model_path, output_folder, postproc
         prompts = _derive_prompts_sam(foreground, boundary_distances)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
         if postprocess:
-            seg = _postprocess_segmentation(seg, image)
+            seg = postprocess_segmentation(seg, image)
+
+        tab = run_measurement(seg)
+        tab.to_csv(table_out, sep="\t", index=False)
+
         imageio.imwrite(output_path, seg)
 
 
-def run_annotator(input_path, output_folder, slices, sam_model, precompute_segmentation, postprocess=True):
-    image_vol = imageio.imread(input_path)
-    images = [image_vol[z] for z in slices]
+def run_annotator(
+    input_path: str,
+    output_folder: str,
+    slices: List[int],
+    sam_model: str,
+    precompute_segmentation: bool,
+    postprocess: bool = True,
+):
+    """Run annotator for a single or multiple slices of input data.
+    A pre-computed segmentation can be used as an initial starting point.
+
+    Args:
+        input_path: Image data in TIF or H5 format.
+        output_folder: Output folder for pre-computed segmentation.
+        slices: Single or multiple slices of TIF data.
+        sam_model: File path to micro-sam model.
+        precompute_segmentation: Pre-compute micro-sam segmentation using micro-sam prompts.
+        postprocess: Optional post-processing, e.g. removing thin lines, filling gaps in segmentation.
+    """
+    if ".h5" in input_path:
+        images = [np.array(h5py.File(input_path, "r")["image"])]
+
+    else:
+        image_vol = imageio.imread(input_path)
+        images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
-        _precompute_segmentation_sam(images, sam_model, output_folder, postprocess=postprocess)
+        _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
     )

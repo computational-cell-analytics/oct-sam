@@ -10,8 +10,8 @@ import vigra
 from skimage.measure import label
 from skimage.segmentation import watershed
 from napari.utils.notifications import show_info, show_warning
-from util import load_volume, run_prediction, run_measurement
-from util import normalize_sliding_max_2d, merge_overseg
+from oct_tools.segmentation_utils import load_volume, run_prediction, run_measurement
+from oct_tools.segmentation_utils import normalize_sliding_max_2d, merge_overseg
 
 
 def _run_segmentation(prediction, merge, seed_threshold):

@@ -4,7 +4,7 @@ import imageio.v3 as imageio
 import napari
 
 from segmentation_tool_v2 import _run_segmentation
-from util import run_measurement
+from oct_tools.segmentation_utils import run_measurement
 
 z = 10
 

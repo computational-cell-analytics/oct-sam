@@ -1,6 +1,6 @@
 import os
 from collections import deque
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import imageio.v3 as imageio
 import networkx as nx
@@ -10,7 +10,7 @@ import torch
 import vigra
 
 from tqdm import tqdm
-from unet import UNet2d
+from .unet import UNet2d
 from skimage.measure import regionprops, label
 from skimage.morphology import skeletonize
 from skimage.segmentation import find_boundaries
@@ -232,6 +232,30 @@ def merge_overseg(labels, directed_dist, beta=0.5):
     return seg
 
 
+def _compute_thickness_per_column(
+    mask: np.ndarray,
+    spacing: Tuple[float],
+) -> List[float]:
+    """Compute thickness values per column for segmentation mask.
+
+    Args:
+        mask: Binary segmentation mask.
+        spacing: Pixel spacing.
+
+    Returns:
+        List of thicknesses per column. Only shows values if segmentation mask is present in a column.
+    """
+    height, width = mask.shape
+    thicknesses = []
+    for idx in [1]:
+        for x in range(width):
+            col = mask[:, x]
+            seg_mask = (col == idx)
+            thicknesses.append(sum(seg_mask) * spacing[0])
+
+    return thicknesses
+
+
 def _compute_thickness(mask, spacing):
     boundaries = find_boundaries(mask, mode="outer")
     boundary_components = label(boundaries)
@@ -248,7 +272,7 @@ def _compute_thickness(mask, spacing):
     upper_id, lower_id = two_largest if h1 < h2 else two_largest[::-1]
     upper_mask, lower_mask = boundary_components == upper_id, boundary_components == lower_id
 
-    # TODO spacig in the distance trafos
+    # TODO spacing in the distance trafos
     distance_to_upper = vigra.filters.vectorDistanceTransform(upper_mask.astype("float32"))
     distance_to_upper = np.abs(distance_to_upper[..., 0])
     lower_thickness = distance_to_upper[lower_mask]
@@ -358,7 +382,19 @@ def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
     return float(length)
 
 
-def run_measurement(segmentation, spacing=None):
+def run_measurement(
+    segmentation: np.ndarray,
+    spacing: Optional[Tuple[float]] = None,
+) -> pd.DataFrame:
+    """Calculate measurements for OCT tailored metrics.
+
+    Args:
+        segmentation: 2D OCT segmentation.
+        spacing: Voxel size.
+
+    Returns:
+        Measurement values as dataframe.
+    """
     if spacing is None:
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in millimeter.
 
@@ -386,14 +422,14 @@ def run_measurement(segmentation, spacing=None):
         # This computes the thickness across each point for both the upper and lower boundary.
         # We then compute statistics over this.
         # Later, we also want to estimate the thickness at certain radii.
-        upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
-        thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
-        max_thickness, min_thickness = thickness.max(), thickness.min()
-        mean_thickness, stdev_thickness = thickness.mean(), thickness.std()
-        measurement["max_thickness"].append(max_thickness)
-        measurement["min_thickness"].append(min_thickness)
-        measurement["mean_thickness"].append(mean_thickness)
-        measurement["stdev_thickness"].append(stdev_thickness)
+        # NOTE: I have changed the function for calculating the thickness because I seemed to get odd results.
+        # upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
+        # thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
+        thickness = _compute_thickness_per_column(mask, spacing)
+        measurement["max_thickness"].append(max(thickness))
+        measurement["min_thickness"].append(min(thickness))
+        measurement["mean_thickness"].append(np.mean(thickness))
+        measurement["stdev_thickness"].append(np.std(thickness))
 
     measurement = pd.DataFrame(measurement)
     return measurement

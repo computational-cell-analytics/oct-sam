@@ -6,7 +6,7 @@ import vigra
 from skimage.measure import label
 from skimage.segmentation import watershed
 
-from util import normalize_sliding_max_2d, merge_overseg
+from oct_tools.segmentation_utils import normalize_sliding_max_2d, merge_overseg
 
 
 z = 10
