@@ -1,6 +1,7 @@
 import argparse
 from typing import List
 
+import h5py
 import imageio.v3 as imageio
 import numpy as np
 
@@ -18,7 +19,10 @@ def calculate_metrics(
         input_path: File path to 2D segmentation of OCT data.
         output_path: File path to save metrics as table in TSV format.
     """
-    seg = imageio.imread(input_path)
+    if ".h5" in input_path:
+        seg = np.array(h5py.File(input_path, "r")["labels"]["original"])
+    else:
+        seg = imageio.imread(input_path)
     if len(voxel_size) == 1:
         voxel_size = voxel_size * 2
     voxel_size = np.array(voxel_size)[::-1]
