@@ -29,7 +29,7 @@ All the preprocessed pre-training data is located at:
 The following scripts are relevant:
 - `scripts/training/finetune_medicosam.py`: For fine-tuning a SAM model for interactive segmentation.
 - `scripts/training/training_distances.py`: For training a U-Net for foreground and distance prediction.
-- `scripts/run_segmentation_interactive.py`: For automatic and interactive segmentation.
+- `run_segmentation_interactive.py`: For automatic and interactive segmentation.
     - Automatic segmentation is based on deriving prompts from the micro-sam predictions and then segmenting the layers with the fine-tuned SAM model based on these prompts.
 - `scripts/calculate_metrics.py`: For calculating metrics for a segmentation.
 
