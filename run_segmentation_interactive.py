@@ -1,13 +1,17 @@
 import argparse
 import os
+from typing import List
 
+import h5py
 import imageio.v3 as imageio
+import numpy as np
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from tqdm import tqdm
+
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.segmentation_utils import run_measurement
-from tqdm import tqdm
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
@@ -39,9 +43,31 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
         imageio.imwrite(output_path, seg)
 
 
-def run_annotator(input_path, output_folder, slices, sam_model, precompute_segmentation, postprocess=True):
-    image_vol = imageio.imread(input_path)
-    images = [image_vol[z] for z in slices]
+def run_annotator(
+    input_path: str,
+    output_folder: str,
+    slices: List[int],
+    sam_model: str,
+    precompute_segmentation: bool,
+    postprocess: bool = True,
+):
+    """Run annotator for a single or multiple slices of input data.
+    A pre-computed segmentation can be used as an initial starting point.
+
+    Args:
+        input_path: Image data in TIF or H5 format.
+        output_folder: Output folder for pre-computed segmentation.
+        slices: Single or multiple slices of TIF data.
+        sam_model: File path to micro-sam model.
+        precompute_segmentation: Pre-compute micro-sam segmentation using micro-sam prompts.
+        postprocess: Optional post-processing, e.g. removing thin lines, filling gaps in segmentation.
+    """
+    if ".h5" in input_path:
+        images = [np.array(h5py.File(input_path, "r")["image"])]
+
+    else:
+        image_vol = imageio.imread(input_path)
+        images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
         _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)

@@ -64,6 +64,7 @@ def eval_model_sam(input_dir, model_path, save_folder=None, view=False, postproc
         symm_dice = symmetric_best_dice_score(seg, label)
 
         msg = f"Image {fname}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1']:.3f}"
+        msg += f", DICE={symm_dice:.3f}"
         if view:
             point_prompts = prompts[i]
             filtered_point_prompts = filtered_prompts[i]

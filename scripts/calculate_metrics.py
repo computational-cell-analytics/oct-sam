@@ -23,7 +23,10 @@ def calculate_metrics(
         voxel_size = voxel_size * 2
     voxel_size = np.array(voxel_size)[::-1]
     tab = run_measurement(seg, spacing=voxel_size)
-    tab.to_csv(output_path, sep="\t", index=False)
+    if ".tsv" in output_path:
+        tab.to_csv(output_path, sep="\t", index=False)
+    elif ".xlsx" in output_path:
+        tab.to_excel(output_path, index=False)
 
 
 def main():
@@ -31,7 +34,8 @@ def main():
         description="Calculate oct-metrics for 2D segmentation."
     )
     parser.add_argument("-i", "--input", required=True, help="Input segmentation.")
-    parser.add_argument("-o", "--output", required=True, help="Output table.")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output path. Supports 'tsv' and 'xlsx' as file extensions.")
     parser.add_argument("-v", "--voxel_size", type=float, nargs="+",
                         default=[0.0038716697599738836, 0.0056914291344583035],
                         help="Voxel size of input in millimeter.")
