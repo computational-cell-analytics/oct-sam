@@ -21,8 +21,8 @@ except ImportError:
     ep = None
 
 # This is the informaiton about the voxel / pixel size extracted from one
-# tomogram in eyepy. The unit is millimeteter. This has to be double checked!
-VOXEL_SIZE = (0.12141720950603485, 0.0038716697599738836, 0.0056914291344583035)
+# tomogram in eyepy. The unit is micrometer. This has to be double checked!
+VOXEL_SIZE = (121.41720950603485, 3.8716697599738836, 5.6914291344583035)
 
 
 def standardize(raw: np.ndarray, eps: float = 1e-7) -> np.ndarray:
@@ -396,7 +396,7 @@ def run_measurement(
         Measurement values as dataframe.
     """
     if spacing is None:
-        spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in millimeter.
+        spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
 
     props = regionprops(segmentation, spacing=spacing)
     measurement = {
