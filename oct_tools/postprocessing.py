@@ -242,7 +242,7 @@ def next_horizontal(
         if check_id == sid:
             continue
         if (stats[check_id]["ymax"] + margin > stats[sid]["ymin"] and
-            stats[check_id]["ymax"] < margin + stats[sid]["ymin"]):
+                stats[check_id]["ymax"] < margin + stats[sid]["ymin"]):
             return sid
     return None
 
@@ -361,19 +361,65 @@ def merge_segmentation_horizontally(
 def postprocess_segmentation(
     seg: np.ndarray,
     img: np.ndarray,
-    postprocessing_methods: List[str] = ["merge_horizontal", "filter_min_thickness"],
+    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     min_thickness: int = 5,
     matching_method: str = "offset",
 ) -> np.ndarray:
-    if "merge_horizontal" in postprocessing_methods:
-        print(f"Merging IDs horizontally based on the matching method: {matching_method}.")
-        seg = merge_segmentation_horizontally(seg, matching_method=matching_method)
-    if "filter_min_thickness" in postprocessing_methods:
-        print(f"Filtering layers with maximal thickness less than {min_thickness}.")
-        seg = filter_min_thickness(seg, min_thickness=min_thickness)
-    if "fill_gaps" in postprocessing_methods:
-        print("Filling gaps between layers using watershed.")
-        seg = fill_gaps_watershed(seg, img)
+    """Post-process segmentation iteratively with multiple functions.
+    The order and selection of the functions are determined by the parameter "postprocess_functions".
+    "merge_horizontal": Merge disconnected segmentation instances along horizontal layers.
+    "filter_thin": Filter segmentation instances which are thinner than a given minimal pixel value.
+    "fill_gaps": Fill gaps within holes not connected to the upper or lower background via watershed.
+
+    Args:
+        seg: Segmentation.
+        img: Image.
+        postprocessing_functions: List of functions. Post-processing will be performed in the given order.
+        min_thickness: Minimal thickness of layers for "filter_thin"-method.
+        matching_method: Method for matching disconnected segmentation IDs for "merge_horizontal"-method.
+            Either "offset" or "y_position".
+
+    Returns:
+        Post-processed segmentation.
+    """
+    # Define the mapping of postprocessing methods to their corresponding functions and parameters
+    method_map = {
+        "merge_horizontal": {
+            "func": merge_segmentation_horizontally,
+            "requires_img": False,
+            "params": {"matching_method": matching_method}
+        },
+        "filter_thin": {
+            "func": filter_min_thickness,
+            "requires_img": False,
+            "params": {"min_thickness": min_thickness}
+        },
+        "fill_gaps": {
+            "func": fill_gaps_watershed,
+            "requires_img": True,
+            "params": {}
+        }
+        # Add new methods here as needed
+    }
+
+    for method in postprocess_functions:
+        if method in method_map:
+            method_config = method_map[method]
+            func = method_config["func"]
+            requires_img = method_config["requires_img"]
+            params = method_config["params"]
+
+            # Print a message for logging
+            print(f"Applying postprocessing method: {method}")
+
+            # Call the function with the appropriate arguments
+            if requires_img:
+                seg = func(seg, img, **params)
+            else:
+                seg = func(seg, **params)
+        else:
+            print(f"Warning: Unknown postprocessing method '{method}'")
+
     return seg
 
 
