@@ -15,7 +15,7 @@ from oct_tools.segmentation_utils import run_measurement
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
-    """Precompute segmentation using micro-sam.
+    """Precompute segmentation using SAM.
     """
 
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
@@ -58,8 +58,8 @@ def run_annotator(
         input_path: Image data in TIF or H5 format.
         output_folder: Output folder for pre-computed segmentation.
         slices: Single or multiple slices of TIF data.
-        sam_model: File path to micro-sam model.
-        precompute_segmentation: Pre-compute micro-sam segmentation using micro-sam prompts.
+        sam_model: File path to SAM model.
+        precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
         postprocess: Optional post-processing, e.g. removing thin lines, filling gaps in segmentation.
     """
     if ".h5" in input_path:
@@ -78,14 +78,14 @@ def run_annotator(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Apply micro-sam model on a single or multiple slices of input data."
+        description="Apply SAM model on a single or multiple slices of input data."
     )
     parser.add_argument("-i", "--input", required=True, help="Input image.")
     parser.add_argument("-o", "--output", required=True, help="Output folder.")
     parser.add_argument("-z", "--slices", nargs="+", type=int, required=True, help="Slice(s) in z-direction.")
     parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data model.")
     parser.add_argument("--precompute_segmentation", action="store_true",
-                        help="Pre-compute segmentation using prompts derived from micro-sam prediction.")
+                        help="Pre-compute segmentation using prompts derived from SAM prediction.")
 
     args = parser.parse_args()
 
