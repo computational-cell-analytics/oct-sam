@@ -1,16 +1,24 @@
+from typing import List, Optional, Tuple
+
 import numpy as np
-from skimage.measure import label
-from skimage.measure import regionprops
+from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
 
 
-def get_instance_stats(mask):
-    """
-    Returns a dict:
-      id -> {
-          'xmin', 'xmax', 'ymin', 'ymax', 'xc', 'yc',
-          'height', 'width', 'coords', 'area'
-      }
+def get_instance_stats(
+    mask: np.ndarray,
+) -> dict:
+    """ Creates a dictionary with measurements for a segmentation mask.
+
+    Args:
+        mask: Segmentation labels.
+
+    Returns:
+        Dictionary for every index:
+            id -> {
+                'xmin', 'xmax', 'ymin', 'ymax', 'xc', 'yc',
+                'height', 'width', 'coords', 'area'
+            }
     """
     props = regionprops(mask)
     stats = {}
@@ -30,7 +38,22 @@ def get_instance_stats(mask):
     return stats
 
 
-def find_anchor_segments(stats, width, tolerance=0.05):
+def find_anchor_segments(
+    stats: dict,
+    width: int,
+    tolerance: float = 0.05,
+) -> List[int]:
+    """Find segmentation instances, which span the whole y-dimension.
+    These are referred to as "anchors" and act as references to other segmentation IDs
+    which may be broken and could be merged.
+
+    Args:
+        stats: Measurements for each segmentation id.
+        width: Width of segmentation.
+        tolerance: Margin of error for segmentations which do not span the whole length.
+
+    Returns:
+    """
     anchors = []
     full_ymax = width - 1
     margin = tolerance * width
@@ -43,13 +66,69 @@ def find_anchor_segments(stats, width, tolerance=0.05):
     return anchors
 
 
-def order_ids(seg, anchors):
+def most_frequent_index(lst: List[int]) -> int:
+    """Return the most frequent index in a list.
+
+    Args:
+        lst: List containing integers.
+
+    Returns:
+        Most frequent element of list.
+    """
+    counts = {}
+    for num in lst:
+        counts[num] = counts.get(num, 0) + 1
+    if not counts:
+        return None
+    return max(counts, key=counts.get)
+
+
+def order_ids_for_offset(
+    ids: List[int],
+    offset_dic: dict,
+) -> dict:
+    """Order indexes of (potentially) broken segmentation instances according to their offset.
+    The offset dictionary is given for a specific anchor.
+
+    Args:
+        ids: List of indexes for a group of segmentation instances.
+    """
+    order_dic = {}
+    for idx in ids:
+        offset = offset_dic[idx]
+        if offset in list(order_dic.keys()):
+            order_dic[offset].append(idx)
+        else:
+            order_dic[offset] = [idx]
+    return order_dic
+
+
+def group_ids_into_layers(
+    seg: np.ndarray,
+    anchors: List[int],
+) -> dict:
+    """Group segmentation IDs into different layers.
+    The division into groups is based on the position in x-dimension
+    relative to the anchor layers.
+    1) Create dictionary assigning offset of other IDs in relation to anchor layers.
+    2) Take most frequent offset value.
+    3) Order IDs from top to bottom into layers.
+    4) Re-assign keys and remove empty layers.
+    5) Group IDs with same offset into nested lists.
+
+    Args:
+        seg: Segmentation.
+        anchors: List of IDs of "anchor" segmentation instances which cover the whole y-dimension.
+
+    Returns:
+        Dictionary of filtered segments.
+    """
     height, width = seg.shape
     id_relations = {}
     for a in anchors:
-        id_relations[f"below_{a}"] = []
-        id_relations[f"above_{a}"] = []
+        id_relations[a] = {}
 
+    # 1) Assign offset to other indexes based on relation to anchor layers.
     for x in range(width):
         col = seg[:, x]
         col = list(dict.fromkeys(list(col)))
@@ -60,47 +139,103 @@ def order_ids(seg, anchors):
             else:
                 for a in anchors:
                     if a in col_ids:
-                        if col_ids.index(idx) > col_ids.index(a):
-                            id_relations[f"below_{a}"].append(idx)
+                        offset = col_ids.index(idx) - col_ids.index(a)
+                        if idx in list(id_relations[a].keys()):
+                            id_relations[a][idx].append(offset)
                         else:
-                            id_relations[f"above_{a}"].append(idx)
+                            id_relations[a][idx] = [offset]
 
+    # 2) Set most frequent offset as value.
     for a in anchors:
-        id_relations[f"below_{a}"] = list(dict.fromkeys(id_relations[f"below_{a}"]))
-        id_relations[f"above_{a}"] = list(dict.fromkeys(id_relations[f"above_{a}"]))
+        for key in id_relations[a].keys():
+            id_relations[a][key] = most_frequent_index(id_relations[a][key])
 
-    # order relations into segments
+    # 3) Order IDs into layers.
     id_segments = {}
     for i in range(2 * len(anchors) + 1):
         id_segments[i] = []
-        # anchor
+        # anchor layer
         if i % 2 == 1:
             id_segments[i] = [anchors[i // 2]]
 
-        # before first anchor
+        # before first anchor layer
         elif i == 0:
-            id_segments[0] = id_relations[f"above_{anchors[0]}"]
+            id_segments[0] = [k for k in id_relations[anchors[0]].keys() if id_relations[anchors[0]][k] < 0]
 
-        # after last anchor
+        # after last anchor layer
         elif i == 2 * len(anchors):
-            id_segments[i] = id_relations[f"below_{anchors[-1]}"]
+            id_segments[i] = [k for k in id_relations[anchors[-1]].keys() if id_relations[anchors[-1]][k] > 0]
 
+        # between two anchor layers
         else:
             anchor_above = anchors[(i - 1) // 2]
             anchor_below = anchors[(i + 1) // 2]
-            id_segments[i] = list(set(id_relations[f"above_{anchor_below}"]).intersection(set(id_relations[f"below_{anchor_above}"])))
+            ids_below_upper = [k for k in id_relations[anchor_above].keys() if id_relations[anchor_above][k] > 0]
+            ids_above_lower = [k for k in id_relations[anchor_below].keys() if id_relations[anchor_below][k] < 0]
+            id_segments[i] = list(set(ids_above_lower).intersection(set(ids_below_upper)))
 
-    filtered_segments = {}
+    # 4) Re-assign keys and remove empty layers.
+    filtered_layers = {}
     count = 0
     for stage, ids in id_segments.items():
         if len(ids) != 0:
-            filtered_segments[count] = ids
+            filtered_layers[count] = ids
             count += 1
 
-    return filtered_segments
+    # 5) Group IDs with same offset into nested lists.
+    for (key, ids) in filtered_layers.items():
+        if len(ids) > 1:
+            order_dic = order_ids_for_offset(ids, id_relations[anchors[0]])
+            ordered_list = [order_dic[k] for k in order_dic.keys()]
+            filtered_layers[key] = ordered_list
+
+    return filtered_layers
 
 
-def next_horizontal(check_id, ids_sorted, stats, margin=25):
+def flatten_layer_dic(layer_dic: dict) -> List[List[int]]:
+    """Flatten dictionary containing layers with IDs.
+    Nested lists will be individual groups.
+
+    Args:
+        layer_dic: Dictionary containing IDs for different layers.
+
+    Returns:
+
+    :param segment_dic: Description
+    :type segment_dic: dict
+    :return: Description
+    :rtype: List[List[int]]
+    """
+    group_ids = []
+    for key, seg_group in layer_dic.items():
+        if len(seg_group) == 1:
+            if isinstance(seg_group[0], list):
+                group_ids.extend(seg_group)
+            else:
+                group_ids.append(seg_group)
+        else:
+            for group in seg_group:
+                group_ids.append(group)
+    return group_ids
+
+
+def next_horizontal(
+    check_id: int,
+    ids_sorted: List[int],
+    stats: dict,
+    margin: int = 10,
+) -> Optional[int]:
+    """Identify next horizontal ID by checking position in y-dimension.
+
+    Args:
+        check_id: Segmentation ID to be matched.
+        ids_sorted: List of IDs sorted by central y-position.
+        stats: Measurement dictionary for segmentation IDs.
+        margin: Margin in pixels for overlap.
+
+    Returns:
+        ID of matched segmentation.
+    """
     if len(ids_sorted) == 1:
         return None
     for sid in ids_sorted:
@@ -112,23 +247,35 @@ def next_horizontal(check_id, ids_sorted, stats, margin=25):
     return None
 
 
-def find_matches(segment_dic, stats, horizontal_margin=25):
+def match_layers_horizontally(
+    layer_dic: dict,
+    stats: dict,
+) -> List[List[int]]:
+    """Match segmentation IDs within a layer based on horizontal position.
+
+    Args:
+        layer_dic: Dictionary containing segmentation IDs. Keys represent the order from top to bottom.
+        stats: Measurements for segmentation IDs.
+
+    Returns:
+        Nested list for grouped IDs. All segmentation instances for IDs within a nested list will be combined.
+    """
     group_ids = []
-    for key, seg_ids in segment_dic.items():
-        if len(seg_ids) == 1:
-            group_ids.append(seg_ids)
-        elif len(seg_ids) > 1:
+    for key, seg_group in layer_dic.items():
+        if len(seg_group) == 1 and not isinstance(seg_group[0], list):
+            group_ids.append(seg_group)
+        elif len(seg_group) != 0:
+            seg_ids = [x for xs in seg_group for x in xs]
             yc = [stats[sid]["yc"] for sid in seg_ids]
             yc, ids_sorted = zip(*sorted(zip(yc, seg_ids)))
             ids_sorted = list(ids_sorted)
-            print(ids_sorted)
             ids_unmatched = ids_sorted.copy()
             for idx in ids_sorted:
                 chain = []
                 start_id = idx
                 while start_id is not None:
                     chain.append(start_id)
-                    next_id = next_horizontal(start_id, ids_unmatched, stats, margin=horizontal_margin)
+                    next_id = next_horizontal(start_id, ids_unmatched, stats)
                     if next_id is not None:
                         ids_unmatched.remove(start_id)
                     elif len(chain) > 1:
@@ -144,7 +291,23 @@ def find_matches(segment_dic, stats, horizontal_margin=25):
     return group_ids
 
 
-def combine_matched_ids(seg, group_ids, stats):
+def combine_grouped_ids(
+    seg: np.ndarray,
+    group_ids: List[List[int]],
+    stats: dict,
+) -> Tuple[np.ndarray, List[List[int]]]:
+    """Combine grouped IDs to have the same segmentation ID.
+    The segmentation ID of the largest component is kept.
+
+    Args:
+        seg: Segmentation.
+        group_ids: List of segmentation IDs.
+        stats: Measurements for segmentation IDs.
+
+    Returns:
+        Segmentation with combined instances.
+        Grouped IDs with updated IDs after merging.
+    """
     for num, gr in enumerate(group_ids):
         if len(gr) > 1:
             areas = [stats[sid]["area"] for sid in gr]
@@ -155,25 +318,62 @@ def combine_matched_ids(seg, group_ids, stats):
     return seg, group_ids
 
 
-def combine_horizontal(seg, tolerance=0.05):
+def merge_segmentation_horizontally(
+    seg: np.ndarray,
+    anchor_tolerance: float = 0.05,
+    matching_method: str = "offset",
+) -> np.ndarray:
+    """Check segmentation IDs for disconnected instances.
+    Combine multiple instances in the same horizontal layer.
+
+    Args:
+        seg: Input segmentation.
+        anchor_tolerance: Tolerance for the length of anchor layers, which span the entire y-dimension.
+        matching_method: Method for matching disconnected segmentation IDs. Either "offset" or "y_position".
+
+    Returns:
+        Segmentation with combined IDs.
+    """
     h, w = seg.shape
 
     stats = get_instance_stats(seg)
-
     ids = np.unique(seg)
     ids = ids[ids != 0]  # remove background
     anchors = []
-    anchors = find_anchor_segments(stats, w, tolerance=tolerance)
-    dic = order_ids(seg, anchors)
-    group_ids = find_matches(dic, stats)
-    seg, group_ids = combine_matched_ids(seg, group_ids, stats)
+    anchors = find_anchor_segments(stats, w, tolerance=anchor_tolerance)
+    if len(anchors) == 0:
+        print("Could not find any anchor layer. Skipping horizontal merging.")
+        return seg
+
+    layer_dic = group_ids_into_layers(seg, anchors)
+
+    if matching_method == "y_position":
+        group_ids = match_layers_horizontally(layer_dic, stats)
+    elif matching_method == "offset":
+        group_ids = flatten_layer_dic(layer_dic)
+    else:
+        raise ValueError("Choose either 'offset' or 'y_position' as matching_method.")
+
+    seg, group_ids = combine_grouped_ids(seg, group_ids, stats)
     return seg
 
 
-def postprocess_segmentation(seg, img, min_thickness=5):
-    seg = filter_min_thickness(seg, min_thickness=min_thickness)
-    # seg = combine_horizontal(seg)
-    seg = fill_gaps_watershed(seg, img)
+def postprocess_segmentation(
+    seg: np.ndarray,
+    img: np.ndarray,
+    postprocessing_methods: List[str] = ["merge_horizontal", "filter_min_thickness"],
+    min_thickness: int = 5,
+    matching_method: str = "offset",
+) -> np.ndarray:
+    if "merge_horizontal" in postprocessing_methods:
+        print(f"Merging IDs horizontally based on the matching method: {matching_method}.")
+        seg = merge_segmentation_horizontally(seg, matching_method=matching_method)
+    if "filter_min_thickness" in postprocessing_methods:
+        print(f"Filtering layers with maximal thickness less than {min_thickness}.")
+        seg = filter_min_thickness(seg, min_thickness=min_thickness)
+    if "fill_gaps" in postprocessing_methods:
+        print("Filling gaps between layers using watershed.")
+        seg = fill_gaps_watershed(seg, img)
     return seg
 
 
