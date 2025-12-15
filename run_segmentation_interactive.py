@@ -71,6 +71,8 @@ def run_annotator(
 
     if precompute_segmentation:
         _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
+    # TODO add Napari widget for saving measurements after annotation
+    # use run_measurement(seg) and obtain the viewer from the function
     image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False
     )
