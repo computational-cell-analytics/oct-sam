@@ -51,7 +51,10 @@ def overlap_matrix(boxes):
 def calculate_ious_between_pred_masks(masks, boxes, diagonal_value=1):
     masks = (
         masks.detach() if isinstance(masks, torch.Tensor) else torch.tensor(masks)
-    )
+    ).cpu()
+    boxes = (
+        boxes.detach() if isinstance(boxes, torch.Tensor) else torch.tensor(boxes)
+    ).cpu()
     n_points = masks.shape[0]
     m = torch.zeros((n_points, n_points))
 
@@ -255,7 +258,8 @@ def _segment_from_prompts(predictor, image, prompts, min_size):
     points = prompts[:, None, ::-1]
     labels = np.ones((len(prompts), 1))
     predictions = batched_inference(
-        predictor, image, batch_size=16, points=points, point_labels=labels, return_instance_segmentation=False
+        predictor, image, batch_size=16, points=points, point_labels=labels, return_instance_segmentation=False,
+        verbose_embeddings=False,
     )
     segmentation = apply_nms(predictions, image.shape, min_size=min_size, perform_box_nms=False)
     return segmentation
