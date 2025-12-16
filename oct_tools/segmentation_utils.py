@@ -385,12 +385,14 @@ def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
 def run_measurement(
     segmentation: np.ndarray,
     spacing: Optional[Tuple[float]] = None,
+    extra_columns: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Calculate measurements for OCT tailored metrics.
 
     Args:
         segmentation: 2D OCT segmentation.
         spacing: Voxel size.
+        extra_columns: Additional columns to store with the dataset.
 
     Returns:
         Measurement values as dataframe.
@@ -432,4 +434,6 @@ def run_measurement(
         measurement["stdev_thickness"].append(np.std(thickness))
 
     measurement = pd.DataFrame(measurement)
+    if extra_columns is not None:
+        measurement = pd.merge(measurement, extra_columns, on="label_id", how="outer")
     return measurement

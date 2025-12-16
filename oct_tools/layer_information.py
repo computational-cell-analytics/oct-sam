@@ -1,12 +1,7 @@
 from typing import List, Optional
+import warnings
 
 import numpy as np
-
-LABEL_DICT = {
-    4: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
-    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
-    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
-}
 
 # From top to bottom
 LAYERS = {
@@ -21,7 +16,8 @@ LAYERS = {
 
 
 def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
-    """Identify order of segmentation layers.
+    """Identify the order of segmentation layers.
+
     The function checks every column of the image if it contains all layers.
     If such a column is found, the order (from top to bottom) of the segmentation IDs is returned.
 
@@ -42,32 +38,34 @@ def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
     return None
 
 
-def identify_layers(
-    seg: np.ndarray,
-    label_dict: dict = LABEL_DICT,
-) -> Optional[dict]:
+def identify_layers(seg: np.ndarray, expected_number_of_layers: Optional[int] = None) -> Optional[dict]:
     """Match the layer identification to the segmentation.
+
     If all the segmentation IDs are in the same column, they are ordered from top to bottom.
     Then, they are matched to labels from the label dictionary.
     Once the segmentation of thin layers has improved and the necessity for such a process can be determined,
     a more sophisticated identification can be implemented.
 
     Args:
-        seg: Segmentation.
+        seg: The OCT segmentation.
+        expected_number_of_layers: Expected number of layers in the segmentation.
 
     Returns:
-        Label dictionary matching layer identifiers (keys) to segmentation IDs (values).
+        The label dictionary matching layer identifiers (keys) to segmentation IDs (values).
     """
     col_ids = find_layer_order(seg)
-    seg_label_dict = {}
-    if len(col_ids) in list(label_dict.keys()):
-        label_list = label_dict[len(col_ids)]
-        for (lid, cid) in zip(label_list, col_ids):
-            seg_label_dict[lid] = cid
-        return seg_label_dict
-    else:
-        if col_ids:
-            print("Not all segmentation IDs are present in a single column.")
-        else:
-            print(f"Could not identify cross-section of {len(col_ids)} layers. Check label dictionary.")
+    if col_ids is None:
+        warnings.warn("Could not determine the order of labels.")
         return None
+
+    n_ids = len(col_ids)
+    if expected_number_of_layers is not None and n_ids != expected_number_of_layers:
+        warnings.warn(
+            f"The number of expectd layers {expected_number_of_layers} does not match the actual number {n_ids}."
+        )
+        return None
+
+    # The layers degrade from the bottom, so if layers are missing we can just index the first n-ids.
+    layer_names = list(LAYERS.keys())[:n_ids]
+    seg_label_dict = {col_id: name for col_id, name in zip(col_ids, layer_names)}
+    return seg_label_dict

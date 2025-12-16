@@ -7,15 +7,18 @@ import h5py
 import imageio.v3 as imageio
 import napari
 import numpy as np
+import pandas as pd
 
-from magicgui import magicgui
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from napari.utils.notifications import show_info
+from qtpy.QtWidgets import QDockWidget, QPushButton
 from tqdm import tqdm
 
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.segmentation_utils import run_measurement
+from oct_tools.layer_information import identify_layers
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
@@ -29,6 +32,8 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
 
     for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+        if os.path.exists(output_path):
+            continue
 
         # Init the segmenter for this image.
         segmenter.initialize(image, verbose=False)
@@ -41,6 +46,17 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
             seg = postprocess_segmentation(seg, image)
 
         imageio.imwrite(output_path, seg)
+
+
+def _find_call_button(viewer, button_text):
+    for dw in viewer.window._qt_window.findChildren(QDockWidget):
+        root = dw.widget()
+        if root is None:
+            continue
+        for b in root.findChildren(QPushButton):
+            if b.text() == button_text:
+                return b
+    raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
 
 
 def run_annotator(
@@ -72,27 +88,27 @@ def run_annotator(
     if precompute_segmentation:
         _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
 
-    # Another (better) option would be to just add this to the next button.
-    # This should be relatively straightforward by getting the next button from the viewer
-    # and adding this as an action.
-    @magicgui(call_button="Run measurement")
-    def measurement_widget(
-        viewer: napari.Viewer,
-        n_layers: int = 7,
-    ):
-        # TODO print info on where the result is saved and if the number of layers differs from the expectation.
+    # TODO use option for loading precomputed segmentations from another folder once this is in micro-sam master.
+    viewer = image_series_annotator(
+        images, output_folder, model_type="vit_b", checkpoint_path=sam_model,
+        skip_segmented=False, return_viewer=True,
+    )
+
+    def post_measurement():
         segmentation = viewer.layers["committed_objects"].data
-        # TODO map the segmentation to layers and save it (via extra columns)
-        measurements = run_measurement(segmentation)
+        n_layers = len(np.unique(segmentation)) - 1
+        layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
+        layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
+        measurements = run_measurement(segmentation, extra_columns=layer_mapping)
         i = len(glob(os.path.join(output_folder, "measurement*.tsv")))
         table_out = os.path.join(output_folder, f"measurement_{i:05}.tsv")
         measurements.to_csv(table_out, sep="\t", index=False)
+        show_info(f"Measurements for {n_layers} layers saved to {table_out}")
 
-    # TODO use option for loading precomputed segmentations from another folder once this is in micro-sam master.
-    viewer = image_series_annotator(
-        images, output_folder, model_type="vit_b", checkpoint_path=sam_model, skip_segmented=False, return_viewer=True,
-    )
-    viewer.window.add_dock_widget(measurement_widget)
+    # Get the next image button and bind the measurement function to it.
+    next_image_button = _find_call_button(viewer, "Next Image [N]")
+    next_image_button.clicked.connect(post_measurement)
+
     napari.run()
 
 
