@@ -11,6 +11,7 @@ import pandas as pd
 
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from micro_sam.util import precompute_image_embeddings
 from napari.utils.notifications import show_info
 from qtpy.QtWidgets import QDockWidget, QPushButton
 from tqdm import tqdm
@@ -30,22 +31,27 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
     segmenter = get_amg(predictor, is_tiled=False, decoder=decoder)
     os.makedirs(output_folder, exist_ok=True)
 
+    # Precompute the embeddings.
+    embedding_folder = os.path.join(output_folder, "embeddings")
     for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
         output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
         if os.path.exists(output_path):
             continue
 
         # Init the segmenter for this image.
-        segmenter.initialize(image, verbose=False)
-
+        embedding_path = os.path.join(embedding_folder, f"embedding_{i:05}.zarr")
+        image_embeddings = precompute_image_embeddings(predictor, image, embedding_path, verbose=False)
+        segmenter.initialize(image, verbose=False, image_embeddings=image_embeddings)
         foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
         prompts = _derive_prompts_sam(foreground, boundary_distances)
-        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+        seg = _segment_from_prompts(predictor, image, prompts, min_size=150, embedding_path=embedding_path)
         if postprocess:
-            seg = postprocess_segmentation(seg, image)
+            seg = postprocess_segmentation(seg, image, verbose=False)
 
         imageio.imwrite(output_path, seg)
+
+    return embedding_folder
 
 
 def _find_call_button(viewer, button_text):
@@ -86,12 +92,14 @@ def run_annotator(
         images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
-        _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
+        embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
+    else:
+        embedding_path = None
 
     # TODO use option for loading precomputed segmentations from another folder once this is in micro-sam master.
     viewer = image_series_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=sam_model,
-        skip_segmented=False, return_viewer=True,
+        skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
 
     def post_measurement():

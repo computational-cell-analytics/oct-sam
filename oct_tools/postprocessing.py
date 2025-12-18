@@ -364,6 +364,7 @@ def postprocess_segmentation(
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     min_thickness: int = 5,
     matching_method: str = "offset",
+    verbose: bool = True,
 ) -> np.ndarray:
     """Post-process segmentation iteratively with multiple functions.
     The order and selection of the functions are determined by the parameter "postprocess_functions".
@@ -378,6 +379,7 @@ def postprocess_segmentation(
         min_thickness: Minimal thickness of layers for "filter_thin"-method.
         matching_method: Method for matching disconnected segmentation IDs for "merge_horizontal"-method.
             Either "offset" or "y_position".
+        verbose: Whether to print post-processing info.
 
     Returns:
         Post-processed segmentation.
@@ -410,7 +412,8 @@ def postprocess_segmentation(
             params = method_config["params"]
 
             # Print a message for logging
-            print(f"Applying postprocessing method: {method}")
+            if verbose:
+                print(f"Applying postprocessing method: {method}")
 
             # Call the function with the appropriate arguments
             if requires_img:

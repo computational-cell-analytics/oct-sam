@@ -254,12 +254,12 @@ def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
     return prompts
 
 
-def _segment_from_prompts(predictor, image, prompts, min_size):
+def _segment_from_prompts(predictor, image, prompts, min_size, embedding_path=None):
     points = prompts[:, None, ::-1]
     labels = np.ones((len(prompts), 1))
     predictions = batched_inference(
         predictor, image, batch_size=16, points=points, point_labels=labels, return_instance_segmentation=False,
-        verbose_embeddings=False,
+        verbose_embeddings=False, embedding_path=embedding_path,
     )
     segmentation = apply_nms(predictions, image.shape, min_size=min_size, perform_box_nms=False)
     return segmentation
