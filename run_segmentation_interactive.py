@@ -20,6 +20,7 @@ from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.segmentation_utils import run_measurement
 from oct_tools.layer_information import identify_layers
+from oct_tools.table_widget import MeasurementTableWidget
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
@@ -65,6 +66,18 @@ def _find_call_button(viewer, button_text):
     raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
 
 
+def _measure(segmentation):
+    n_layers = len(np.unique(segmentation)) - 1
+    layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
+    layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
+    measurements = run_measurement(segmentation, extra_columns=layer_mapping)
+    # Reorder the columns so that the layer name is the second column.
+    cols = measurements.columns.values.tolist()
+    new_col_order = cols[:1] + cols[-1:] + cols[1:-1]
+    measurements = measurements[new_col_order]
+    return measurements
+
+
 def run_annotator(
     input_path: str,
     output_folder: str,
@@ -104,19 +117,18 @@ def run_annotator(
 
     def post_measurement():
         segmentation = viewer.layers["committed_objects"].data
-        n_layers = len(np.unique(segmentation)) - 1
-        layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
-        layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-        measurements = run_measurement(segmentation, extra_columns=layer_mapping)
+        measurements = _measure(segmentation)
         i = len(glob(os.path.join(output_folder, "measurement*.tsv")))
         table_out = os.path.join(output_folder, f"measurement_{i:05}.tsv")
         measurements.to_csv(table_out, sep="\t", index=False)
-        show_info(f"Measurements for {n_layers} layers saved to {table_out}")
+        show_info(f"Measurements for saved to {table_out}")
 
     # Get the next image button and bind the measurement function to it.
     next_image_button = _find_call_button(viewer, "Next Image [N]")
     next_image_button.clicked.connect(post_measurement)
 
+    measurement_widget = MeasurementTableWidget(viewer, _measure)
+    viewer.window.add_dock_widget(measurement_widget)
     napari.run()
 
 
@@ -132,7 +144,6 @@ def main():
                         help="Pre-compute segmentation using prompts derived from SAM prediction.")
 
     args = parser.parse_args()
-
     run_annotator(
         args.input, args.output, args.slices, args.model, args.precompute_segmentation,
     )
