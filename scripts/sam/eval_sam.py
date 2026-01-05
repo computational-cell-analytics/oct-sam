@@ -113,7 +113,7 @@ def main():
                         help="File extension for output. Either 'tif' or 'h5'. Default: tif")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--postprocess", action="store_true")
-    parser.add_argument("--postprocess-functions", nargs="+", type=str,
+    parser.add_argument("--postprocess_functions", nargs="+", type=str,
                         default=["merge_horizontal", "filter_thin"],
                         help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
                         "and 'fill_gaps'.")

@@ -23,7 +23,8 @@ from oct_tools.layer_information import identify_layers
 from oct_tools.table_widget import MeasurementTableWidget
 
 
-def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True):
+def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
+                             postprocess_functions=["merge_horizontal", "filter_thin"]):
     """Precompute segmentation using SAM.
     """
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
@@ -48,7 +49,7 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
         prompts = _derive_prompts_sam(foreground, boundary_distances)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150, embedding_path=embedding_path)
         if postprocess:
-            seg = postprocess_segmentation(seg, image, verbose=False)
+            seg = postprocess_segmentation(seg, image, verbose=False, postprocess_functions=postprocess_functions)
 
         imageio.imwrite(output_path, seg)
 
@@ -84,6 +85,7 @@ def run_annotator(
     slices: List[int],
     sam_model: str,
     precompute_segmentation: bool,
+    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     postprocess: bool = True,
 ):
     """Run annotator for a single or multiple slices of input data.
@@ -95,6 +97,7 @@ def run_annotator(
         slices: Single or multiple slices of TIF data.
         sam_model: File path to SAM model.
         precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
+        postprocessing_functions: List of functions. Post-processing will be performed in the given order.
         postprocess: Optional post-processing, e.g. removing thin lines, filling gaps in segmentation.
     """
     if ".h5" in input_path:
@@ -105,7 +108,8 @@ def run_annotator(
         images = [image_vol[z] for z in slices]
 
     if precompute_segmentation:
-        embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess)
+        embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess,
+                                                  postprocess_functions=postprocess_functions)
     else:
         embedding_path = None
 
@@ -142,10 +146,15 @@ def main():
     parser.add_argument("--model", default="./oct-sam-v4.pt", help="The SAM model trained for OCT data model.")
     parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from SAM prediction.")
+    parser.add_argument("--postprocess_functions", nargs="+", type=str,
+                        default=["merge_horizontal", "filter_thin"],
+                        help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
+                        "and 'fill_gaps'. Use 'no' or 'none' for no post-processing.")
 
     args = parser.parse_args()
     run_annotator(
         args.input, args.output, args.slices, args.model, args.precompute_segmentation,
+        args.postprocess_functions,
     )
 
 

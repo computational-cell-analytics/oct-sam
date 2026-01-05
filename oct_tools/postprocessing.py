@@ -409,6 +409,10 @@ def postprocess_segmentation(
         # Add new methods here as needed
     }
 
+    if any(element in ["no", "No", "none", "None"] for element in postprocess_functions):
+        print("No post-processing.")
+        return seg
+
     for method in postprocess_functions:
         if method in method_map:
             method_config = method_map[method]
@@ -418,7 +422,7 @@ def postprocess_segmentation(
 
             # Print a message for logging
             if verbose:
-                print(f"Applying postprocessing method: {method}")
+                print(f"Applying post-processing method: {method}")
 
             # Call the function with the appropriate arguments
             if requires_img:
@@ -426,7 +430,7 @@ def postprocess_segmentation(
             else:
                 seg = func(seg, **params)
         else:
-            print(f"Warning: Unknown postprocessing method '{method}'")
+            print(f"Warning: Unknown post-processing method '{method}'.")
 
     return seg
 
