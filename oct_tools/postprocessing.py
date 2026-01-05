@@ -53,6 +53,8 @@ def find_anchor_segments(
         tolerance: Margin of error for segmentations which do not span the whole length.
 
     Returns:
+        List of indexes for segmentation instances which span the whole y-dimension.
+            They can act as a reference for the order of layers in x-dimension.
     """
     anchors = []
     full_ymax = width - 1
@@ -60,9 +62,12 @@ def find_anchor_segments(
     for sid, s in stats.items():
         if s['ymin'] <= margin and s['ymax'] >= full_ymax - margin:
             anchors.append(sid)
+
     # sort anchors from top to bottom
-    anchors_xc = [stats[sid]["xc"] for sid in anchors]
-    anchors_xc, anchors = zip(*sorted(zip(anchors_xc, anchors)))
+    if len(anchors) != 0:
+        anchors_xc = [stats[sid]["xc"] for sid in anchors]
+        anchors_xc, anchors = zip(*sorted(zip(anchors_xc, anchors)))
+
     return anchors
 
 
