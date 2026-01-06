@@ -10,11 +10,16 @@ import numpy as np
 import pandas as pd
 
 from micro_sam.sam_annotator import image_series_annotator
-from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from micro_sam.instance_segmentation import get_predictor_and_decoder
 from micro_sam.util import precompute_image_embeddings
 from napari.utils.notifications import show_info
 from qtpy.QtWidgets import QDockWidget, QPushButton
 from tqdm import tqdm
+
+try:
+    from micro_sam.instance_segmentation import get_amg
+except ImportError:
+    from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
