@@ -9,9 +9,18 @@ from tqdm import tqdm
 
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
-from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from micro_sam.instance_segmentation import get_predictor_and_decoder
+
+# To be compatible with the new and old micro-sam version.
+try:
+    from micro_sam.instance_segmentation import get_amg
+except ImportError:
+    from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
+
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
+
+DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250717"
 
 
 def _segment_image(predictor, segmenter, image, save_path, postprocess=False,
@@ -106,8 +115,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Evaluate SAM model on all images in a folder. Evaluates data in h5 format."
     )
-    parser.add_argument("-i", "--input_dir", type=str, required=True)
-    parser.add_argument("--model", type=str, default="./oct-sam-v3.pt")
+    parser.add_argument("-i", "--input_dir", type=str, default=DEFAULT_INPUT_FOLDER)
+    parser.add_argument("-m", "--model", type=str, required=True)
     parser.add_argument("-o", "--output_dir", type=str)
     parser.add_argument("--output_extension", type=str, default="tif",
                         help="File extension for output. Either 'tif' or 'h5'. Default: tif")

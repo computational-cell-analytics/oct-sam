@@ -32,6 +32,16 @@ def _get_loaders(version, patch_shape, batch_size, val_size=0.1):
         paths = []
         for input_folder in input_folders:
             paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
+    elif version == 5:
+        input_folders = [
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250619",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20251126",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20251215",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20260105",
+        ]
+        paths = []
+        for input_folder in input_folders:
+            paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
     else:
         raise ValueError(f"Version {version} not yet supported.")
 
@@ -72,7 +82,7 @@ def _get_initialization(version):
     if version in (1, 2):
         model_type = "vit_b_medical_imaging"
         checkpoint_path = None
-    elif version in (3, 4):
+    elif version in (3, 4, 5):
         model_type = "vit_b"
         checkpoint_path = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-pretrained-v1.pt"
     else:
@@ -95,8 +105,8 @@ def finetune_medicosam(version, check):
         name=f"oct-sam-v{version}", train_loader=train_loader, val_loader=val_loader,
         configuration="V100", with_segmentation_decoder=True,
         model_type=model_type, checkpoint_path=checkpoint_path,
-        verify_n_labels_in_loader=5, early_stopping=25,
-        n_epochs=150,
+        verify_n_labels_in_loader=5, early_stopping=30,
+        n_epochs=250,
     )
 
 
@@ -113,6 +123,7 @@ def export_finetuned_model(version):
 # v2: trained on 20250619, 20251126; initialized with MedicoSAM
 # v3: trained on 20250619, 20251126; initialized with pretraiend OCT model
 # v4: trained on 20250619, 20251126, 20251215; initialized with pretraiend OCT model
+# v5: trained on 20250619, 20251126, 20251215, 20260105; initialized with pretraiend OCT model
 def main():
     import argparse
     parser = argparse.ArgumentParser()
