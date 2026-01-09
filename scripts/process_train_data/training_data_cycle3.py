@@ -12,10 +12,14 @@ export_folder = "../../data/training_data/20260105"
 
 def main():
     assert os.path.exists(folder), folder
-    label_files = glob(os.path.join(folder, "*_committed_objects.tif"))
+    label_files = glob(os.path.join(folder, "*committed_objects.tif"))
     export = True
     for label_path in label_files:
-        image_path = label_path.replace("_committed_objects", "")
+        # exception for RP69_265111_z25committed_objects"
+        if "_committed_objects" in label_path:
+            image_path = label_path.replace("_committed_objects", "")
+        else:
+            image_path = label_path.replace("committed_objects", "")
         fname = Path(image_path).stem
         if fname == "RP41_210458_z40":
             image_path = os.path.join(folder, "RP41_21045_z40.tif")
