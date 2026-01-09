@@ -490,8 +490,6 @@ def fill_gaps_watershed(
     seg_ids, sizes = np.unique(gaps_label, return_counts=True)
     sizes, seg_ids = zip(*sorted(zip(sizes, seg_ids), reverse=True))
     border_ids = [s for num, s in enumerate(seg_ids) if sizes[num] > max_label_size and s != 0]
-    if len(border_ids) != 2:
-        print(f"Length of border IDs: {len(border_ids)}.")
     for border_id in border_ids:
         gaps[gaps_label == border_id] = 0
 
