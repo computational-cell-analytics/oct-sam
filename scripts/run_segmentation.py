@@ -3,7 +3,10 @@ import multiprocessing as mp
 import os
 from concurrent import futures
 
+import h5py
 import imageio.v3 as imageio
+import numpy as np
+
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
@@ -12,9 +15,15 @@ from tqdm import tqdm
 
 
 def run_segmentation(input_path, output_folder, sam_model_path, slices=None, postprocess=True):
-    image_vol = imageio.imread(input_path)
+    if ".h5" in input_path:
+        image_vol = [np.array(h5py.File(input_path, "r")["image"])]
+    else:
+        image_vol = imageio.imread(input_path)
+        image_vol = [image_vol[z] for z in range(image_vol.shape[0])]
+
     if slices is None:
-        slices = [i for i in range(image_vol.shape[0])]
+        slices = [i for i in range(len(image_vol))]
+    os.makedirs(output_folder, exist_ok=True)
 
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
 
@@ -29,14 +38,15 @@ def run_segmentation(input_path, output_folder, sam_model_path, slices=None, pos
         foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
         prompts = _derive_prompts_sam(foreground, boundary_distances)
-        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
-        if postprocess:
-            seg = postprocess_segmentation(seg, image)
+        if len(prompts) != 0:
+            seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+            if postprocess:
+                seg = postprocess_segmentation(seg, image)
 
-        tab = run_measurement(seg)
-        tab.to_csv(table_out, sep="\t", index=False)
+            tab = run_measurement(seg)
+            tab.to_csv(table_out, sep="\t", index=False)
 
-        imageio.imwrite(output_path, seg)
+            imageio.imwrite(output_path, seg)
 
     # Create the segmenter.
     segmenter = get_amg(predictor, is_tiled=False, decoder=decoder)

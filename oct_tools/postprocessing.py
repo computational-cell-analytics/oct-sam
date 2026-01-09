@@ -497,6 +497,7 @@ def fill_gaps_watershed(
 
     # Use segmentation labels as markers
     markers = seg.copy()
+    markers = markers.astype(int)
 
     # Watershed requires positive topography; invert if needed
     # lower intensity = deeper basin
