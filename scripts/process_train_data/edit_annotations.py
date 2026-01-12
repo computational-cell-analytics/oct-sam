@@ -41,7 +41,8 @@ def edit_annotations(
 
         output_path = os.path.join(output_dir, h5_name)
         with h5py.File(output_path, "a") as f:
-            f.create_dataset(f"labels/{label_version}", data=label, compression="gzip")
+            if f"labels/{label_version}" not in f:
+                f.create_dataset(f"labels/{label_version}", data=label, compression="gzip")
 
 
 def main():

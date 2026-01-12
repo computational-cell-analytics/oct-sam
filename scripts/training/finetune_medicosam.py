@@ -12,6 +12,8 @@ def raw_trafo(x):
 
 
 def _get_loaders(version, patch_shape, batch_size, val_size=0.1):
+    image_key = "image"
+    label_key = "labels/original"
     if version == 1:
         input_folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250619"
         paths = sorted(glob(os.path.join(input_folder, "*.h5")))
@@ -42,6 +44,18 @@ def _get_loaders(version, patch_shape, batch_size, val_size=0.1):
         paths = []
         for input_folder in input_folders:
             paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
+
+    elif version == 6:
+        label_key = "labels/edit_v1"
+        input_folders = [
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250619",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20251126",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20251215",
+            "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20260105",
+        ]
+        paths = []
+        for input_folder in input_folders:
+            paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
     else:
         raise ValueError(f"Version {version} not yet supported.")
 
@@ -52,8 +66,6 @@ def _get_loaders(version, patch_shape, batch_size, val_size=0.1):
     print(len(train_paths), "training images.")
     print(len(val_paths), "val images.")
 
-    image_key = "image"
-    label_key = "labels/original"
     label_transform = torch_em.transform.label.PerObjectDistanceTransform(
         distances=True,
         boundary_distances=True,
@@ -82,7 +94,7 @@ def _get_initialization(version):
     if version in (1, 2):
         model_type = "vit_b_medical_imaging"
         checkpoint_path = None
-    elif version in (3, 4, 5):
+    elif version in (3, 4, 5, 6):
         model_type = "vit_b"
         checkpoint_path = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-pretrained-v1.pt"
     else:
@@ -118,12 +130,13 @@ def export_finetuned_model(version):
     )
 
 
-# The version determines which data is used for training and how the model is initialized.
+# The version determines which data is used for training, how the model is initialized, and the version of annotations.
 # v1: trained on 20250619; initialized with MedicoSAM
 # v2: trained on 20250619, 20251126; initialized with MedicoSAM
-# v3: trained on 20250619, 20251126; initialized with pretraiend OCT model
-# v4: trained on 20250619, 20251126, 20251215; initialized with pretraiend OCT model
-# v5: trained on 20250619, 20251126, 20251215, 20260105; initialized with pretraiend OCT model
+# v3: trained on 20250619, 20251126; initialized with pretrained OCT model
+# v4: trained on 20250619, 20251126, 20251215; initialized with pretrained OCT model
+# v5: trained on 20250619, 20251126, 20251215, 20260105; initialized with pretrained OCT model
+# v6: trained on 20250619, 20251126, 20251215, 20260105; initialized with pretrained OCT model; annotations edit_v1
 def main():
     import argparse
     parser = argparse.ArgumentParser()

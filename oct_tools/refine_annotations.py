@@ -4,7 +4,7 @@ from skimage.measure import label as label_binary
 
 
 def cleanup_label(
-    label: np.ndarry,
+    label: np.ndarray,
     filter_size: int = 6,
 ) -> np.ndarray:
     """Fill small holes and remove small components within manual annotations.
@@ -63,6 +63,8 @@ def restrict_label_to_image(
     sizes = sizes[zero_id_mask]
 
     # get largest component of zeros
+    if len(sizes) == 0:
+        return label
     sizes, unique_label = zip(*sorted(zip(sizes, unique_labels), reverse=True))
     mask = zero_label == unique_label[0]
 
