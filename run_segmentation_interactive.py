@@ -23,7 +23,7 @@ except ImportError:
 
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
-from oct_tools.segmentation_utils import run_measurement
+from oct_tools.segmentation_utils import run_measurement, get_etdrs_mask
 from oct_tools.layer_information import identify_layers
 from oct_tools.table_widget import MeasurementTableWidget
 
@@ -72,16 +72,18 @@ def _find_call_button(viewer, button_text):
     raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
 
 
-def _measure(segmentation):
+def _measure(segmentation, reference_point=None):
     n_layers = len(np.unique(segmentation)) - 1
     layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
     layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-    measurements = run_measurement(segmentation, extra_columns=layer_mapping)
+    measurements = run_measurement(segmentation, extra_columns=layer_mapping, reference_point=reference_point)
+    etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, reference_point=reference_point)
+
     # Reorder the columns so that the layer name is the second column.
     cols = measurements.columns.values.tolist()
     new_col_order = cols[:1] + cols[-1:] + cols[1:-1]
     measurements = measurements[new_col_order]
-    return measurements
+    return measurements, etdrs_mask, notification_str
 
 
 def run_annotator(
@@ -110,7 +112,12 @@ def run_annotator(
 
     else:
         image_vol = imageio.imread(input_path)
-        images = [image_vol[z] for z in slices]
+        if len(image_vol.shape) == 3:
+            images = [image_vol[z] for z in slices]
+        elif len(image_vol.shape) == 2:
+            images = [image_vol]
+        else:
+            raise ValueError("Check dimensionality of input TIF. Must be either 3D or 2D.")
 
     if precompute_segmentation:
         embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess,
@@ -126,7 +133,7 @@ def run_annotator(
 
     def post_measurement():
         segmentation = viewer.layers["committed_objects"].data
-        measurements = _measure(segmentation)
+        measurements, _, _ = _measure(segmentation)
         i = len(glob(os.path.join(output_folder, "measurement*.tsv")))
         table_out = os.path.join(output_folder, f"measurement_{i:05}.tsv")
         measurements.to_csv(table_out, sep="\t", index=False)
@@ -136,6 +143,8 @@ def run_annotator(
     next_image_button = _find_call_button(viewer, "Next Image [N]")
     next_image_button.clicked.connect(post_measurement)
 
+    central_point = (images[0].shape[0] // 2, images[0].shape[1] // 2)
+    viewer.add_points(central_point, visible=True, name="fovea reference point")
     measurement_widget = MeasurementTableWidget(viewer, _measure)
     viewer.window.add_dock_widget(measurement_widget)
     napari.run()

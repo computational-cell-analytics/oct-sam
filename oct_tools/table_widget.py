@@ -16,7 +16,7 @@ def df_to_png_bytes(df: pd.DataFrame, *, dpi: int = 200, fontsize: int = 10) -> 
     """Render a pandas dataframe as a PNG (in-memory)."""
     # Heuristic sizing: scale with rows/cols so it stays readable.
     nrows, ncols = df.shape
-    fig_w = max(4.0, 0.9 * ncols)
+    fig_w = max(4.0, 1.4 * ncols)
     fig_h = max(1.5, 0.35 * (nrows + 1))
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
@@ -51,11 +51,13 @@ class MeasurementTableWidget(QWidget):
     Provide your measurement function via `measure_fn`.
     """
 
-    def __init__(self, viewer: napari.Viewer, measure_fn, layer_name="committed_objects"):
+    def __init__(self, viewer: napari.Viewer, measure_fn,
+                 layer_name="committed_objects", point_name="fovea reference point"):
         super().__init__()
         self._viewer = viewer
         self._measure_fn = measure_fn
         self._layer_name = layer_name
+        self._point_name = point_name
 
         self._img_label = QLabel("OCT Measurements")
         self._img_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
@@ -71,11 +73,27 @@ class MeasurementTableWidget(QWidget):
         @magicgui(call_button="Measure")
         def gui():
             labels = self._viewer.layers[self._layer_name].data
+            points = self._viewer.layers[self._point_name].data
+
+            if len(points) == 0:
+                reference_point = None
+            else:
+                reference_point = list(points[0])
+                if len(points) > 1:
+                    print(f"More than one point in layer {point_name}. Taking the first one.")
 
             # ---- your existing measurement logic call ----
             # Must return a pandas.DataFrame.
-            df = self._measure_fn(labels)
+            df, etdrs_mask, notification_str = self._measure_fn(labels, reference_point=reference_point)
             df = df.round(2)
+
+            # present optional ETDRS sections (central, inner ring, outer ring)
+            if etdrs_mask is not None:
+                self._viewer.add_labels(etdrs_mask)
+
+            # output central foveal thickness or additional notification strings
+            if notification_str is not None:
+                napari.utils.notifications.show_info(notification_str)
 
             dpi = 100
             fontsize = 8
