@@ -7,13 +7,11 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
-import vigra
 
 from tqdm import tqdm
 from .unet import UNet2d
-from skimage.measure import regionprops, label
+from skimage.measure import regionprops
 from skimage.morphology import skeletonize
-from skimage.segmentation import find_boundaries
 
 try:
     import eyepy as ep
@@ -264,15 +262,39 @@ def _thickness_at_reference(mask, reference_point, spacing):
     return sum(seg_mask) * spacing[0]
 
 
-def _compute_area_in_section(mask, columns, spacing):
+def _compute_area_in_section(mask, reference_point, spacing, min_dist=0, max_dist=1, col=None):
     """Calculate area of binary mask for a list of columns.
     """
-    area_px = 0
-    for x in columns:
-        col = mask[:, x]
-        seg_mask = (col == 1)
-        area_px += sum(seg_mask)
-    return area_px * spacing[0] * spacing[1]
+    if col is None:
+        central_y = round(reference_point[1])
+        lower_limit = 0
+        upper_limit = mask.shape[1] - 1
+
+        start_o = max([central_y - round(max_dist / spacing[1]), lower_limit])
+        end_o = min([central_y + round(max_dist / spacing[1]), upper_limit])
+
+        if min_dist != 0:
+            start_i = max([central_y - round(min_dist / spacing[1]), lower_limit])
+            end_i = min([central_y + round(min_dist / spacing[1]), upper_limit])
+            col = [o for o in range(start_o, end_o + 1) if o not in [i for i in range(start_i, end_i + 1)]]
+
+        else:
+            col = [o for o in range(start_o, end_o + 1)]
+
+    num_cols = mask.shape[1]
+    col_mask = np.zeros(num_cols, dtype=bool)
+
+    # Set the specified row indices to True, if they are within bounds
+    for idx in col:
+        if 0 <= idx < num_cols:
+            col_mask[idx] = True
+
+    # Broadcast the 1D boolean mask to 2D
+    bool_mask = col_mask[np.newaxis, :] * np.ones_like(mask, dtype=bool)
+
+    # Apply the boolean mask to the original binary mask
+    filtered_mask = mask * bool_mask
+    return np.count_nonzero(filtered_mask) * spacing[0] * spacing[1], filtered_mask
 
 
 def get_columns(mask, reference_point, min_dist, max_dist, spacing):
@@ -296,21 +318,18 @@ def get_columns(mask, reference_point, min_dist, max_dist, spacing):
     return col
 
 
-def _edtrs_areas(mask, reference_point, spacing):
-    """Get areas of central EDTRS grid for binary mask.
+def _etdrs_areas(mask, reference_point, spacing):
+    """Get areas of central etdrs grid for binary mask.
     """
     # central: 0-0.5 mm
-    col = get_columns(mask, reference_point, 0, 500, spacing)
-    area_c = _compute_area_in_section(mask, col, spacing)
+    area_c, mask_c = _compute_area_in_section(mask, reference_point, spacing, 0, 500)
 
     # inner ring: 0.5 - 1.5 mm
-    col = get_columns(mask, reference_point, 500, 1500, spacing)
-    area_i = _compute_area_in_section(mask, col, spacing)
+    area_i, mask_i = _compute_area_in_section(mask, reference_point, spacing, 500, 1500)
 
     # outer ring: 1.5 - 3 mm
-    col = get_columns(mask, reference_point, 1500, 3000, spacing)
-    area_o = _compute_area_in_section(mask, col, spacing)
-    return area_c, area_i, area_o
+    area_o, mask_o = _compute_area_in_section(mask, reference_point, spacing, 1500, 3000)
+    return area_c, area_i, area_o, mask_c, mask_i, mask_o
 
 
 def _skel_coords(skel: np.ndarray) -> np.ndarray:
@@ -403,6 +422,45 @@ def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
     return float(length)
 
 
+def get_etdrs_mask(
+    segmentation: np.ndarray,
+    measurement: Optional[dict] = None,
+    spacing: Optional[Tuple[float]] = None,
+    reference_point: Optional[Tuple[float]] = None,
+) -> Tuple[Optional[np.ndarray], Optional[str]]:
+    """Obtain a mask which visualizes the sections of the central ETDRS
+    (Early Treatment Diabetic Retinopathy Study) grid of the OCT diagram.
+
+    Args:
+        segmentation: Segmentation mask.
+        measurement: Measurement dictionary obtained from run_measurement.
+        spacing: Voxel size.
+        reference_point: Foveal reference point for the calculation of the ETDRS areas.
+
+    Returns:
+        Mask showing the different sections of the ETDRS grid.
+        Notification showing the central fovea thickness.
+    """
+    if reference_point is None:
+        return None, None
+
+    if spacing is None:
+        spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
+
+    if measurement is None:
+        measurement = run_measurement(segmentation, spacing, reference_point=reference_point)
+
+    unit = "µm"
+    # calculate overlay for ETDRS area
+    mask = (segmentation != 0)
+    area_c, area_i, area_o, mask_c, mask_i, mask_o = _etdrs_areas(mask, reference_point, spacing)
+    etdrs_mask = mask_c + 2 * mask_i + 3 * mask_o
+
+    central_foveal_thickness = sum(measurement[f"central_thickness[{unit}]"])
+    notification_str = f"The central foveal thickness is {round(central_foveal_thickness, 2)} {unit}."
+    return etdrs_mask, notification_str
+
+
 def run_measurement(
     segmentation: np.ndarray,
     spacing: Optional[Tuple[float]] = None,
@@ -415,6 +473,7 @@ def run_measurement(
         segmentation: 2D OCT segmentation.
         spacing: Voxel size.
         extra_columns: Additional columns to store with the dataset.
+        reference_point: Foveal reference point for the calculation of the ETDRS areas.
 
     Returns:
         Measurement values as dataframe.
@@ -461,14 +520,10 @@ def run_measurement(
             central_thickness = _thickness_at_reference(mask, reference_point, spacing)
             measurement[f"central_thickness[{unit}]"].append(central_thickness)
 
-            area_c, area_i, area_o = _edtrs_areas(mask, reference_point, spacing)
+            area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask, reference_point, spacing)
             measurement[f"central_area[{unit}²]"].append(area_c)
             measurement[f"inner_ring[{unit}²]"].append(area_i)
             measurement[f"outer_ring[{unit}²]"].append(area_o)
-
-    if reference_point is not None:
-        central_foveal_thickness = sum(measurement[f"central_thickness[{unit}]"])
-        print(f"The central foveal thickness is {round(central_foveal_thickness, 2)} {unit}.")
 
     measurement = pd.DataFrame(measurement)
     if extra_columns is not None:
