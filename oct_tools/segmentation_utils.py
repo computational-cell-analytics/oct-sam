@@ -20,7 +20,7 @@ try:
 except ImportError:
     ep = None
 
-# This is the informaiton about the voxel / pixel size extracted from one
+# This is the information about the voxel / pixel size extracted from one
 # tomogram in eyepy. The unit is micrometer. This has to be double checked!
 VOXEL_SIZE = (121.41720950603485, 3.8716697599738836, 5.6914291344583035)
 
@@ -256,40 +256,61 @@ def _compute_thickness_per_column(
     return thicknesses
 
 
-def _compute_thickness(mask, spacing):
-    boundaries = find_boundaries(mask, mode="outer")
-    boundary_components = label(boundaries)
+def _thickness_at_reference(mask, reference_point, spacing):
+    """Calculate thickness of binary mask at reference point.
+    """
+    col = mask[:, round(reference_point[1])]
+    seg_mask = (col == 1)
+    return sum(seg_mask) * spacing[0]
 
-    # Determine the largest two boundary components and assign them
-    # to the upper / lower boundary.
-    props = regionprops(boundary_components)
-    ids = np.array([prop.label for prop in props])
-    sizes = np.array([prop.area for prop in props])
-    heights = np.array([prop.centroid[0] for prop in props])
 
-    two_largest = ids[np.argsort(sizes)[::-1][:2]]
-    h1, h2 = heights[two_largest - 1]
-    upper_id, lower_id = two_largest if h1 < h2 else two_largest[::-1]
-    upper_mask, lower_mask = boundary_components == upper_id, boundary_components == lower_id
+def _compute_area_in_section(mask, columns, spacing):
+    """Calculate area of binary mask for a list of columns.
+    """
+    area_px = 0
+    for x in columns:
+        col = mask[:, x]
+        seg_mask = (col == 1)
+        area_px += sum(seg_mask)
+    return area_px * spacing[0] * spacing[1]
 
-    # TODO spacing in the distance trafos
-    distance_to_upper = vigra.filters.vectorDistanceTransform(upper_mask.astype("float32"))
-    distance_to_upper = np.abs(distance_to_upper[..., 0])
-    lower_thickness = distance_to_upper[lower_mask]
 
-    distance_to_lower = vigra.filters.vectorDistanceTransform(lower_mask.astype("float32"))
-    distance_to_lower = np.abs(distance_to_lower[..., 0])
-    upper_thickness = distance_to_lower[upper_mask]
+def get_columns(mask, reference_point, min_dist, max_dist, spacing):
+    """Get list of columns based on distance to reference point.
+    """
+    central_y = round(reference_point[1])
+    lower_limit = 0
+    upper_limit = mask.shape[1] - 1
 
-    # import napari
-    # v = napari.Viewer()
-    # v.add_image(mask)
-    # v.add_image(distance_to_upper)
-    # v.add_labels(upper_mask)
-    # v.add_labels(lower_mask)
-    # napari.run()
+    start_o = max([central_y - round(max_dist / spacing[1]), lower_limit])
+    end_o = min([central_y + round(max_dist / spacing[1]), upper_limit])
 
-    return upper_thickness, lower_thickness
+    if min_dist != 0:
+        start_i = max([central_y - round(min_dist / spacing[1]), lower_limit])
+        end_i = min([central_y + round(min_dist / spacing[1]), upper_limit])
+        col = [o for o in range(start_o, end_o + 1) if o not in [i for i in range(start_i, end_i + 1)]]
+
+    else:
+        col = [o for o in range(start_o, end_o + 1)]
+
+    return col
+
+
+def _edtrs_areas(mask, reference_point, spacing):
+    """Get areas of central EDTRS grid for binary mask.
+    """
+    # central: 0-0.5 mm
+    col = get_columns(mask, reference_point, 0, 500, spacing)
+    area_c = _compute_area_in_section(mask, col, spacing)
+
+    # inner ring: 0.5 - 1.5 mm
+    col = get_columns(mask, reference_point, 500, 1500, spacing)
+    area_i = _compute_area_in_section(mask, col, spacing)
+
+    # outer ring: 1.5 - 3 mm
+    col = get_columns(mask, reference_point, 1500, 3000, spacing)
+    area_o = _compute_area_in_section(mask, col, spacing)
+    return area_c, area_i, area_o
 
 
 def _skel_coords(skel: np.ndarray) -> np.ndarray:
@@ -386,6 +407,7 @@ def run_measurement(
     segmentation: np.ndarray,
     spacing: Optional[Tuple[float]] = None,
     extra_columns: Optional[pd.DataFrame] = None,
+    reference_point: Optional[Tuple[float]] = None,
 ) -> pd.DataFrame:
     """Calculate measurements for OCT tailored metrics.
 
@@ -400,38 +422,53 @@ def run_measurement(
     if spacing is None:
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
 
+    unit = "µm"
     props = regionprops(segmentation, spacing=spacing)
     measurement = {
         "label_id": [],
-        "area": [],
-        "length": [],
-        "max_thickness": [],
-        "min_thickness": [],
-        "mean_thickness": [],
-        "stdev_thickness": [],
+        f"area[{unit}²]": [],
+        f"length[{unit}]": [],
+        f"max_thickness[{unit}]": [],
+        f"min_thickness[{unit}]": [],
+        f"mean_thickness[{unit}]": [],
+        f"stdev_thickness[{unit}]": [],
     }
+    if reference_point is not None:
+        measurement[f"central_thickness[{unit}]"] = []
+        measurement[f"central_area[{unit}²]"] = []
+        measurement[f"inner_ring[{unit}²]"] = []
+        measurement[f"outer_ring[{unit}²]"] = []
+
     for prop in props:
         measurement["label_id"].append(prop.label)
-        measurement["area"].append(prop.area)
+        measurement[f"area[{unit}²]"].append(prop.area)
         bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
         mask = (segmentation[bb] == prop.label)
 
         # Compute the centerline to measure the length.
         length = _compute_length(mask, spacing)
-        measurement["length"].append(length)
+        measurement[f"length[{unit}]"].append(length)
 
         # Compute the layer thickness by distance from upper to lower boundary.
         # This computes the thickness across each point for both the upper and lower boundary.
-        # We then compute statistics over this.
-        # Later, we also want to estimate the thickness at certain radii.
-        # NOTE: I have changed the function for calculating the thickness because I seemed to get odd results.
-        # upper_thickness, lower_thickness = _compute_thickness(mask, spacing)
-        # thickness = np.concatenate([upper_thickness, lower_thickness], axis=0)
         thickness = _compute_thickness_per_column(mask, spacing)
-        measurement["max_thickness"].append(max(thickness))
-        measurement["min_thickness"].append(min(thickness))
-        measurement["mean_thickness"].append(np.mean(thickness))
-        measurement["stdev_thickness"].append(np.std(thickness))
+        measurement[f"max_thickness[{unit}]"].append(max(thickness))
+        measurement[f"min_thickness[{unit}]"].append(min(thickness))
+        measurement[f"mean_thickness[{unit}]"].append(np.mean(thickness))
+        measurement[f"stdev_thickness[{unit}]"].append(np.std(thickness))
+
+        if reference_point is not None:
+            central_thickness = _thickness_at_reference(mask, reference_point, spacing)
+            measurement[f"central_thickness[{unit}]"].append(central_thickness)
+
+            area_c, area_i, area_o = _edtrs_areas(mask, reference_point, spacing)
+            measurement[f"central_area[{unit}²]"].append(area_c)
+            measurement[f"inner_ring[{unit}²]"].append(area_i)
+            measurement[f"outer_ring[{unit}²]"].append(area_o)
+
+    if reference_point is not None:
+        central_foveal_thickness = sum(measurement[f"central_thickness[{unit}]"])
+        print(f"The central foveal thickness is {round(central_foveal_thickness, 2)} {unit}.")
 
     measurement = pd.DataFrame(measurement)
     if extra_columns is not None:

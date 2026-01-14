@@ -72,11 +72,11 @@ def _find_call_button(viewer, button_text):
     raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
 
 
-def _measure(segmentation):
+def _measure(segmentation, reference_point=None):
     n_layers = len(np.unique(segmentation)) - 1
     layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
     layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-    measurements = run_measurement(segmentation, extra_columns=layer_mapping)
+    measurements = run_measurement(segmentation, extra_columns=layer_mapping, reference_point=reference_point)
     # Reorder the columns so that the layer name is the second column.
     cols = measurements.columns.values.tolist()
     new_col_order = cols[:1] + cols[-1:] + cols[1:-1]
@@ -110,7 +110,12 @@ def run_annotator(
 
     else:
         image_vol = imageio.imread(input_path)
-        images = [image_vol[z] for z in slices]
+        if len(image_vol.shape) == 3:
+            images = [image_vol[z] for z in slices]
+        elif len(image_vol.shape) == 2:
+            images = [image_vol]
+        else:
+            raise ValueError("Check dimensionality of input TIF. Must be either 3D or 2D.")
 
     if precompute_segmentation:
         embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess,
@@ -136,6 +141,8 @@ def run_annotator(
     next_image_button = _find_call_button(viewer, "Next Image [N]")
     next_image_button.clicked.connect(post_measurement)
 
+    central_point = (images[0].shape[0] // 2, images[0].shape[1] // 2)
+    viewer.add_points(central_point, visible=True)
     measurement_widget = MeasurementTableWidget(viewer, _measure)
     viewer.window.add_dock_widget(measurement_widget)
     napari.run()
