@@ -482,10 +482,12 @@ def run_measurement(
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
 
     unit = "µm"
+    unit_area = "mm"
+    factor_area = 1 / 1000000
     props = regionprops(segmentation, spacing=spacing)
     measurement = {
         "label_id": [],
-        f"area[{unit}²]": [],
+        f"area[{unit_area}²]": [],
         f"length[{unit}]": [],
         f"max_thickness[{unit}]": [],
         f"min_thickness[{unit}]": [],
@@ -494,13 +496,13 @@ def run_measurement(
     }
     if reference_point is not None:
         measurement[f"central_thickness[{unit}]"] = []
-        measurement[f"central_area[{unit}²]"] = []
-        measurement[f"inner_ring[{unit}²]"] = []
-        measurement[f"outer_ring[{unit}²]"] = []
+        measurement[f"central_area[{unit_area}²]"] = []
+        measurement[f"inner_ring[{unit_area}²]"] = []
+        measurement[f"outer_ring[{unit_area}²]"] = []
 
     for prop in props:
         measurement["label_id"].append(prop.label)
-        measurement[f"area[{unit}²]"].append(prop.area)
+        measurement[f"area[{unit_area}²]"].append(prop.area * factor_area)
         bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
         mask = (segmentation[bb] == prop.label)
 
@@ -521,9 +523,9 @@ def run_measurement(
             measurement[f"central_thickness[{unit}]"].append(central_thickness)
 
             area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask, reference_point, spacing)
-            measurement[f"central_area[{unit}²]"].append(area_c)
-            measurement[f"inner_ring[{unit}²]"].append(area_i)
-            measurement[f"outer_ring[{unit}²]"].append(area_o)
+            measurement[f"central_area[{unit_area}²]"].append(area_c * factor_area)
+            measurement[f"inner_ring[{unit_area}²]"].append(area_i * factor_area)
+            measurement[f"outer_ring[{unit_area}²]"].append(area_o * factor_area)
 
     measurement = pd.DataFrame(measurement)
     if extra_columns is not None:
