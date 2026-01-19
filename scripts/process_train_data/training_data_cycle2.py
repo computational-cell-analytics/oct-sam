@@ -6,8 +6,8 @@ import h5py
 import imageio.v3 as imageio
 import napari
 
-folder = "../data/annotations_training_cycle_2"
-export_folder = "../data/training_data/20251215"
+folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/data_from_dorothea/annotations_training_cycle_2"
+export_folder = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/20251215"
 
 
 def main():
