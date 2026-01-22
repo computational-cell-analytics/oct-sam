@@ -20,7 +20,7 @@ except ImportError:
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
-DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data/20250717"
+DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/validation_data/20250717"
 
 
 def _segment_image(predictor, segmenter, image, save_path, postprocess=False,

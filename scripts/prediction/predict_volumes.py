@@ -1,10 +1,9 @@
+import argparse
 import os
 from glob import glob
 
 import imageio.v3 as imageio
 import numpy as np
-
-ROOT = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/data_20250625"
 
 
 def predict_volume(model, volume):
@@ -22,21 +21,22 @@ def predict_volume(model, volume):
     return foreground, boundaries
 
 
-def predict_volumes():
+def predict_volumes(model_path, input_dir, output_dir):
     import torch_em
     from tqdm import tqdm
 
-    files = glob(os.path.join(ROOT, "converted", "*.tif"))
+    files = glob(os.path.join(input_dir, "*.tif"))
 
-    fg_folder = os.path.join(ROOT, "foreground-predictions")
+    fg_folder = os.path.join(output_dir, "foreground-predictions")
     os.makedirs(fg_folder, exist_ok=True)
-    bd_folder = os.path.join(ROOT, "boundary-predictions")
+    bd_folder = os.path.join(output_dir, "boundary-predictions")
     os.makedirs(bd_folder, exist_ok=True)
 
-    model = torch_em.util.load_model("../training/checkpoints/oct-boundary-foreground")
+    model = torch_em.util.load_model(model_path)
 
     for ff in tqdm(files):
         volume = imageio.imread(ff)
+        print(volume.shape)
         foreground, boundaries = predict_volume(model, volume)
         assert volume.shape == foreground.shape
         assert volume.shape == boundaries.shape
@@ -44,17 +44,17 @@ def predict_volumes():
         imageio.imwrite(os.path.join(bd_folder, os.path.basename(ff)), boundaries)
 
 
-def check_predictions():
+def check_predictions(image_dir, output_dir):
     import napari
 
-    files = glob(os.path.join(ROOT, "converted", "*.tif"))
+    files = glob(os.path.join(image_dir, "*.tif"))
     for ff in files:
 
         volume = imageio.imread(ff)
 
         fname = os.path.basename(ff)
-        foreground = imageio.imread(os.path.join(ROOT, "foreground-predictions", fname))
-        boundaries = imageio.imread(os.path.join(ROOT, "boundary-predictions", fname))
+        foreground = imageio.imread(os.path.join(output_dir, "foreground-predictions", fname))
+        boundaries = imageio.imread(os.path.join(output_dir, "boundary-predictions", fname))
 
         v = napari.Viewer()
         v.add_image(volume)
@@ -64,8 +64,18 @@ def check_predictions():
 
 
 def main():
-    # predict_volumes()
-    check_predictions()
+    parser = argparse.ArgumentParser(
+        description="Apply SAM model on a single or multiple slices of input data."
+    )
+    parser.add_argument("-i", "--input", required=True, help="Input directory with image data in tif format.")
+    parser.add_argument("-o", "--output", required=True, help="Output data for predictions.")
+    parser.add_argument("-m", "--model", required=True, help="Input model.")
+    parser.add_argument("-c", "--check", action="store_true", help="Check prediction with napari.")
+
+    args = parser.parse_args()
+    predict_volumes(args.model, args.input, args.output)
+    if args.check:
+        check_predictions(args.input, args.output)
 
 
 if __name__ == "__main__":
