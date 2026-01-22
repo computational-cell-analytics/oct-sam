@@ -426,7 +426,7 @@ def get_etdrs_mask(
     segmentation: np.ndarray,
     measurement: Optional[dict] = None,
     spacing: Optional[Tuple[float]] = None,
-    reference_point: Optional[Tuple[float]] = None,
+    fovea_point: Optional[Tuple[float]] = None,
 ) -> Tuple[Optional[np.ndarray], Optional[str]]:
     """Obtain a mask which visualizes the sections of the central ETDRS
     (Early Treatment Diabetic Retinopathy Study) grid of the OCT diagram.
@@ -435,25 +435,25 @@ def get_etdrs_mask(
         segmentation: Segmentation mask.
         measurement: Measurement dictionary obtained from run_measurement.
         spacing: Voxel size.
-        reference_point: Foveal reference point for the calculation of the ETDRS areas.
+        fovea_point: Foveal reference point for the calculation of the ETDRS areas.
 
     Returns:
         Mask showing the different sections of the ETDRS grid.
         Notification showing the central fovea thickness.
     """
-    if reference_point is None:
+    if fovea_point is None:
         return None, None
 
     if spacing is None:
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
 
     if measurement is None:
-        measurement = run_measurement(segmentation, spacing, reference_point=reference_point)
+        measurement = run_measurement(segmentation, spacing=spacing, fovea_point=fovea_point)
 
     unit = "µm"
     # calculate overlay for ETDRS area
     mask = (segmentation != 0)
-    area_c, area_i, area_o, mask_c, mask_i, mask_o = _etdrs_areas(mask, reference_point, spacing)
+    area_c, area_i, area_o, mask_c, mask_i, mask_o = _etdrs_areas(mask, fovea_point, spacing)
     etdrs_mask = mask_c + 2 * mask_i + 3 * mask_o
 
     central_foveal_thickness = sum(measurement[f"central_thickness[{unit}]"])
@@ -464,7 +464,9 @@ def get_etdrs_mask(
 def run_measurement(
     segmentation: np.ndarray,
     spacing: Optional[Tuple[float]] = None,
+    extra_information: bool = False,
     extra_columns: Optional[pd.DataFrame] = None,
+    fovea_point: Optional[Tuple[float]] = None,
     reference_point: Optional[Tuple[float]] = None,
 ) -> pd.DataFrame:
     """Calculate measurements for OCT tailored metrics.
@@ -472,8 +474,10 @@ def run_measurement(
     Args:
         segmentation: 2D OCT segmentation.
         spacing: Voxel size.
+        extra_information: Add additional information about layer length, max, min, and mean thickness.
         extra_columns: Additional columns to store with the dataset.
-        reference_point: Foveal reference point for the calculation of the ETDRS areas.
+        fovea_point: Foveal reference point for the calculation of the ETDRS areas.
+        reference_point: Reference point for calculating the thickness of every slice.
 
     Returns:
         Measurement values as dataframe.
@@ -488,13 +492,19 @@ def run_measurement(
     measurement = {
         "label_id": [],
         f"area[{unit_area}²]": [],
-        f"length[{unit}]": [],
-        f"max_thickness[{unit}]": [],
-        f"min_thickness[{unit}]": [],
-        f"mean_thickness[{unit}]": [],
-        f"stdev_thickness[{unit}]": [],
     }
+
+    if extra_information:
+        measurement[f"length[{unit}]"] = []
+        measurement[f"max_thickness[{unit}]"] = []
+        measurement[f"min_thickness[{unit}]"] = []
+        measurement[f"mean_thickness[{unit}]"] = []
+        measurement[f"stdev_thickness[{unit}]"] = []
+
     if reference_point is not None:
+        measurement[f"thickness[{unit}]"] = []
+
+    if fovea_point is not None:
         measurement[f"central_thickness[{unit}]"] = []
         measurement[f"central_area[{unit_area}²]"] = []
         measurement[f"inner_ring[{unit_area}²]"] = []
@@ -506,28 +516,34 @@ def run_measurement(
         bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
         mask = (segmentation[bb] == prop.label)
 
-        # Compute the centerline to measure the length.
-        length = _compute_length(mask, spacing)
-        measurement[f"length[{unit}]"].append(length)
+        if extra_information:
+            # Compute the centerline to measure the length.
+            length = _compute_length(mask, spacing)
+            measurement[f"length[{unit}]"].append(length)
 
-        # Compute the layer thickness by distance from upper to lower boundary.
-        # This computes the thickness across each point for both the upper and lower boundary.
-        thickness = _compute_thickness_per_column(mask, spacing)
-        measurement[f"max_thickness[{unit}]"].append(max(thickness))
-        measurement[f"min_thickness[{unit}]"].append(min(thickness))
-        measurement[f"mean_thickness[{unit}]"].append(np.mean(thickness))
-        measurement[f"stdev_thickness[{unit}]"].append(np.std(thickness))
+            # Compute the layer thickness by distance from upper to lower boundary.
+            # This computes the thickness across each point for both the upper and lower boundary.
+            thickness = _compute_thickness_per_column(mask, spacing)
+            measurement[f"max_thickness[{unit}]"].append(max(thickness))
+            measurement[f"min_thickness[{unit}]"].append(min(thickness))
+            measurement[f"mean_thickness[{unit}]"].append(np.mean(thickness))
+            measurement[f"stdev_thickness[{unit}]"].append(np.std(thickness))
 
-        if reference_point is not None:
-            central_thickness = _thickness_at_reference(mask, reference_point, spacing)
+        if fovea_point is not None:
+            central_thickness = _thickness_at_reference(mask, fovea_point, spacing)
             measurement[f"central_thickness[{unit}]"].append(central_thickness)
 
-            area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask, reference_point, spacing)
+            area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask, fovea_point, spacing)
             measurement[f"central_area[{unit_area}²]"].append(area_c * factor_area)
             measurement[f"inner_ring[{unit_area}²]"].append(area_i * factor_area)
             measurement[f"outer_ring[{unit_area}²]"].append(area_o * factor_area)
 
+        if reference_point is not None:
+            thickness_at_ref = _thickness_at_reference(mask, reference_point, spacing)
+            measurement[f"thickness[{unit}]"].append(thickness_at_ref)
+
     measurement = pd.DataFrame(measurement)
+    print(measurement)
     if extra_columns is not None:
         measurement = pd.merge(measurement, extra_columns, on="label_id", how="outer")
     return measurement

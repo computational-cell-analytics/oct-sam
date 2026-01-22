@@ -51,13 +51,16 @@ class MeasurementTableWidget(QWidget):
     Provide your measurement function via `measure_fn`.
     """
 
-    def __init__(self, viewer: napari.Viewer, measure_fn,
-                 layer_name="committed_objects", point_name="fovea reference point"):
+    def __init__(self, viewer: napari.Viewer, measure_fn, extra_measurement_information=False,
+                 layer_name="committed_objects", fovea_layer="fovea reference point",
+                 ref_layer="thickness reference point"):
         super().__init__()
         self._viewer = viewer
         self._measure_fn = measure_fn
         self._layer_name = layer_name
-        self._point_name = point_name
+        self._fovea_layer = fovea_layer
+        self._ref_layer = ref_layer
+        self._more_info = extra_measurement_information
 
         self._img_label = QLabel("OCT Measurements")
         self._img_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
@@ -73,18 +76,34 @@ class MeasurementTableWidget(QWidget):
         @magicgui(call_button="Measure")
         def gui():
             labels = self._viewer.layers[self._layer_name].data
-            points = self._viewer.layers[self._point_name].data
+            fovea_points = self._viewer.layers[self._fovea_layer].data
+            ref_points = self._viewer.layers[self._ref_layer].data
 
-            if len(points) == 0:
-                reference_point = None
+            if len(fovea_points) == 0:
+                fovea_point = None
             else:
-                reference_point = list(points[0])
-                if len(points) > 1:
-                    print(f"More than one point in layer {point_name}. Taking the first one.")
+                fovea_point = list(fovea_points[0])
+                if len(fovea_points) > 1:
+                    print(f"More than one point in layer {fovea_layer}. Taking the first one.")
+
+            if len(ref_points) == 0:
+                ref_point = None
+            else:
+                ref_point = list(ref_points[0])
+                if len(ref_points) > 1:
+                    print(f"More than one point in layer {ref_layer}. Taking the first one.")
+
+            if fovea_point is None and ref_point is None:
+                extra_measurement_information = True
+            else:
+                extra_measurement_information = self._more_info
 
             # ---- your existing measurement logic call ----
             # Must return a pandas.DataFrame.
-            df, etdrs_mask, notification_str = self._measure_fn(labels, reference_point=reference_point)
+            df, etdrs_mask, notification_str = self._measure_fn(
+                labels, fovea_point=fovea_point, reference_point=ref_point,
+                extra_information=extra_measurement_information,
+            )
             df = df.round(2)
 
             # present optional ETDRS sections (central, inner ring, outer ring)

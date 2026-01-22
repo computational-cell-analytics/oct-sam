@@ -1,7 +1,7 @@
 import argparse
 import os
 from glob import glob
-from typing import List
+from typing import List, Optional
 
 import h5py
 import imageio.v3 as imageio
@@ -72,12 +72,15 @@ def _find_call_button(viewer, button_text):
     raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
 
 
-def _measure(segmentation, reference_point=None):
+def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
     n_layers = len(np.unique(segmentation)) - 1
     layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
     layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-    measurements = run_measurement(segmentation, extra_columns=layer_mapping, reference_point=reference_point)
-    etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, reference_point=reference_point)
+    measurements = run_measurement(
+        segmentation, extra_columns=layer_mapping, fovea_point=fovea_point, reference_point=reference_point,
+        extra_information=extra_information,
+    )
+    etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, fovea_point=fovea_point)
 
     # Reorder the columns so that the layer name is the second column.
     cols = measurements.columns.values.tolist()
@@ -93,7 +96,8 @@ def run_annotator(
     sam_model: str,
     precompute_segmentation: bool,
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
-    postprocess: bool = True,
+    ref_position: Optional[int] = None,
+    more_info: bool = False,
 ):
     """Run annotator for a single or multiple slices of input data.
     A pre-computed segmentation can be used as an initial starting point.
@@ -105,7 +109,8 @@ def run_annotator(
         sam_model: File path to SAM model.
         precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
         postprocessing_functions: List of functions. Post-processing will be performed in the given order.
-        postprocess: Optional post-processing, e.g. removing thin lines, filling gaps in segmentation.
+        ref_position: Horizontal pixel coordinate of initial reference point for calculating layer thicknesses.
+        more_info: Add additional information about layer length, max, min, and mean thickness.
     """
     if ".h5" in input_path:
         images = [np.array(h5py.File(input_path, "r")["image"])]
@@ -120,7 +125,7 @@ def run_annotator(
             raise ValueError("Check dimensionality of input TIF. Must be either 3D or 2D.")
 
     if precompute_segmentation:
-        embedding_path = _precompute_segmentation(images, sam_model, output_folder, postprocess=postprocess,
+        embedding_path = _precompute_segmentation(images, sam_model, output_folder,
                                                   postprocess_functions=postprocess_functions)
     else:
         embedding_path = None
@@ -144,8 +149,20 @@ def run_annotator(
     next_image_button.clicked.connect(post_measurement)
 
     central_point = (images[0].shape[0] // 2, images[0].shape[1] // 2)
-    viewer.add_points(central_point, visible=True, name="fovea reference point")
-    measurement_widget = MeasurementTableWidget(viewer, _measure)
+
+    # set reference point for thickness measurement
+    if ref_position is None:
+        ref_point = (images[0].shape[0] // 2, images[0].shape[1] // 3)
+    else:
+        if ref_position >= images[0].shape[1] or ref_position < 0:
+            ref_position = max([ref_position, 0])
+            print(f"Position {ref_position} is outside the field of view and is adjusted.")
+            ref_position = min([images[0].shape[1] - 1, ref_position])
+        ref_point = (images[0].shape[0] // 2, ref_position)
+
+    viewer.add_points(central_point, visible=True, name="fovea reference point", face_color="white")
+    viewer.add_points(ref_point, visible=True, name="thickness reference point", face_color="blue")
+    measurement_widget = MeasurementTableWidget(viewer, _measure, more_info)
     viewer.window.add_dock_widget(measurement_widget)
     napari.run()
 
@@ -164,11 +181,22 @@ def main():
                         default=["merge_horizontal", "filter_thin"],
                         help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
                         "and 'fill_gaps'. Use 'no' or 'none' for no post-processing.")
+    parser.add_argument("--ref_position", type=int, default=None,
+                        help="Initial position on vertical axis of reference point for calculating layer thickness.")
+    parser.add_argument(
+        "--more_info", action="store_true",
+        help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
+    )
 
     args = parser.parse_args()
     run_annotator(
-        args.input, args.output, args.slices, args.model, args.precompute_segmentation,
-        args.postprocess_functions,
+        args.input, args.output,
+        slices=args.slices,
+        sam_model=args.model,
+        precompute_segmentation=args.precompute_segmentation,
+        postprocess_functions=args.postprocess_functions,
+        ref_position=args.ref_position,
+        additional_information=args.more_info,
     )
 
 
