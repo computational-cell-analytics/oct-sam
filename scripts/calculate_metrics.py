@@ -41,7 +41,7 @@ def main():
     parser.add_argument("-o", "--output", required=True,
                         help="Output path. Supports 'tsv' and 'xlsx' as file extensions.")
     parser.add_argument("-v", "--voxel_size", type=float, nargs="+",
-                        default=[3.8716697599738836, 5.6914291344583035],
+                        default=[3.87166976, 5.8814],
                         help="Voxel size of input in micrometer.")
 
     args = parser.parse_args()

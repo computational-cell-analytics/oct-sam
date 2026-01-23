@@ -26,6 +26,7 @@ from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from
 from oct_tools.segmentation_utils import run_measurement, get_etdrs_mask
 from oct_tools.layer_information import identify_layers
 from oct_tools.table_widget import MeasurementTableWidget
+from oct_tools.linelength_widget import LineLengthTableWidget
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
@@ -148,9 +149,18 @@ def run_annotator(
     next_image_button = _find_call_button(viewer, "Next Image [N]")
     next_image_button.clicked.connect(post_measurement)
 
-    central_point = (images[0].shape[0] // 2, images[0].shape[1] // 2)
+    # widget measuring line lengths
+    viewer.add_shapes(
+        name="Lines",
+        shape_type="line",
+        edge_color="red",
+        edge_width=2,
+    )
+    widget = LineLengthTableWidget(viewer)
+    viewer.window.add_dock_widget(widget, name="Line Length Measurer", area="right")
 
-    # set reference point for thickness measurement
+    # widget measuring fovea thickness and areas and layer thicknesses for reference point
+    central_point = (images[0].shape[0] // 2, images[0].shape[1] // 2)
     if ref_position is None:
         ref_point = (images[0].shape[0] // 2, images[0].shape[1] // 3)
     else:
@@ -159,11 +169,11 @@ def run_annotator(
             print(f"Position {ref_position} is outside the field of view and is adjusted.")
             ref_position = min([images[0].shape[1] - 1, ref_position])
         ref_point = (images[0].shape[0] // 2, ref_position)
-
     viewer.add_points(central_point, visible=True, name="fovea reference point", face_color="white")
     viewer.add_points(ref_point, visible=True, name="thickness reference point", face_color="blue")
     measurement_widget = MeasurementTableWidget(viewer, _measure, more_info)
-    viewer.window.add_dock_widget(measurement_widget)
+    viewer.window.add_dock_widget(measurement_widget, name="Measurement Table", area="right")
+
     napari.run()
 
 

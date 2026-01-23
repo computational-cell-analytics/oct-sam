@@ -20,7 +20,7 @@ except ImportError:
 
 # This is the information about the voxel / pixel size extracted from one
 # tomogram in eyepy. The unit is micrometer. This has to be double checked!
-VOXEL_SIZE = (121.41720950603485, 3.8716697599738836, 5.6914291344583035)
+VOXEL_SIZE = (121.41720950603485, 3.87166976, 5.8814)
 
 
 def standardize(raw: np.ndarray, eps: float = 1e-7) -> np.ndarray:
