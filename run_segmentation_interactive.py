@@ -196,7 +196,7 @@ def main():
         precompute_segmentation=args.precompute_segmentation,
         postprocess_functions=args.postprocess_functions,
         ref_position=args.ref_position,
-        additional_information=args.more_info,
+        more_info=args.more_info,
     )
 
 
