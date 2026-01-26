@@ -502,6 +502,10 @@ def run_measurement(
         measurement[f"stdev_thickness[{unit}]"] = []
 
     if reference_point is not None:
+        print(f"ref point {reference_point}")
+        print(f"segmentation_shape {segmentation.shape}")
+        if reference_point[0] > segmentation.shape[0] or reference_point[1] > segmentation.shape[1]:
+            raise ValueError(f"Reference point {reference_point} does not lie within segmentation boundary.")
         measurement[f"thickness[{unit}]"] = []
 
     if fovea_point is not None:
@@ -515,6 +519,7 @@ def run_measurement(
         measurement[f"area[{unit_area}²]"].append(prop.area * factor_area)
         bb = tuple(slice(start, stop) for start, stop in zip(prop.bbox[:2], prop.bbox[2:]))
         mask = (segmentation[bb] == prop.label)
+        mask_all = (segmentation == prop.label)
 
         if extra_information:
             # Compute the centerline to measure the length.
@@ -523,7 +528,7 @@ def run_measurement(
 
             # Compute the layer thickness by distance from upper to lower boundary.
             # This computes the thickness across each point for both the upper and lower boundary.
-            thickness = _compute_thickness_per_column(mask, spacing)
+            thickness = _compute_thickness_per_column(mask_all, spacing)
             measurement[f"max_thickness[{unit}]"].append(max(thickness))
             measurement[f"min_thickness[{unit}]"].append(min(thickness))
             measurement[f"mean_thickness[{unit}]"].append(np.mean(thickness))
@@ -539,7 +544,7 @@ def run_measurement(
             measurement[f"outer_ring[{unit_area}²]"].append(area_o * factor_area)
 
         if reference_point is not None:
-            thickness_at_ref = _thickness_at_reference(mask, reference_point, spacing)
+            thickness_at_ref = _thickness_at_reference(mask_all, reference_point, spacing)
             measurement[f"thickness[{unit}]"].append(thickness_at_ref)
 
     measurement = pd.DataFrame(measurement)
