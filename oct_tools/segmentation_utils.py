@@ -535,10 +535,10 @@ def run_measurement(
             measurement[f"stdev_thickness[{unit}]"].append(np.std(thickness))
 
         if fovea_point is not None:
-            central_thickness = _thickness_at_reference(mask, fovea_point, spacing)
+            central_thickness = _thickness_at_reference(mask_all, fovea_point, spacing)
             measurement[f"central_thickness[{unit}]"].append(central_thickness)
 
-            area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask, fovea_point, spacing)
+            area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask_all, fovea_point, spacing)
             measurement[f"central_area[{unit_area}²]"].append(area_c * factor_area)
             measurement[f"inner_ring[{unit_area}²]"].append(area_i * factor_area)
             measurement[f"outer_ring[{unit_area}²]"].append(area_o * factor_area)

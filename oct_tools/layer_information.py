@@ -61,7 +61,7 @@ def identify_layers(seg: np.ndarray, expected_number_of_layers: Optional[int] = 
     n_ids = len(col_ids)
     if expected_number_of_layers is not None and n_ids != expected_number_of_layers:
         warnings.warn(
-            f"The number of expectd layers {expected_number_of_layers} does not match the actual number {n_ids}."
+            f"The number of expected layers {expected_number_of_layers} does not match the actual number {n_ids}."
         )
         return None
 
