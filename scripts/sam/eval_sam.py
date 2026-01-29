@@ -10,6 +10,7 @@ from tqdm import tqdm
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
 from micro_sam.instance_segmentation import get_predictor_and_decoder
+from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 
 # To be compatible with the new and old micro-sam version.
 try:
@@ -24,16 +25,24 @@ DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/valid
 
 
 def _segment_image(predictor, segmenter, image, save_path, postprocess=False,
-                   postprocess_functions=["merge_horizontal", "filter_thin"]):
+                   postprocess_functions=["merge_horizontal", "filter_thin"],
+                   use_prompts=False):
     if save_path is not None and os.path.exists(save_path) and ".h5" in save_path:
         with h5py.File(save_path, "r") as f:
             return f["segmentation"][:], f["prompts"][:]
 
     segmenter.initialize(image, verbose=False)
-    foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
+    foreground = segmenter._foreground
+    boundary_distances = segmenter._boundary_distances
+    center_distances = segmenter._center_distances
 
-    prompts = _derive_prompts_sam(foreground, boundary_distances)
-    seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+    if use_prompts:
+        prompts = _derive_prompts_sam(foreground, boundary_distances)
+        seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+    else:
+        prompts = None
+        seg = watershed_from_center_and_boundary_distances(center_distances, boundary_distances, foreground)
+
     if postprocess:
         seg = postprocess_segmentation(seg, image, postprocess_functions)
 
@@ -51,7 +60,8 @@ def _segment_image(predictor, segmenter, image, save_path, postprocess=False,
 def eval_model_sam(
     input_dir, model_path,
     save_folder=None, view=False, postprocess=False, output_extension="tif",
-    postprocess_functions=["merge_horizontal", "filter_thin"]
+    postprocess_functions=["merge_horizontal", "filter_thin"],
+    use_prompts=True,
 ):
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=model_path)
 
@@ -66,13 +76,19 @@ def eval_model_sam(
     if save_folder is not None:
         os.makedirs(save_folder, exist_ok=True)
 
+    if use_prompts:
+        print("Evaluating images with two-phase prediction using prompts derived from first prediction.")
+    else:
+        print("Evaluating images using single prediction.")
+
     segmentations, prompts = [], []
     for h5_path, image in tqdm(zip(h5_paths, images), total=len(images), desc="Segment images"):
         basename = "".join(os.path.basename(h5_path).split(".")[:-1])
         save_path = None if save_folder is None else os.path.join(save_folder, f"{basename}.{output_extension}")
         seg, this_prompts = _segment_image(predictor, segmenter, image, save_path, postprocess, postprocess_functions)
         segmentations.append(seg)
-        prompts.append(this_prompts)
+        if use_prompts:
+            prompts.append(this_prompts)
 
     precisions, recalls, f1s = [], [], []
     symm_dice_scores = []
@@ -90,7 +106,8 @@ def eval_model_sam(
             v.add_image(image)
             v.add_labels(label)
             v.add_labels(seg)
-            v.add_points(point_prompts, visible=False)
+            if use_prompts:
+                v.add_points(point_prompts, visible=False)
             v.title = msg
             napari.run()
         else:
@@ -126,6 +143,8 @@ def main():
                         default=["merge_horizontal", "filter_thin"],
                         help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
                         "and 'fill_gaps'.")
+    parser.add_argument("--no_prompts", action="store_true",
+                        help="Do not use two-phase prediction with prompts but only single prediction.")
 
     args = parser.parse_args()
 
@@ -133,6 +152,7 @@ def main():
         args.input_dir, args.model, args.output_dir, args.check, args.postprocess,
         output_extension=args.output_extension,
         postprocess_functions=args.postprocess_functions,
+        use_prompts=not args.no_prompts,
     )
 
 

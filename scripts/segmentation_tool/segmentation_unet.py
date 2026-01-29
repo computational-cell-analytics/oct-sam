@@ -16,9 +16,7 @@ def _run_segmentation(foreground, boundaries, seed_threshold: float = 0.6, merge
 
     directed_dist = vigra.filters.vectorDistanceTransform(bd_mask.astype("float32"))
     directed_dist[~mask] = 0
-    print(directed_dist.shape)
     directed_dist = np.abs(directed_dist.transpose((2, 0, 1)))[0]
-    # directed_dist = np.abs(directed_dist)
     directed_dist = normalize_sliding_max_2d(directed_dist, window_y=1, window_x=255)
 
     seeds = label(directed_dist > seed_threshold)

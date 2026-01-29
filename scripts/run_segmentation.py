@@ -8,13 +8,14 @@ import imageio.v3 as imageio
 import numpy as np
 
 from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
+from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.segmentation_utils import run_measurement
 from tqdm import tqdm
 
 
-def run_segmentation(input_path, output_folder, sam_model_path, slices=None, postprocess=True):
+def run_segmentation(input_path, output_folder, sam_model_path, slices=None, postprocess=True, use_prompts=True):
     if ".h5" in input_path:
         image_vol = [np.array(h5py.File(input_path, "r")["image"])]
     else:
@@ -35,11 +36,24 @@ def run_segmentation(input_path, output_folder, sam_model_path, slices=None, pos
         # Init the segmenter for this image.
         segmenter.initialize(image, verbose=False)
 
-        foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
+        foreground = segmenter._foreground
+        boundary_distances = segmenter._boundary_distances
+        center_distances = segmenter._center_distances
 
-        prompts = _derive_prompts_sam(foreground, boundary_distances)
-        if len(prompts) != 0:
-            seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+        if use_prompts:
+            prompts = _derive_prompts_sam(foreground, boundary_distances)
+            if len(prompts) != 0:
+                seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
+                if postprocess:
+                    seg = postprocess_segmentation(seg, image)
+
+                tab = run_measurement(seg)
+                tab.to_csv(table_out, sep="\t", index=False)
+
+                imageio.imwrite(output_path, seg)
+
+        else:
+            seg = watershed_from_center_and_boundary_distances(center_distances, boundary_distances, foreground)
             if postprocess:
                 seg = postprocess_segmentation(seg, image)
 
@@ -65,11 +79,13 @@ def main():
     parser.add_argument("--model", default="./oct-sam-v3.pt", help="The SAM model trained for OCT data model.")
     parser.add_argument("--postprocess", action="store_true",
                         help="Post-process segmentation.")
+    parser.add_argument("--no_prompts", action="store_true",
+                        help="Do not use two-phase prediction with prompts but only single prediction.")
 
     args = parser.parse_args()
 
     run_segmentation(
-        args.input, args.output, args.model, args.slices, args.postprocess,
+        args.input, args.output, args.model, args.slices, args.postprocess, not args.no_prompts,
     )
 
 

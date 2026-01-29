@@ -14,6 +14,7 @@ from micro_sam.instance_segmentation import get_predictor_and_decoder
 from micro_sam.util import precompute_image_embeddings
 from napari.utils.notifications import show_info
 from qtpy.QtWidgets import QDockWidget, QPushButton
+from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 from tqdm import tqdm
 
 try:
@@ -30,7 +31,8 @@ from oct_tools.linelength_widget import LineLengthTableWidget
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
-                             postprocess_functions=["merge_horizontal", "filter_thin"]):
+                             postprocess_functions=["merge_horizontal", "filter_thin"],
+                             use_prompts=True):
     """Precompute segmentation using SAM.
     """
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=sam_model_path)
@@ -50,10 +52,17 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
         embedding_path = os.path.join(embedding_folder, f"embedding_{i:05}.zarr")
         image_embeddings = precompute_image_embeddings(predictor, image, embedding_path, verbose=False)
         segmenter.initialize(image, verbose=False, image_embeddings=image_embeddings)
-        foreground, boundary_distances = segmenter._foreground, segmenter._boundary_distances
 
-        prompts = _derive_prompts_sam(foreground, boundary_distances)
-        seg = _segment_from_prompts(predictor, image, prompts, min_size=150, embedding_path=embedding_path)
+        foreground = segmenter._foreground
+        boundary_distances = segmenter._boundary_distances
+        center_distances = segmenter._center_distances
+
+        if use_prompts:
+            prompts = _derive_prompts_sam(foreground, boundary_distances)
+            seg = _segment_from_prompts(predictor, image, prompts, min_size=150, embedding_path=embedding_path)
+        else:
+            seg = watershed_from_center_and_boundary_distances(center_distances, boundary_distances, foreground)
+
         if postprocess:
             seg = postprocess_segmentation(seg, image, verbose=False, postprocess_functions=postprocess_functions)
 
@@ -76,7 +85,11 @@ def _find_call_button(viewer, button_text):
 def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
     n_layers = len(np.unique(segmentation)) - 1
     layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
-    layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
+    if layer_mapping is None:
+        unique_ids = np.unique(segmentation)[1:]
+        layer_mapping = pd.DataFrame(dict(label_id=unique_ids, layer=unique_ids))
+    else:
+        layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
     measurements = run_measurement(
         segmentation, extra_columns=layer_mapping, fovea_point=fovea_point, reference_point=reference_point,
         extra_information=extra_information,
@@ -95,7 +108,8 @@ def run_annotator(
     output_folder: str,
     slices: List[int],
     sam_model: str,
-    precompute_segmentation: bool,
+    use_prompts: bool = True,
+    precompute_segmentation: bool = True,
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     ref_position: Optional[int] = None,
     more_info: bool = False,
@@ -108,6 +122,7 @@ def run_annotator(
         output_folder: Output folder for pre-computed segmentation.
         slices: Single or multiple slices of TIF data.
         sam_model: File path to SAM model.
+        use_prompts: Use two-phase prediction with prompts derived from first prediction.
         precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
         postprocessing_functions: List of functions. Post-processing will be performed in the given order.
         ref_position: Horizontal pixel coordinate of initial reference point for calculating layer thicknesses.
@@ -126,8 +141,10 @@ def run_annotator(
             raise ValueError("Check dimensionality of input TIF. Must be either 3D or 2D.")
 
     if precompute_segmentation:
-        embedding_path = _precompute_segmentation(images, sam_model, output_folder,
-                                                  postprocess_functions=postprocess_functions)
+        embedding_path = _precompute_segmentation(
+            images, sam_model, output_folder,
+            postprocess_functions=postprocess_functions, use_prompts=use_prompts,
+        )
     else:
         embedding_path = None
 
@@ -191,6 +208,8 @@ def main():
                         default=["merge_horizontal", "filter_thin"],
                         help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
                         "and 'fill_gaps'. Use 'no' or 'none' for no post-processing.")
+    parser.add_argument("--no_prompts", action="store_true",
+                        help="Do not use two-phase prediction with prompts but only single prediction.")
     parser.add_argument("--ref_position", type=int, default=None,
                         help="Initial position on vertical axis of reference point for calculating layer thickness.")
     parser.add_argument(
@@ -203,6 +222,7 @@ def main():
         args.input, args.output,
         slices=args.slices,
         sam_model=args.model,
+        use_prompts=not args.no_prompts,
         precompute_segmentation=args.precompute_segmentation,
         postprocess_functions=args.postprocess_functions,
         ref_position=args.ref_position,
