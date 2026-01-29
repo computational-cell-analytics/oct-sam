@@ -5,12 +5,16 @@ from glob import glob
 import imageio.v3 as imageio
 import numpy as np
 
+from oct_tools.train_utils import BoundaryAndDistanceTransform  # noqa: F401
+
 
 def predict_volume(model, volume):
     import torch_em
     from torch_em.util.prediction import predict_with_padding
 
     foreground, boundaries = [], []
+    if len(volume.shape) == 2:
+        volume = [volume]
     for section in volume:
         input_ = torch_em.transform.raw.standardize(section)
         pred = predict_with_padding(model, input_, min_divisible=(16, 16))
@@ -36,7 +40,8 @@ def predict_volumes(model_path, input_dir, output_dir):
 
     for ff in tqdm(files):
         volume = imageio.imread(ff)
-        print(volume.shape)
+        if len(volume.shape) == 2:
+            volume = volume[np.newaxis, :]
         foreground, boundaries = predict_volume(model, volume)
         assert volume.shape == foreground.shape
         assert volume.shape == boundaries.shape
