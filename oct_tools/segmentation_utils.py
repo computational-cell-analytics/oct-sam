@@ -503,7 +503,6 @@ def run_measurement(
 
     if reference_point is not None:
         print(f"ref point {reference_point}")
-        print(f"segmentation_shape {segmentation.shape}")
         if reference_point[0] > segmentation.shape[0] or reference_point[1] > segmentation.shape[1]:
             raise ValueError(f"Reference point {reference_point} does not lie within segmentation boundary.")
         measurement[f"thickness[{unit}]"] = []
@@ -548,7 +547,6 @@ def run_measurement(
             measurement[f"thickness[{unit}]"].append(thickness_at_ref)
 
     measurement = pd.DataFrame(measurement)
-    print(measurement)
     if extra_columns is not None:
         measurement = pd.merge(measurement, extra_columns, on="label_id", how="outer")
     return measurement

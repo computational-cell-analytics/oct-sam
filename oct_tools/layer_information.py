@@ -66,6 +66,8 @@ def identify_layers(seg: np.ndarray, expected_number_of_layers: Optional[int] = 
         return None
 
     # The layers degrade from the bottom, so if layers are missing we can just index the first n-ids.
-    layer_names = list(LAYERS.keys())[:n_ids]
+    # layer_names = list(LAYERS.keys())[:n_ids]
+    # The automatic assignment of the correct layer names is currently too inaccurate.
+    layer_names = [f"layer_{str(i+1).zfill(2)}" for i in range(n_ids)]
     seg_label_dict = {col_id: name for col_id, name in zip(col_ids, layer_names)}
     return seg_label_dict
