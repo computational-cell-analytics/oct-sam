@@ -72,13 +72,15 @@ def _mat_to_labels(control_pts, shape):
     return seg
 
 
-def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8), combine_is_os=True):
+def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8, 123.6), combine_is_os=True, output_3d=False):
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
     affine = np.eye(4)  # Identity matrix (standard for most cases)
     # µm per voxel (x, y, z)
     affine[0, 0] = pixel_spacing[0]  # x-spacing
     affine[1, 1] = pixel_spacing[1]  # y-spacing
+    if output_3d:
+        affine[2, 2] = pixel_spacing[2]  # z-spacing
 
     image_dir = os.path.join(output_folder, "imagesTr")
     label_dir = os.path.join(output_folder, "labelsTr")
@@ -96,7 +98,7 @@ def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8), combine
             dataset_id = "11"
         elif base_name[:2] == "ms":
             dataset_id = "12"
-        scan_id = base_name[3:5]
+        scan_id = base_name[2:4]
 
         print("Processing tomo", i, "/", len(tomograms))
         label_path = os.path.join(input_folder, "delineation", fname)
@@ -111,14 +113,28 @@ def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8), combine
         labels = _mat_to_labels(masks, data.shape)
         assert labels.shape == data.shape
 
-        if output_folder is None:
-            v = napari.Viewer()
-            v.add_image(data)
-            v.add_labels(labels)
-            napari.run()
+        if output_3d:
+            nnunet_identifier = f"{dataset_id}{scan_id.zfill(3)}"
+            image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
+
+            # Create the NIfTI image
+            nifti_image = nib.Nifti1Image(data, affine)
+            nib.save(nifti_image, image_path)
+
+            # combine inner (label 6) and outer (label 7) photoreceptor segments
+            # combine labels 6 and 7, shift label 8 to 7
+            if combine_is_os:
+                unique_ids = np.unique(labels)[1:]
+                assert unique_ids[-1] == 8
+                labels[labels == 7] = 6
+                labels[labels == 8] = 7
+
+            nifti_label = nib.Nifti1Image(labels, affine)
+            label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
+            nib.save(nifti_label, label_path)
         else:
             for z in range(data.shape[0]):
-                nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}{str(z).zfill(3)}"
+                nnunet_identifier = f"{dataset_id}{scan_id.zfill(3)}_{str(z).zfill(3)}"
                 image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
 
                 # Create the NIfTI image
@@ -280,6 +296,8 @@ def main():
 
     parser.add_argument("-i", "--input_dir", type=str, required=True)
     parser.add_argument("-o", "--output_dir", type=str, required=True)
+    parser.add_argument("--output_3d", action="store_true",
+                        help="Output 3D data for hcms dataset.")
 
     parser.add_argument("--dataset", type=str, default="hcms",
                         help="Specifiy dataset. Either 'duke_dme' or 'hcms'. Default: hcms.")
@@ -290,6 +308,7 @@ def main():
         prepare_hcms(
             input_folder=args.input_dir,
             output_folder=args.output_dir,
+            output_3d=args.output_3d,
         )
     elif args.dataset == "duke_dme":
         prepare_duke_dme(

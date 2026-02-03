@@ -6,23 +6,6 @@ Segmentation and measurements for retinal layers in OCT data.
 
 ChatGPT overview: https://chatgpt.com/share/6926b1ee-8ce8-8000-b4b9-1adc54159d74
 
-Recommended data for pre-training:
-- OCT5k (multi-disease, 5 layers, strong multi-grader).
-    - https://www.nature.com/articles/s41597-024-04259-z
-    - https://doi.org/10.5522/04/22128671
-    - I checked this out and converted it, but it's not detailed enough in the layer annotations.
-      Pretraining on this data would be detrimental.
-- HCMS (35 vols, 9 layers each B-scan).
-    - https://www.sciencedirect.com/science/article/pii/S2352340918316135
-    - https://medic.rad.jhmi.edu/index.php?title=OCT_Data
-- Duke DME (110 B-scans, 7–8 layers + fluids).
-    - https://biblio.imi.uni-luebeck.de/pdf/SPIE2023_CAD_Kepp.pdf
-    - https://people.duke.edu/~sf59/software.html
-- OCTID normals (25 images with layers).
-    - https://www.sciencedirect.com/science/article/pii/S0045790618330842
-
-All the preprocessed pre-training data is located at:
-`/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data`
 
 ## Overview
 
@@ -39,6 +22,68 @@ The models are located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/mo
 - `oct-2d-v2.pt`: the U-Net for distance prediction, used for deriving prompts (V2).
 - `oct-sam-v3.pt`: The fine-tuned SAM model (V3).
 
+## Data
+
+### Pre-Training
+
+Recommended data for pre-training:
+- OCT5k (multi-disease, 5 layers, strong multi-grader).
+    - https://www.nature.com/articles/s41597-024-04259-z
+    - https://doi.org/10.5522/04/22128671
+    - I checked this out and converted it, but it's not detailed enough in the layer annotations.
+      Pretraining on this data would be detrimental.
+- HCMS (35 vols, 8 layers each B-scan).
+    - https://www.sciencedirect.com/science/article/pii/S2352340918316135
+    - https://medic.rad.jhmi.edu/index.php?title=OCT_Data
+    - Featured layers:
+        - RNFL: Retina nerve fiber layer
+        - GCL+IPL: Ganglion cell layer and inner plexiform layer
+        - INL: Inner nuclear layer
+        - OPL: Outer plexiform layer
+        - ONL: Outer nuclear layer
+        - IS: Inner photoreceptor segments
+        - OS: Outer photoreceptor segments
+        - RPE: Retinal pigment epithelium
+    - Resolution (mean and standard deviation):
+        - Lateral resolution (between A-scans) is 5.8 µm (±0.2)
+        - Axial resolution (between two pixels in an A-scan) is 3.9 µm (±0.0)
+        - Through-plane distance (slice separation) is 123.6 µm (±3.6) between images
+        - Imaging area of approximately 6 x 6 mm²
+
+- Duke DME (110 B-scans, 7–8 layers + fluids).
+    - https://biblio.imi.uni-luebeck.de/pdf/SPIE2023_CAD_Kepp.pdf
+    - https://people.duke.edu/~sf59/software.html
+    - Featured layers:
+        - NFL: Nerve fiber layer
+        - GCL-IPL: Ganglion cell layer - Inner plexiform layer
+        - INL: Inner nuclear layer
+        - OPL: Outer plexiform layer
+        - ONL-ISM: Outer nuclear layer - Inner segment myeloid
+        - ISE: Inner segment ellipsoid
+        - OS-RPE: Outer segment - Retinal pigment epithelium
+    - Resolution:
+        - Lateral resolution: ranging from 11.07 - 11.59 µm/pixel
+        - Axial resolution: 3.87 µm/pixel
+        - Azimuthal resolution: ranging from 118 - 128 µm/pixel
+
+- OCTID normals (25 images with layers).
+    - https://www.sciencedirect.com/science/article/pii/S0045790618330842
+
+All the preprocessed pre-training data is located at:
+`/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data`
+
+### Training data
+
+Different batches with images and annotations.
+Annotations are refined to remove solitary pixels, fill holes, restrict labels to the image, and unify labeling to same classes.
+The layers are:
+    - RNFL: Retina nerve fiber layer
+    - GCL+IPL: Ganglion cell layer and inner plexiform layer
+    - INL: Inner nuclear layer
+    - OPL: Outer plexiform layer
+    - ONL: Outer nuclear layer
+    - EZ: Ellipsoid zone (Inner photoreceptor segments and Outer photoreceptor segments)
+    - RPE: Retinal pigment epithelium
 
 ## Meeting Notes
 

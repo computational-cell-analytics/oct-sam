@@ -2,6 +2,23 @@ import numpy as np
 from scipy.ndimage import binary_closing
 from skimage.measure import label as label_binary
 
+from oct_tools.layer_information import find_layer_order
+
+LAYER_NUMBER_DICT = {
+    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
+    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
+}
+
+LAYER_LABEL_DICT = {
+    "RFNL": 1,
+    "GCIPL": 2,
+    "INL": 3,
+    "OPL": 4,
+    "ONL": 5,
+    "EZ": 6,
+    "RPE": 7,
+}
+
 
 def cleanup_label(
     label: np.ndarray,
@@ -69,4 +86,30 @@ def restrict_label_to_image(
     mask = zero_label == unique_label[0]
 
     label[mask == 1] = 0
+    return label
+
+
+def assign_layer_id(
+    label: np.ndarray,
+) -> np.ndarray:
+    layer_order = find_layer_order(label)
+    if layer_order is None:
+        print("No layer order could be identified")
+        return None
+    else:
+        number_layers = len(layer_order)
+        if number_layers in LAYER_NUMBER_DICT.keys():
+            layer_names = LAYER_NUMBER_DICT[number_layers]
+            layer_indexes = [LAYER_LABEL_DICT[lay] for lay in layer_names]
+        else:
+            layer_indexes = [i + 1 for i in range(number_layers)]
+
+        # re-label labels
+        offset = max(layer_order)
+        for i in layer_order:
+            label[label == i] = i + offset
+
+        for num, i in enumerate(layer_order):
+            label[label == i + offset] = layer_indexes[num]
+
     return label
