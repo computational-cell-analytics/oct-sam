@@ -5,6 +5,9 @@ from skimage.measure import label as label_binary
 from oct_tools.layer_information import find_layer_order
 
 LAYER_NUMBER_DICT = {
+    3: ["RFNL", "GCIPL", "RPE"],
+    4: ["RFNL", "GCIPL", "INL", "RPE"],
+    5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
     6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
     7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
 }

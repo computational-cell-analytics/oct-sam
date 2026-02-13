@@ -51,7 +51,7 @@ def edit_annotations(
         restrict_label_to_image_flag = True
         assign_class_id_flag = False
 
-    if label_version == "edit_v2":
+    if label_version in ["edit_v2", "edit_v3"]:
         print(f"Using pre-defined editing for label version {label_version}.")
         cleanup_label_flag = True
         fill_gaps_watershed_flag = True

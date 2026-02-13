@@ -277,7 +277,7 @@ def prepare_duke_dme(input_folder, output_folder, cut_labels=True, pixel_spacing
             if len(slice_indexes) == 0:
                 slice_indexes = [i for i in range(len(images))]
             for z, slice_index in enumerate(slice_indexes):
-                nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}{str(slice_index).zfill(3)}"
+                nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}_{str(slice_index).zfill(3)}"
                 image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
 
                 # Create the NIfTI image
@@ -291,7 +291,7 @@ def prepare_duke_dme(input_folder, output_folder, cut_labels=True, pixel_spacing
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate SAM model on all images in a folder. Evaluates data in h5 format."
+        description="Pre-process external training data for nnU-Net. Output data is stored in NIfTI format."
     )
 
     parser.add_argument("-i", "--input_dir", type=str, required=True)
