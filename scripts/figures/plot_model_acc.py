@@ -25,13 +25,21 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "o",
             "symm_dice": 0.187,
         },
-        "nnU-Net": {
+        "nnU-Net_public": {
             "label": "nnU-Net public",
             "precision": 0.507,
             "recall": 0.53,
             "f1-score": 0.518,
             "marker": "v",
             "symm_dice": 0.635,
+        },
+        "nnU-Net_all": {
+            "label": "nnU-Net all",
+            "precision": 0.963,
+            "recall": 0.963,
+            "f1-score": 0.963,
+            "marker": "^",
+            "symm_dice": 0.881,
         },
         "v6c-no-prompts": {
             "label": "SAM",
@@ -63,7 +71,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
     offset = 0.08  # horizontal shift for scatter separation
 
     # Plot
-    tick_rotation = 0
+    tick_rotation = 45
 
     main_label_size = 20
     main_tick_size = 16

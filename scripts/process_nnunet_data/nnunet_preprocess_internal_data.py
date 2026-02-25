@@ -19,11 +19,13 @@ def prepare_internal_data(
 ):
     """Prepare internal data for nnU-Net training.
     This function reads data in H5 format and creates NIfTI files for training with nnU-Net.
+    Input data has the format "RP<patient_id>_<year>_<eye_id>_z<slice_id>.h5", e.g. RP012_2023_OD_z08.h5.
+    Output data has the format: oct_30<patient_id>_<year>_<eye_id>_z<slice_id>_0000.nii.gz,
+    e.g. oct_30012_2023_OD_008_0000.nii.gz.
 
     Args:
-        input_folder: Folder containing files in format "RP<patient_id>_<year>_<eye_id>_z<slice_id>.h5"
-            e.g. RP012_2023_OD_z08.h5
-        output_folder: Output directory for imagesTr and labelsTr
+        input_folder: Folder containing files in h5 format.
+        output_folder: Output directory for imagesTr and labelsTr.
         label_key: Label key for path in h5 file.
         pixel_spacing: Voxel size for data.
     """
