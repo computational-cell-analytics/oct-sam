@@ -61,6 +61,7 @@ def pretrain_medicosam(check):
         model_type="vit_b_medical_imaging",
         verify_n_labels_in_loader=5,
         n_epochs=40,
+        strict_decoder_loading=False,
     )
 
 
