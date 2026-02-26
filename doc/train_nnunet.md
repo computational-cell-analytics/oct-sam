@@ -57,3 +57,33 @@ nnU-Net has been trained for 5 folds, which were used for inference using cross-
 ```
 nnUNetv2_predict -d Dataset004_OCT-2d-all -i 20250717_input -o 20250717_seg_004-2d_all -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
 ```
+
+To test the influence of manually annotated data on network training performance, we used a setup in which the nnU-Net was pretrained on public datasets and then retrained using various sample sizes of data annotated by Dorothea.
+First, we used all the data annotated by Dorothea (`n_train=179`, `n_val=45`).
+Next, we used subsets of varying sizes for the training data and a fixed subset of ten samples for the validation dataset:
+* n_train=100, n_val=10
+* n_train=50, n_val=10
+* n_train=25, n_val=10
+* n_train=10, n_val=10
+* n_train=5, n_val=10
+* n_train=1, n_val=10
+
+JSON dictionaries documenting the train/val splits are created using the following function:
+```python
+from oct_tools.train_utils import create_train_val_splits
+
+input_json = "/path/to/oct-repo/doc/train_splits_all.json"
+out_dir = "/path/to/oct-repo/doc"
+create_train_val_splits(out_dir, input_json)
+```
+They have the format `train_splits_n<n_train>.json` and can be used to copy a subset of training data to a new directory:
+```bash
+python /path/to/oct-repo/scripts/process_nnunet_data/create_retrain_data.py --input_dir Dataset006_OCT-2d-Dorothea-all --output_dir Dataset007_OCT-2d-Dorothea-n100 --json /path/to/oct-repo/doc/train_splits_n100.json
+```
+
+After planning and pre-processing the new dataset, e.g. with
+```bash
+nnUNetv2_plan_and_preprocess -d 007 --verify_dataset_integrity
+```
+the JSON dictionaries should be copied to `"$nnUNet_preprocessed"/<Dataset>` as `splits_final.json`.
+They will then be used as a reference for the train and validation split during training for fold 0.
