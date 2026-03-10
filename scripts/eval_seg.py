@@ -3,6 +3,7 @@ import os
 
 import h5py
 import imageio.v3 as imageio
+import nibabel as nib
 import numpy as np
 
 from elf.evaluation import matching
@@ -10,7 +11,10 @@ from elf.evaluation.dice import symmetric_best_dice_score
 
 
 def eval_segmentation(
-    img_dir, seg_dir, output_extension="tif",
+    img_dir: str,
+    seg_dir: str,
+    output_extension: str = "tif",
+    check_nnunet: bool = False,
 ):
     h5_paths = [entry.path for entry in os.scandir(img_dir) if ".h5" in entry.name]
     h5_paths.sort()
@@ -18,11 +22,23 @@ def eval_segmentation(
     labels = [np.array(h5py.File(p, "r")["labels"]["original"]) for p in h5_paths]
 
     segmentations = []
-    for h5_path in h5_paths:
-        basename = "".join(os.path.basename(h5_path).split(".")[:-1])
-        seg_path = os.path.join(seg_dir, f"{basename}.{output_extension}")
-        seg = imageio.imread(seg_path)
-        segmentations.append(seg)
+
+    if check_nnunet:
+        output_extension = "nii.gz"
+        for h5_path in h5_paths:
+            basename = "".join(os.path.basename(h5_path).split(".")[:-1])
+            seg_path = os.path.join(seg_dir, f"oct_{basename}.{output_extension}")
+            nib_data = nib.load(seg_path)
+            seg = nib_data.get_fdata()
+            seg = np.array(seg).astype("int64")
+            segmentations.append(seg)
+
+    else:
+        for h5_path in h5_paths:
+            basename = "".join(os.path.basename(h5_path).split(".")[:-1])
+            seg_path = os.path.join(seg_dir, f"{basename}.{output_extension}")
+            seg = imageio.imread(seg_path)
+            segmentations.append(seg)
 
     precisions, recalls, f1s = [], [], []
     symm_dice_scores = []
@@ -60,11 +76,15 @@ def main():
                         help="Directory containing images and labels in h5 format.")
     parser.add_argument("-s", "--seg_dir", type=str, required=True,
                         help="Directory containing segmentation in TIF format.")
+    parser.add_argument("--nnunet", action="store_true",
+                        help="Check for nnU-Net inference format.")
 
     args = parser.parse_args()
 
     eval_segmentation(
-        args.img_dir, args.seg_dir,
+        args.img_dir,
+        args.seg_dir,
+        check_nnunet=args.nnunet,
     )
 
 

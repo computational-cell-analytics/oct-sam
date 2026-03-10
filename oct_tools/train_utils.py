@@ -68,6 +68,7 @@ def create_train_val_splits(
     names_val: Optional[List[str]] = None,
     sample_sizes_train: List[int] = [100, 50, 25, 10, 5, 1],
     sample_size_val: int = 10,
+    output_sam: bool = False,
 ):
     """Create a list of names for training and validation.
 
@@ -85,7 +86,7 @@ def create_train_val_splits(
     if input_json is not None:
         with open(input_json, 'r') as myfile:
             data = myfile.read()
-        params = json.loads(data)
+        params = json.loads(data)[0]
 
         if names_train is None:
             names_train = params["train"]
@@ -97,7 +98,16 @@ def create_train_val_splits(
     val_subset = []
     if names_val is not None:
         selected = np.random.choice(names_val.copy(), size=sample_size_val, replace=False)
-        val_subset = selected.tolist()
+        selected = selected.tolist()
+        if output_sam:
+            subset_out = []
+            for select in selected:
+                content = select.split("_")
+                name_sam = f"RP{content[1][2:]}_{content[2]}_{content[3]}_z{content[4][1:]}"
+                subset_out.append(name_sam)
+        else:
+            subset_out = selected
+        val_subset = subset_out
 
     subsets = {}
     current_subset = names_train.copy()
@@ -105,14 +115,26 @@ def create_train_val_splits(
     for n in sample_sizes_train:
         # Randomly select n samples from the current subset
         selected = np.random.choice(current_subset, size=n, replace=False)
+        selected = selected.tolist()
+        if output_sam:
+            subset_out = []
+            for select in selected:
+                content = select.split("_")
+                name_sam = f"RP{content[1][2:]}_{content[2]}_{content[3]}_z{content[4][1:]}"
+                subset_out.append(name_sam)
+        else:
+            subset_out = selected
 
-        subsets[n] = selected.tolist()
+        subsets[n] = subset_out
         current_subset = selected
 
     # Example of accessing results
     for size, subset in subsets.items():
         new_dic = {}
-        out_path = os.path.join(out_dir, f"train_splits_n{str(size).zfill(3)}.json")
+        if output_sam:
+            out_path = os.path.join(out_dir, f"train_splits_sam_n{str(size).zfill(3)}.json")
+        else:
+            out_path = os.path.join(out_dir, f"train_splits_n{str(size).zfill(3)}.json")
         new_dic["train"] = sorted(subset)
         new_dic["val"] = sorted(val_subset)
         dic_list = [new_dic]

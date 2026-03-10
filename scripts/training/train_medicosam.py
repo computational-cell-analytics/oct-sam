@@ -97,7 +97,7 @@ def pretrain_medicosam(check):
         check_loader(val_loader, n_samples=8)
 
     train_sam_for_configuration(
-        name="oct-sam-trained-v1", train_loader=train_loader, val_loader=val_loader,
+        name="oct-sam-v7", train_loader=train_loader, val_loader=val_loader,
         configuration="V100", with_segmentation_decoder=True,
         model_type="vit_b_medical_imaging",
         verify_n_labels_in_loader=5,
@@ -109,7 +109,7 @@ def pretrain_medicosam(check):
 def export_pretrained_model():
     from micro_sam.util import export_custom_sam_model
     export_custom_sam_model(
-        "./checkpoints/oct-sam-trained-v1/best.pt", model_type="vit_b", save_path="./oct-sam-trained-v1.pt",
+        "./checkpoints/oct-sam-v7/best.pt", model_type="vit_b", save_path="./oct-sam-v7.pt",
         with_segmentation_decoder=True
     )
 
