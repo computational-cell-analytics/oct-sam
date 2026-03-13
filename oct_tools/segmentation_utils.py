@@ -257,7 +257,7 @@ def _compute_thickness_per_column(
 def _thickness_at_reference(mask, reference_point, spacing):
     """Calculate thickness of binary mask at reference point.
     """
-    col = mask[:, round(reference_point[1])]
+    col = mask[:, round(reference_point)]
     seg_mask = (col == 1)
     return sum(seg_mask) * spacing[0]
 
@@ -534,7 +534,7 @@ def run_measurement(
             measurement[f"stdev_thickness[{unit}]"].append(np.std(thickness))
 
         if fovea_point is not None:
-            central_thickness = _thickness_at_reference(mask_all, fovea_point, spacing)
+            central_thickness = _thickness_at_reference(mask_all, fovea_point[1], spacing)
             measurement[f"central_thickness[{unit}]"].append(central_thickness)
 
             area_c, area_i, area_o, _, _, _ = _etdrs_areas(mask_all, fovea_point, spacing)
@@ -543,7 +543,7 @@ def run_measurement(
             measurement[f"outer_ring[{unit_area}²]"].append(area_o * factor_area)
 
         if reference_point is not None:
-            thickness_at_ref = _thickness_at_reference(mask_all, reference_point, spacing)
+            thickness_at_ref = _thickness_at_reference(mask_all, reference_point[1], spacing)
             measurement[f"thickness[{unit}]"].append(thickness_at_ref)
 
     measurement = pd.DataFrame(measurement)

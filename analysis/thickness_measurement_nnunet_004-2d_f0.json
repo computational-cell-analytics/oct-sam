@@ -1,0 +1,86 @@
+{
+	"RNFL": {
+		"mean_abs_error": 7.632,
+		"std_abs_error": 7.76,
+		"mean_rel_error": 19.535,
+		"std_rel_error": 28.658,
+		"tp": 75,
+		"fn": 0,
+		"fp": 0,
+		"precision": 1.0,
+		"recall": 1.0,
+		"f1-score": 1.0
+	},
+	"GCIPL": {
+		"mean_abs_error": 5.952,
+		"std_abs_error": 5.975,
+		"mean_rel_error": 9.416,
+		"std_rel_error": 8.909,
+		"tp": 75,
+		"fn": 0,
+		"fp": 0,
+		"precision": 1.0,
+		"recall": 1.0,
+		"f1-score": 1.0
+	},
+	"INL": {
+		"mean_abs_error": 4.877,
+		"std_abs_error": 4.531,
+		"mean_rel_error": 15.389,
+		"std_rel_error": 21.889,
+		"tp": 75,
+		"fn": 0,
+		"fp": 0,
+		"precision": 1.0,
+		"recall": 1.0,
+		"f1-score": 1.0
+	},
+	"OPL": {
+		"mean_abs_error": 7.429,
+		"std_abs_error": 4.597,
+		"mean_rel_error": 51.248,
+		"std_rel_error": 40.244,
+		"tp": 73,
+		"fn": 0,
+		"fp": 2,
+		"precision": 0.973,
+		"recall": 1.0,
+		"f1-score": 0.987
+	},
+	"ONL": {
+		"mean_abs_error": 10.076,
+		"std_abs_error": 10.537,
+		"mean_rel_error": 49.539,
+		"std_rel_error": 47.168,
+		"tp": 70,
+		"fn": 0,
+		"fp": 5,
+		"precision": 0.933,
+		"recall": 1.0,
+		"f1-score": 0.967
+	},
+	"EZ": {
+		"mean_abs_error": 13.302,
+		"std_abs_error": 3.733,
+		"mean_rel_error": 92.362,
+		"std_rel_error": 23.39,
+		"tp": 17,
+		"fn": 0,
+		"fp": 25,
+		"precision": 0.405,
+		"recall": 1.0,
+		"f1-score": 0.702
+	},
+	"RPE": {
+		"mean_abs_error": 11.306,
+		"std_abs_error": 4.853,
+		"mean_rel_error": 61.746,
+		"std_rel_error": 41.038,
+		"tp": 75,
+		"fn": 0,
+		"fp": 0,
+		"precision": 1.0,
+		"recall": 1.0,
+		"f1-score": 1.0
+	}
+}
