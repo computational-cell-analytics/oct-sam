@@ -3,7 +3,8 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
+
+from util import get_flatline_handle, export_legend
 
 png_dpi = 300
 
@@ -17,24 +18,8 @@ COLOR_T = "#279C52"
 
 def plot_model_acc(mode="precision", plot=False, save_path=None):
     value_dict = {
-        "unet-distance": {
-            "label": "U-Net",
-            "precision": 0.093,
-            "recall": 0.469,
-            "f1-score": 0.152,
-            "marker": "o",
-            "symm_dice": 0.187,
-        },
-        "nnU-Net_public": {
-            "label": "nnU-Net public",
-            "precision": 0.507,
-            "recall": 0.53,
-            "f1-score": 0.518,
-            "marker": "v",
-            "symm_dice": 0.635,
-        },
         "nnU-Net_all": {
-            "label": "nnU-Net all",
+            "label": "nnU-Net",
             "precision": 0.963,
             "recall": 0.963,
             "f1-score": 0.963,
@@ -42,23 +27,15 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "symm_dice": 0.881,
         },
         "v6c-no-prompts": {
-            "label": "SAM",
+            "label": "octSAM*",
             "precision": 0.312,
             "recall": 0.476,
             "f1-score": 0.371,
             "marker": "s",
             "symm_dice": 0.476,
         },
-        "v6c": {
-            "label": "SAM-prompts",
-            "precision": 0.775,
-            "recall": 0.764,
-            "f1-score": 0.758,
-            "marker": "D",
-            "symm_dice": 0.697,
-        },
         "v6c-post": {
-            "label": "SAM-prompts-post",
+            "label": "octSAM*-postprocess",
             "precision": 0.938,
             "recall": 0.829,
             "f1-score": 0.876,
@@ -78,9 +55,10 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
     marker_size = 200
 
     labels = [value_dict[key]["label"] for key in value_dict.keys()]
+    fig_width = len(value_dict) * 2
 
     if mode == "precision":
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(fig_width, 5))
         # Convert setting labels to numerical x positions
         offset = 0.08  # horizontal shift for scatter separation
         for num, key in enumerate(list(value_dict.keys())):
@@ -90,11 +68,11 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             marker = value_dict[key]["marker"]
             x_pos = num + 1
 
-            plt.scatter([x_pos - offset], precision, label="Precision manual",
+            plt.scatter([x_pos - offset], precision,
                         color=COLOR_P, marker=marker, s=marker_size)
-            plt.scatter([x_pos],         recall, label="Recall manual",
+            plt.scatter([x_pos],         recall,
                         color=COLOR_R, marker=marker, s=marker_size)
-            plt.scatter([x_pos + offset], f1score, label="F1-score manual",
+            plt.scatter([x_pos + offset], f1score,
                         color=COLOR_F, marker=marker, s=marker_size)
 
         # Labels and formatting
@@ -107,7 +85,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
         plt.grid(axis="y", linestyle="solid", alpha=0.5)
 
     elif mode == "dice":
-        fig, ax = plt.subplots(figsize=(8.5, 5))
+        fig, ax = plt.subplots(figsize=(fig_width, 5))
         if "Spiner" in labels:
             labels.remove("Spiner")
 
@@ -131,6 +109,42 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
         # plt.legend(loc="lower right", fontsize=legendsize)
         plt.grid(axis="y", linestyle="solid", alpha=0.5)
 
+    elif "both":
+        fig, ax = plt.subplots(figsize=(fig_width, 5))
+        # Convert setting labels to numerical x positions
+        offset = 0.08  # horizontal shift for scatter separation
+        for num, key in enumerate(list(value_dict.keys())):
+            precision = [value_dict[key]["precision"]]
+            recall = [value_dict[key]["recall"]]
+            f1score = [value_dict[key]["f1-score"]]
+            dicescore = [value_dict[key]["symm_dice"]]
+            marker = value_dict[key]["marker"]
+            x_pos = num + 1
+
+            plt.scatter([x_pos - 1.5 * offset], precision,
+                        color=COLOR_P, marker=marker, s=marker_size)
+            plt.scatter([x_pos - 0.5 * offset], recall,
+                        color=COLOR_R, marker=marker, s=marker_size)
+            plt.scatter([x_pos + 0.5 * offset], f1score,
+                        color=COLOR_F, marker=marker, s=marker_size)
+            plt.scatter([x_pos + 1.5 * offset], dicescore,
+                        color=COLOR_T, marker=marker, s=marker_size)
+
+        # Labels and formatting
+        x_pos = np.arange(1, len(labels)+1)
+        plt.xticks(x_pos, labels, fontsize=main_tick_size, rotation=tick_rotation)
+        plt.yticks(fontsize=main_tick_size)
+        plt.ylabel("Value", fontsize=main_label_size)
+        plt.ylim(0, 1)
+        # plt.legend(loc="lower right", fontsize=legendsize)
+        plt.grid(axis="y", linestyle="solid", alpha=0.5)
+
+        color = [COLOR_P, COLOR_R, COLOR_F, COLOR_T]
+        label = ["Precision", "Recall", "F1-score", "Dice's coefficient"]
+
+        handles = [get_flatline_handle(c) for c in color]
+        plt.legend(handles, label, loc=(0, 1), ncol=len(label), framealpha=1, frameon=False)
+
     else:
         raise ValueError("Unsupported mode for plotting.")
 
@@ -146,18 +160,6 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
         plt.show()
     else:
         plt.close()
-
-
-def export_legend(legend, filename="legend.png"):
-    legend.axes.axis("off")
-    fig = legend.figure
-    fig.canvas.draw()
-    bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(filename, bbox_inches=bbox, dpi=png_dpi)
-
-
-def get_flatline_handle(color):
-    return Line2D([], [], lw=3, color=color)
 
 
 def plot_legend_acc(save_path):
@@ -178,9 +180,11 @@ def plot_legend_acc(save_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate plots for Supplementary Fig 2 of the cochlea paper.")
-    parser.add_argument("-f", "--figure_dir", type=str, help="Output directory for plots.",
-                        default="./panels/supp_fig2")
+    parser = argparse.ArgumentParser(
+        description="Generate plots for the figures for the OCT paper which show accuracy and Dice coefficients."
+    )
+    parser.add_argument("-f", "--figure_dir", type=str, required=True,
+                        help="Output directory for plots.")
     parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
 
@@ -189,6 +193,7 @@ def main():
 
     plot_model_acc(mode="precision", save_path=os.path.join(args.figure_dir, f"model_acc.{FILE_EXTENSION}"))
     plot_model_acc(mode="dice", save_path=os.path.join(args.figure_dir, f"model_dice.{FILE_EXTENSION}"))
+    plot_model_acc(mode="both", save_path=os.path.join(args.figure_dir, f"model_performance.{FILE_EXTENSION}"))
 
 
 if __name__ == "__main__":

@@ -2,55 +2,10 @@ import argparse
 import os
 from typing import List
 
-import h5py
-import imageio.v3 as imageio
-import numpy as np
-
 from micro_sam.util import get_sam_model
 from micro_sam.evaluation.inference import run_inference_with_iterative_prompting
 from micro_sam.evaluation.evaluation import run_evaluation_for_iterative_prompting
-
-
-DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/validation_data/standard_20250717"
-
-
-def create_individual_tif_data(
-    input_dir: str,
-    image_dir: str,
-    label_dir: str,
-    image_key: str = "image",
-    label_key: str = "labels/edit_v3",
-):
-    """Create individual TIF data for image and label from H5 data.
-
-    Args:
-        input_dir: Input directory with H5 data.
-        image_dir: Output directory for images in TIF format.
-        label_dir: Output directory for labels in TIF format.
-        image_key: Input key in H5 file for image data.
-        label_key: Input key in H5 file for label data.
-    """
-    h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
-    h5_paths.sort()
-    for h5_path in h5_paths:
-        image = np.array(h5py.File(h5_path, "r")[image_key])
-        label = np.array(h5py.File(h5_path, "r")[label_key])
-        base_name = os.path.basename(h5_path).split(".")[0]
-
-        unique_ids = np.unique(label)[1:]
-        for unique_id in unique_ids:
-            unique_label_dir = os.path.join(label_dir, str(unique_id))
-            os.makedirs(unique_label_dir, exist_ok=True)
-
-            unique_image_dir = os.path.join(image_dir, str(unique_id))
-            os.makedirs(unique_image_dir, exist_ok=True)
-
-            out_path_label = os.path.join(unique_label_dir, f"{base_name}.tif")
-            label_tmp = (label == unique_id)
-            imageio.imwrite(out_path_label, label_tmp)
-
-            out_path_image = os.path.join(unique_image_dir, f"{base_name}.tif")
-            imageio.imwrite(out_path_image, image)
+from oct_tools.analysis.eval_iterative_prompting import create_individual_tif_data
 
 
 def _run_iterative_prompting(
