@@ -119,6 +119,11 @@ def plot_iter_prompts(
 
             mean_values_network = [mean_values[key][i] for i in iterations]
             if plot_mode == "mean":
+                ylim_low = 0.6
+                ylim_up = 0.8
+                y_ticks = list(np.arange(ylim_low, ylim_up, 0.05))
+                plt.ylim(ylim_low,ylim_up)
+                plt.yticks(y_ticks)
                 plt.scatter(data_x, mean_values_network, color=colors[num], marker="P", s=80)
 
         plt.xticks(data_x)

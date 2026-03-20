@@ -35,7 +35,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "symm_dice": 0.476,
         },
         "v6c-post": {
-            "label": "octSAM*-postprocess",
+            "label": "octSAM",
             "precision": 0.938,
             "recall": 0.829,
             "f1-score": 0.876,
