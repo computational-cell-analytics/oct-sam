@@ -87,3 +87,53 @@ nnUNetv2_plan_and_preprocess -d 007 --verify_dataset_integrity
 ```
 the JSON dictionaries should be copied to `"$nnUNet_preprocessed"/<Dataset>` as `splits_final.json`.
 They will then be used as a reference for the train and validation split during training for fold 0.
+
+
+## Running inference
+
+Find best configuration with
+```bash
+nnUNetv2_find_best_configuration DATASET_NAME_OR_ID -c 2d
+```
+
+
+```bash
+***Determining postprocessing for best model/ensemble***
+Removing all but the largest foreground region did not improve results!
+Removing all but the largest component for 1 did not improve results! Dice before: 0.93787 after: 0.93747
+Removing all but the largest component for 2 did not improve results! Dice before: 0.94833 after: 0.94646
+Removing all but the largest component for 3 did not improve results! Dice before: 0.89043 after: 0.88577
+Removing all but the largest component for 4 did not improve results! Dice before: 0.89099 after: 0.88541
+Removing all but the largest component for 5 did not improve results! Dice before: 0.93089 after: 0.92873
+Removing all but the largest component for 6 did not improve results! Dice before: 0.92213 after: 0.92186
+Removing all but the largest component for 7 did not improve results! Dice before: 0.93554 after: 0.93528
+
+nnUNetv2_predict -d Dataset004_OCT-2d-all -i INPUT_FOLDER -o OUTPUT_FOLDER -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
+
+nnUNetv2_apply_postprocessing -i OUTPUT_FOLDER -o OUTPUT_FOLDER_PP -pp_pkl_file /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset004_OCT-2d-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/postprocessing.pkl -np 8 -plans_json /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset004_OCT-2d-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/plans.json
+```
+
+```bash
+nnUNetv2_predict -d Dataset005_OCT-2d-public-pretrain -i 20250717_input -o 20250717_seg_005-2d_all -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
+
+nnUNetv2_apply_postprocessing -i 20250717_seg_005-2d_all -o 20250717_seg_005-2d_all_pp -pp_pkl_file /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset005_OCT-2d-public-pretrain/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/postprocessing.pkl -np 8 -plans_json /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset005_OCT-2d-public-pretrain/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/plans.json
+
+
+nnUNetv2_predict -d Dataset006_OCT-2d-Dorothea-all -i 20250717_input -o 20250717_seg_006-2d_all -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
+nnUNetv2_apply_postprocessing -i 20250717_seg_006-2d_all -o 20250717_seg_006-2d_all_pp -pp_pkl_file /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset006_OCT-2d-Dorothea-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/postprocessing.pkl -np 8 -plans_json /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset006_OCT-2d-Dorothea-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/plans.json
+```
+Individual application of a single fold:
+```bash
+nnUNetv2_predict -d 007 -i 20250717_input/ -o 20250717_seg_007-2d_f0 -f 0 -c 2d
+```
+
+
+## Eval nnU-Net segmentation in comparison to manually determined layer thicknesses
+
+```bash
+python ~/oct-analysis/scripts/sam/eval_iterative_prompting.py -m vit_b -i ../validation_data/20250717_images -l ../validation_data/20250717_labels --checkpoint /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-v7-n100.pt -o /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/eval_interactive/oct-sam-v7-n100-check3
+```
+
+```bash
+python ~/Documents/oct-analysis/scripts/compare_seg_to_thickness_measurement.py --measurement ~/Documents/oct-analysis/analysis/thickness_measurement_manual_v2.json --nnunet_dir ~/Documents/oct-data/nnunet_inference/val_seg_004-2d_f0/ -o ~/Documents/oct-analysis/analysis/thickness_measurement_nnunet_004-2d_f0.json
+```
