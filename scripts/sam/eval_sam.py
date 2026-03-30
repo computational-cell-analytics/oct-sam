@@ -26,7 +26,7 @@ DEFAULT_INPUT_FOLDER = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/valid
 
 def _segment_image(predictor, segmenter, image, save_path, postprocess=False,
                    postprocess_functions=["merge_horizontal", "filter_thin"],
-                   use_prompts=False):
+                   use_prompts=True):
     if save_path is not None and os.path.exists(save_path) and ".h5" in save_path:
         with h5py.File(save_path, "r") as f:
             return f["segmentation"][:], f["prompts"][:]
@@ -36,6 +36,7 @@ def _segment_image(predictor, segmenter, image, save_path, postprocess=False,
     boundary_distances = segmenter._boundary_distances
     center_distances = segmenter._center_distances
 
+    print(f"Segmenting image: use_prompts {use_prompts}.")
     if use_prompts:
         prompts = _derive_prompts_sam(foreground, boundary_distances)
         seg = _segment_from_prompts(predictor, image, prompts, min_size=150)
@@ -85,7 +86,8 @@ def eval_model_sam(
     for h5_path, image in tqdm(zip(h5_paths, images), total=len(images), desc="Segment images"):
         basename = "".join(os.path.basename(h5_path).split(".")[:-1])
         save_path = None if save_folder is None else os.path.join(save_folder, f"{basename}.{output_extension}")
-        seg, this_prompts = _segment_image(predictor, segmenter, image, save_path, postprocess, postprocess_functions)
+        seg, this_prompts = _segment_image(predictor, segmenter, image, save_path, postprocess, postprocess_functions,
+                                           use_prompts=use_prompts)
         segmentations.append(seg)
         if use_prompts:
             prompts.append(this_prompts)
