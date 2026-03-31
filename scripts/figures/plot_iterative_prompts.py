@@ -73,12 +73,12 @@ def plot_iter_prompts(
     figure_dir: str,
     eval_dir: Optional[str] = None,
     networks: List[str] = [
-        "oct-sam-v7-n001",
-        "oct-sam-v7-n005",
-        "oct-sam-v7-n010",
-        "oct-sam-v7-n025",
-        "oct-sam-v7-n050",
-        "oct-sam-v7-n100",
+        "oct-sam-pre-v2-n001",
+        "oct-sam-pre-v2-n005",
+        "oct-sam-pre-v2-n010",
+        "oct-sam-pre-v2-n025",
+        "oct-sam-pre-v2-n050",
+        "oct-sam-pre-v2-n100",
     ],
     eval_type: str = "box",
     plot_modes: List[str] = ["mean", "individual"],
@@ -97,6 +97,7 @@ def plot_iter_prompts(
         markers = [item for _, item in LAYER_MARKER.items()]
 
         offset = 0.08
+        plt.grid(axis="y", linestyle="solid", alpha=0.5, zorder=0)
 
         mean_values = {}
         for num, (key, items) in enumerate(eval_dict.items()):
@@ -115,16 +116,19 @@ def plot_iter_prompts(
                 data_x_offset = [x_pos - len(colors) // 2 * offset + offset * num for x_pos in data_x]
                 data_y = [items[layer_index][eval_type][i][acc_type] for i in iterations]
                 if plot_mode == "individual":
-                    plt.scatter(data_x_offset, data_y, color=colors[num], marker=markers[enum])
+                    plt.scatter(data_x_offset, data_y, color=colors[num], marker=markers[enum], zorder=2)
 
             mean_values_network = [mean_values[key][i] for i in iterations]
             if plot_mode == "mean":
-                ylim_low = 0.6
-                ylim_up = 0.8
-                y_ticks = list(np.arange(ylim_low, ylim_up, 0.05))
-                plt.ylim(ylim_low,ylim_up)
+                ylim_low = 0.4
+                ylim_up = 0.7
+                interval = 0.05
+                y_ticks = list(np.arange(ylim_low, ylim_up + interval, interval))
+                plt.ylim(ylim_low, ylim_up)
                 plt.yticks(y_ticks)
-                plt.scatter(data_x, mean_values_network, color=colors[num], marker="P", s=80)
+                plt.scatter(data_x, mean_values_network, color=colors[num], marker="P", s=80, zorder=2)
+            else:
+                plt.ylim(0, 1.05)
 
         plt.xticks(data_x)
         plt.xlabel("Iterations")
@@ -159,12 +163,12 @@ def main():
 
     eval_dir = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/eval_interactive"
     networks = [
-        "oct-sam-v7-n001",
-        "oct-sam-v7-n005",
-        "oct-sam-v7-n010",
-        "oct-sam-v7-n025",
-        "oct-sam-v7-n050",
-        "oct-sam-v7-n100",
+        "oct-sam-pre-v2-n001",
+        "oct-sam-pre-v2-n005",
+        "oct-sam-pre-v2-n010",
+        "oct-sam-pre-v2-n025",
+        "oct-sam-pre-v2-n050",
+        "oct-sam-pre-v2-n100",
     ]
     eval_dict = eval_iter_prompts_networks_multi(eval_dir, networks=networks)
     plot_iter_prompts(figure_dir=args.figure_dir, eval_dict=eval_dict, eval_type="box")

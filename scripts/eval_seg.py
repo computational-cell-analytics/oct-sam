@@ -15,11 +15,12 @@ def eval_segmentation(
     seg_dir: str,
     output_extension: str = "tif",
     check_nnunet: bool = False,
+    label_key: str = "original",
 ):
     h5_paths = [entry.path for entry in os.scandir(img_dir) if ".h5" in entry.name]
     h5_paths.sort()
     images = [np.array(h5py.File(p, "r")["image"]) for p in h5_paths]
-    labels = [np.array(h5py.File(p, "r")["labels"]["original"]) for p in h5_paths]
+    labels = [np.array(h5py.File(p, "r")["labels"][label_key]) for p in h5_paths]
 
     segmentations = []
 
@@ -78,6 +79,8 @@ def main():
                         help="Directory containing segmentation in TIF format.")
     parser.add_argument("--nnunet", action="store_true",
                         help="Check for nnU-Net inference format.")
+    parser.add_argument("--label_key", type=str, default="original",
+                        help="Key for labels stored in h5 format.")
 
     args = parser.parse_args()
 
@@ -85,6 +88,7 @@ def main():
         args.img_dir,
         args.seg_dir,
         check_nnunet=args.nnunet,
+        label_key=args.label_key,
     )
 
 

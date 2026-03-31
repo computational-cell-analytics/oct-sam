@@ -63,6 +63,7 @@ def eval_model_sam(
     save_folder=None, view=False, postprocess=False, output_extension="tif",
     postprocess_functions=["merge_horizontal", "filter_thin"],
     use_prompts=True,
+    label_key: str = "original",
 ):
     predictor, decoder = get_predictor_and_decoder(model_type="vit_b", checkpoint_path=model_path)
 
@@ -72,7 +73,7 @@ def eval_model_sam(
     h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
     h5_paths.sort()
     images = [np.array(h5py.File(p, "r")["image"]) for p in h5_paths]
-    labels = [np.array(h5py.File(p, "r")["labels"]["original"]) for p in h5_paths]
+    labels = [np.array(h5py.File(p, "r")["labels"][label_key]) for p in h5_paths]
 
     if save_folder is not None:
         os.makedirs(save_folder, exist_ok=True)
@@ -147,6 +148,8 @@ def main():
                         "and 'fill_gaps'.")
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")
+    parser.add_argument("--label_key", type=str, default="original",
+                        help="Key for labels stored in h5 format.")
 
     args = parser.parse_args()
 
@@ -155,6 +158,7 @@ def main():
         output_extension=args.output_extension,
         postprocess_functions=args.postprocess_functions,
         use_prompts=not args.no_prompts,
+        label_key=args.label_key,
     )
 
 

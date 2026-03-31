@@ -65,7 +65,7 @@ def main():
                         help="Directory featuring data in H5 format. Image_key: 'image'. Label_key: 'edit_v3'."
                         "Can be passed to create data for image and label directory.")
 
-    parser.add_argument("-m", "--model", type=str, required=True)
+    parser.add_argument("-m", "--model", type=str, default="vit_b")
     parser.add_argument("-c", "--checkpoint", type=str, required=True)
     parser.add_argument("-o", "--output_folder", type=str)
     parser.add_argument("--box", action="store_true", help="If passed, starts with first prompt as box.")
