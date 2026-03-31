@@ -26,21 +26,29 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "^",
             "symm_dice": 0.881,
         },
-        "v6c-no-prompts": {
+        "v7-no-prompts": {
             "label": "octSAM*",
-            "precision": 0.312,
-            "recall": 0.476,
-            "f1-score": 0.371,
+            "precision": 0.588,
+            "recall": 0.494,
+            "f1-score": 0.53,
             "marker": "s",
-            "symm_dice": 0.476,
+            "symm_dice": 0.623,
         },
-        "v6c-post": {
+#        "v7-no-prompts-pp": {
+#            "label": "octSAM*",
+#            "precision": 0.349,
+#            "recall": 0.47,
+#            "f1-score": 0.396,
+#            "marker": "s",
+#            "symm_dice": 0.533,
+#        },
+        "v7-post": {
             "label": "octSAM",
-            "precision": 0.938,
-            "recall": 0.829,
-            "f1-score": 0.876,
+            "precision": 0.928,
+            "recall": 0.798,
+            "f1-score": 0.851,
             "marker": "P",
-            "symm_dice": 0.759,
+            "symm_dice": 0.766,
         },
     }
 
