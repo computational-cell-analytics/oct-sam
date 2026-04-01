@@ -1,14 +1,17 @@
-# Training of nnU-Net v2
+# Training and evaluation of nnU-Net v2
 
 nnU-Net v2 was chosen as the baseline method for comparison ([GitHub repository](https://github.com/MIC-DKFZ/nnUNet/tree/master)).
 
-It was trained for two different conditions:
+It was trained for these conditions:
 * First, only based on two public datasets:
     * Duke_DME(110 B-scans, 7–8 layers + fluids), [publication](https://doi.org/10.1117/12.2654210), [data](https://people.duke.edu/~sf59/software.html)
     * HCMS (35 vols, 8 layers each B-scan), [publication](https://www.sciencedirect.com/science/article/pii/S2352340918316135), [data](https://medic.rad.jhmi.edu/index.php?title=OCT_Data)
-* Secondly, with the addition of custom training data of the project,( 7 layers, 224 B-scans)
+* Secondly, with the addition of custom training data of the project (7 layers, 224 B-scans)
+* Lastly, based on the pre-trained network, several networks were trained with an iteratively increasing number of samples to test the influence of an increase in the number of local datasets. The networks were trained with 1, 5, 10, 25, 50, and 100 additional images, which are subsets from the custom training data. The same set of 10 validation images was used for validation during training. The train splits can be found under `doc/train_splits`.
 
-## Layers
+## Training data
+
+### Layers
 The segmentation of the custom project data was limited to the 7 layers:
 * RNFL: Retina nerve fiber layer
 * GCL+IPL: Ganglion cell layer and inner plexiform layer
@@ -18,20 +21,20 @@ The segmentation of the custom project data was limited to the 7 layers:
 * EZ: Ellipsoid zone (Inner photoreceptor segments and Outer photoreceptor segments)
 * RPE: Retinal pigment epithelium
 
-For HCMS, the inner and outer photoreceptot segments were combined to the ellipsoid zone.
+For HCMS, the inner and outer photoreceptor segments were combined to the ellipsoid zone.
 
-## Voxel size
+### Voxel size
 The data was exported in NIfTI format with the voxel sizes:
 * HCMS: (3.87, 5.8, 123.6) µm
 * DUKE_DME: (3.87, 11.33) µm
 * custom data: (3.87, 5.88) µm
 
-## Export into nnU-Net data format
+### Export into nnU-Net data format
 Both external and internal data has to be transformed into a format, which is compatible with nnU-Net and features spatial information in form of the voxel size.
 A good choice for this is the NIfTI file format.
 The conversion process creates two directories, `imagesTr` and `labelsTr` inside the output directory, which can be used for the training of the nnU-Net.
 
-### Public datasets
+#### Public datasets
 The public datasets can be downloaded with the links referenced above.
 The conversion into this file format can be performed like this:
 ```bash
@@ -41,7 +44,7 @@ python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/t
 python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme
 ```
 
-### Internal data
+#### Internal data
 The internal data is stored in h5 files.
 They contain different versions of the labels, e.g. the original annotations are stored under `["labels"]["orig"]`.
 The annotations can be further refined by removing stray pixels, restricting the labels to the image, and synchronizing the label IDs, so that the same label ID always corresponds to the same semantic layer.
@@ -72,8 +75,8 @@ JSON dictionaries documenting the train/val splits are created using the followi
 ```python
 from oct_tools.train_utils import create_train_val_splits
 
-input_json = "/path/to/oct-repo/doc/train_splits_all.json"
-out_dir = "/path/to/oct-repo/doc"
+input_json = "/path/to/oct-repo/doc/train_splits/train_splits_all.json"
+out_dir = "/path/to/oct-repo/doc/train_splits"
 create_train_val_splits(out_dir, input_json)
 ```
 They have the format `train_splits_n<n_train>.json` and can be used to copy a subset of training data to a new directory:
@@ -88,6 +91,20 @@ nnUNetv2_plan_and_preprocess -d 007 --verify_dataset_integrity
 the JSON dictionaries should be copied to `"$nnUNet_preprocessed"/<Dataset>` as `splits_final.json`.
 They will then be used as a reference for the train and validation split during training for fold 0.
 
+### Networks
+The following networks were trained:
+```
+Dataset004_OCT-2d-all
+Dataset005_OCT-2d-public-pretrain
+Dataset006_OCT-2d-Dorothea-all
+Dataset007_OCT-2d-Dorothea-n100
+Dataset008_OCT-2d-Dorothea-n050
+Dataset009_OCT-2d-Dorothea-n025
+Dataset010_OCT-2d-Dorothea-n010
+Dataset011_OCT-2d-Dorothea-n005
+Dataset012_OCT-2d-Dorothea-n001
+```
+Their analysis on the validation dataset `20250717` can be found under `analysis/`.
 
 ## Running inference
 
@@ -95,7 +112,6 @@ Find best configuration with
 ```bash
 nnUNetv2_find_best_configuration DATASET_NAME_OR_ID -c 2d
 ```
-
 
 ```bash
 ***Determining postprocessing for best model/ensemble***
@@ -118,7 +134,6 @@ nnUNetv2_predict -d Dataset005_OCT-2d-public-pretrain -i 20250717_input -o 20250
 
 nnUNetv2_apply_postprocessing -i 20250717_seg_005-2d_all -o 20250717_seg_005-2d_all_pp -pp_pkl_file /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset005_OCT-2d-public-pretrain/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/postprocessing.pkl -np 8 -plans_json /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset005_OCT-2d-public-pretrain/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/plans.json
 
-
 nnUNetv2_predict -d Dataset006_OCT-2d-Dorothea-all -i 20250717_input -o 20250717_seg_006-2d_all -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
 nnUNetv2_apply_postprocessing -i 20250717_seg_006-2d_all -o 20250717_seg_006-2d_all_pp -pp_pkl_file /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset006_OCT-2d-Dorothea-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/postprocessing.pkl -np 8 -plans_json /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/nnUNet/nnUNet_results/Dataset006_OCT-2d-Dorothea-all/nnUNetTrainer__nnUNetPlans__2d/crossval_results_folds_0_1_2_3_4/plans.json
 ```
@@ -127,13 +142,8 @@ Individual application of a single fold:
 nnUNetv2_predict -d 007 -i 20250717_input/ -o 20250717_seg_007-2d_f0 -f 0 -c 2d
 ```
 
-
 ## Eval nnU-Net segmentation in comparison to manually determined layer thicknesses
 
 ```bash
-python ~/oct-analysis/scripts/sam/eval_iterative_prompting.py -m vit_b -i ../validation_data/20250717_images -l ../validation_data/20250717_labels --checkpoint /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-v7-n100.pt -o /mnt/vast-nhr/projects/nim00007/data/mace/oct-data/eval_interactive/oct-sam-v7-n100-check3
-```
-
-```bash
-python ~/Documents/oct-analysis/scripts/compare_seg_to_thickness_measurement.py --measurement ~/Documents/oct-analysis/analysis/thickness_measurement_manual_v2.json --nnunet_dir ~/Documents/oct-data/nnunet_inference/val_seg_004-2d_f0/ -o ~/Documents/oct-analysis/analysis/thickness_measurement_nnunet_004-2d_f0.json
+python /path/to/oct-analysis/scripts/compare_seg_to_thickness_measurement.py --measurement /path/to/oct-analysis/analysis/thickness_measurement_manual_v2.json --nnunet_dir /path/to/nnunet_inference/val_seg_004-2d_f0/ -o /path/to/oct-analysis/analysis/thickness_measurement_nnunet_004-2d_f0.json
 ```

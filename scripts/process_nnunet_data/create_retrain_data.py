@@ -6,10 +6,19 @@ from oct_tools.train_utils import copy_files_by_subset
 
 
 def create_subset_sam_training_data(
-    input_dir,
-    output_dir,
-    json_file,
+    input_dir: str,
+    output_dir: str,
+    json_file: str,
 ):
+    """Create subset of octSAM training data based on a 'train'/'val' split in a JSON dictionary.
+    The function scans the input directory for both training and validation data.
+    All files which contain the names from the JSON dictionary are copied to the output directory.
+
+    Args:
+        input_dir: Input directory for dataset.
+        output_dir: Output directory for subset of data.
+        json_file: JSON dictionary with names for training and validation.
+    """
     with open(json_file, 'r') as myfile:
         data = myfile.read()
     params = json.loads(data)[0]
