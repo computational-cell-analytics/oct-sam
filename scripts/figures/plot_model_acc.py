@@ -35,7 +35,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
 #            "symm_dice": 0.623,
 #        },
         "v7-no-prompts": {
-            "label": "octSAM*",
+            "label": "OCT-SAM*",
             "precision": 0.349,
             "recall": 0.47,
             "f1-score": 0.396,
@@ -43,7 +43,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "symm_dice": 0.533,
         },
         "v7-post": {
-            "label": "octSAM",
+            "label": "OCT-SAM",
             "precision": 0.928,
             "recall": 0.798,
             "f1-score": 0.851,

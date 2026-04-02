@@ -299,7 +299,7 @@ def plot_model_acc(
             label1 = ["Precision", "Recall", "F1-score", "Dice's coefficient"]
             handles1 = [get_flatline_handle(c, linewidth=linewidth) for c in color]
 
-            label2 = ["nnU-Net", "octSAM"]
+            label2 = ["nnU-Net", "OCT-SAM"]
             color = ["black" for _ in label2]
             marker = ["o", "v"]
             handles2 = [get_marker_handle(c, m) for (c, m) in zip(color, marker)]

@@ -13,6 +13,7 @@ png_dpi = 300
 FILE_EXTENSION = "png"
 
 ITERATIVE_COLORS = {
+    "pretrained-public": "#23CF72",
     "n001": "#00DDFA",
     "n005": "#23BBCF",
     "n010": "#3798A5",
@@ -73,6 +74,7 @@ def plot_iter_prompts(
     figure_dir: str,
     eval_dir: Optional[str] = None,
     networks: List[str] = [
+        "oct-sam-pretrained-v2",
         "oct-sam-pre-v2-n001",
         "oct-sam-pre-v2-n005",
         "oct-sam-pre-v2-n010",
@@ -128,11 +130,12 @@ def plot_iter_prompts(
                 plt.yticks(y_ticks)
                 plt.scatter(data_x, mean_values_network, color=colors[num], marker="P", s=80, zorder=2)
             else:
-                plt.ylim(0, 1.05)
-
+                plt.ylim(-0.05, 1.05)
+        
+        label_size = 18
         plt.xticks(data_x)
-        plt.xlabel("Iterations")
-        plt.ylabel("F1-Score")
+        plt.xlabel("Iterations", fontsize=label_size)
+        plt.ylabel("F1-Score", fontsize=label_size)
 
         if ".png" in save_path:
             plt.savefig(save_path, bbox_inches="tight", pad_inches=0.1, dpi=png_dpi)
@@ -163,6 +166,7 @@ def main():
 
     eval_dir = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/eval_interactive"
     networks = [
+        "oct-sam-pretrained-v2",
         "oct-sam-pre-v2-n001",
         "oct-sam-pre-v2-n005",
         "oct-sam-pre-v2-n010",

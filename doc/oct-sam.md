@@ -1,6 +1,6 @@
-# Training and evaluation of octSAM
+# Training and evaluation of OCT-SAM
 
-MedicoSAM was chosen as a base for the further training of octSAM. [MedicoSAM](https://pubmed.ncbi.nlm.nih.gov/41406266/)
+MedicoSAM was chosen as a base for the further training of OCT-SAM. [MedicoSAM](https://pubmed.ncbi.nlm.nih.gov/41406266/)
 
 It was re-trained for these conditions:
 * First, only based on two public datasets (`oct-sam-pretrained-v2`):
@@ -63,7 +63,7 @@ python /path/to/oct-analysis/scripts/training/retrain_medicosam.py -t "$IPUT_TRA
 
 ## Running inference
 
-The trained octSAM networks are applied using `/path/to/oct-analysis/scripts/sam/eval_sam.py`.
+The trained OCT-SAM networks are applied using `/path/to/oct-analysis/scripts/sam/eval_sam.py`.
 Different settings can be chosen for the application.
 The default pipeline involves an initial prediction of the network, which is used to derive point prompts for a second application.
 This can be switched off using the `--no_prompts` argument.
@@ -97,8 +97,8 @@ python "$OCT_DIR"/scripts/sam/eval_sam.py --input "$DATA_DIR" \
     --label_key edit_v3
 ```
 
-## Evaluate iterative prompting of octSAM
-The SAM derivatives (µSAM, MedicoSAM, octSAM) are designed for an iterative approach to improve the segmentation.
+## Evaluate iterative prompting of OCT-SAM
+The SAM derivatives (µSAM, MedicoSAM, OCT-SAM) are designed for an iterative approach to improve the segmentation.
 The user can refine the initial segmentation by providing bounding poxes or point prompts using positive and negative markers.
 To emulate this process, the following function was used:
 
