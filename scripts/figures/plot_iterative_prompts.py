@@ -1,11 +1,14 @@
 import argparse
+import json
 import os
 from typing import List, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from oct_tools.analysis.eval_iterative_prompting import eval_iter_prompts_networks_multi
+from oct_tools.analysis.eval_thickness_measurement import LAYER_MAPPING
 from util import get_marker_handle, get_flatline_handle, export_legend
 
 png_dpi = 300
@@ -85,6 +88,7 @@ def plot_iter_prompts(
     eval_type: str = "box",
     plot_modes: List[str] = ["mean", "individual"],
     eval_dict: Optional[dict] = None,
+    eval_json: Optional[str] = None,
 ):
     if eval_dict is None:
         if eval_dir is None:
@@ -131,11 +135,15 @@ def plot_iter_prompts(
                 plt.scatter(data_x, mean_values_network, color=colors[num], marker="P", s=80, zorder=2)
             else:
                 plt.ylim(-0.05, 1.05)
-        
+
         label_size = 18
         plt.xticks(data_x)
         plt.xlabel("Iterations", fontsize=label_size)
         plt.ylabel("F1-Score", fontsize=label_size)
+
+        if eval_json is not None:
+            with open(eval_json, "w") as f:
+                json.dump(eval_dict, f, indent='\t', separators=(',', ': '))
 
         if ".png" in save_path:
             plt.savefig(save_path, bbox_inches="tight", pad_inches=0.1, dpi=png_dpi)
@@ -143,6 +151,45 @@ def plot_iter_prompts(
             plt.savefig(save_path, bbox_inches='tight', pad_inches=0)
 
         plt.close()
+
+
+def _export_df_from_json(
+    input_json: str,
+    output_folder: str,
+    iterations: List[int] = [0, 1, 2, 3],
+):
+    """Utility function for the evaluation of iterative prompting of OCT-SAM.
+    The parameters are read from a JSON dictionary and exported to TSV and Excel format.
+
+    Args:
+        input_json: JSON dictionary with parameters of the iterative prompting of OCT-SAM.
+        output_folder: Output folder.
+        iterations: Iterations of iterative prompting.
+    """
+    with open(input_json, 'r') as myfile:
+        data = myfile.read()
+    params = json.loads(data)
+
+    for table_type in ["box", "point"]:
+        dict_list = []
+        for key, item in params.items():
+            for value_type in ["precision", "recall", "f1-score"]:
+                for iteration in iterations:
+                    dict_tmp = {}
+                    dict_tmp["Model"] = key
+                    dict_tmp["Iteration"] = iteration + 1
+                    dict_tmp["Value"] = value_type
+                    for layer_key, layer in item.items():
+                        dict_tmp[LAYER_MAPPING[int(layer_key)]] = layer[table_type][str(iteration)][value_type]
+                    dict_list.append(dict_tmp)
+
+        df = pd.DataFrame(dict_list)
+        df = df.round(3)
+
+        output_df = os.path.join(output_folder, f"OCT-SAM_iterative-prompts_{table_type}.tsv")
+        df.to_csv(output_df, sep="\t", index=False)
+        output_excel = os.path.join(output_folder, f"OCT-SAM_iterative-prompts_{table_type}.xlsx")
+        df.to_excel(output_excel, index=False)
 
 
 def main():
@@ -175,7 +222,8 @@ def main():
         "oct-sam-pre-v2-n100",
     ]
     eval_dict = eval_iter_prompts_networks_multi(eval_dir, networks=networks)
-    plot_iter_prompts(figure_dir=args.figure_dir, eval_dict=eval_dict, eval_type="box")
+    eval_json = os.path.join(args.figure_dir, "OCT-SAM_iterative-prompts.json")
+    plot_iter_prompts(figure_dir=args.figure_dir, eval_dict=eval_dict, eval_type="box", eval_json=eval_json)
     plot_iter_prompts(figure_dir=args.figure_dir, eval_dict=eval_dict, eval_type="point")
 
 

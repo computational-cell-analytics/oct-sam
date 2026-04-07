@@ -26,14 +26,14 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "^",
             "symm_dice": 0.881,
         },
-#        "v7-no-prompts-pp": {
-#            "label": "octSAM*",
-#            "precision": 0.588,
-#            "recall": 0.494,
-#            "f1-score": 0.53,
-#            "marker": "s",
-#            "symm_dice": 0.623,
-#        },
+        # "v7-no-prompts-pp": {
+        #     "label": "octSAM*",
+        #     "precision": 0.588,
+        #     "recall": 0.494,
+        #     "f1-score": 0.53,
+        #     "marker": "s",
+        #     "symm_dice": 0.623,
+        # },
         "v7-no-prompts": {
             "label": "OCT-SAM*",
             "precision": 0.349,
