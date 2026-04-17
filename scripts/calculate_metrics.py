@@ -26,7 +26,7 @@ def calculate_metrics(
     if len(voxel_size) == 1:
         voxel_size = voxel_size * 2
     voxel_size = np.array(voxel_size)[::-1]
-    tab = run_measurement(seg, spacing=voxel_size)
+    tab = run_measurement(seg, spacing=voxel_size, extra_information=True)
     if ".tsv" in output_path:
         tab.to_csv(output_path, sep="\t", index=False)
     elif ".xlsx" in output_path:
