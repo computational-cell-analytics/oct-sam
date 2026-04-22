@@ -62,8 +62,8 @@ nnUNetv2_predict -d Dataset004_OCT-2d-all -i 20250717_input -o 20250717_seg_004-
 ```
 To have a consistent evaluation metric, only the first fold of every nnU-Net network was used to evaluate the performance of the network.
 
-To test the influence of manually annotated data on network training performance, we used a setup in which the nnU-Net was pretrained on public datasets and then finetuned using various sample sizes of data annotated by Dorothea.
-First, we used all the data annotated by Dorothea (`n_train=179`, `n_val=45`).
+To test the influence of manually annotated data on network training performance, we used a setup in which the nnU-Net was pretrained on public datasets and then finetuned using various sample sizes of the UMG-RP dataset.
+First, we used the entire UMG-RP dataset (`n_train=179`, `n_val=45`).
 Next, we used subsets of varying sizes for the training data and a fixed subset of ten samples for the validation dataset:
 * n_train=100, n_val=10
 * n_train=50, n_val=10
@@ -82,7 +82,7 @@ create_train_val_splits(out_dir, input_json)
 ```
 They have the format `train_splits_n<n_train>.json` and can be used to copy a subset of training data to a new directory:
 ```bash
-python /path/to/oct-repo/scripts/process_nnunet_data/create_retrain_data.py --input_dir Dataset006_OCT-2d-Dorothea-all --output_dir Dataset007_OCT-2d-Dorothea-n100 --json /path/to/oct-repo/doc/train_splits_n100.json
+python /path/to/oct-repo/scripts/process_nnunet_data/create_retrain_data.py --input_dir Dataset006_OCT-2d-finetune-all --output_dir Dataset007_OCT-2d-finetune-n100 --json /path/to/oct-repo/doc/train_splits_n100.json
 ```
 
 After planning and pre-processing the new dataset, e.g. with
@@ -97,13 +97,13 @@ The following networks were trained:
 ```
 Dataset004_OCT-2d-all
 Dataset005_OCT-2d-public-pretrain
-Dataset006_OCT-2d-Dorothea-all
-Dataset007_OCT-2d-Dorothea-n100
-Dataset008_OCT-2d-Dorothea-n050
-Dataset009_OCT-2d-Dorothea-n025
-Dataset010_OCT-2d-Dorothea-n010
-Dataset011_OCT-2d-Dorothea-n005
-Dataset012_OCT-2d-Dorothea-n001
+Dataset006_OCT-2d-finetune-all
+Dataset007_OCT-2d-finetune-n100
+Dataset008_OCT-2d-finetune-n050
+Dataset009_OCT-2d-finetune-n025
+Dataset010_OCT-2d-finetune-n010
+Dataset011_OCT-2d-finetune-n005
+Dataset012_OCT-2d-finetune-n001
 ```
 Their evaluation on the validation dataset `20250717` can be found under `analysis/`.
 

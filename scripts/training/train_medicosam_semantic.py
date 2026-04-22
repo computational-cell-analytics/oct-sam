@@ -46,11 +46,11 @@ def get_loaders(patch_shape, batch_size, val_size=0.1):
         raw_transform=raw_trafo,
     )
 
-    # training data from Dorothea
+    # training data from the UMG-RP dataset
     image_key = "image"
     label_key = "labels/edit_v3"
-    train_paths = sorted(glob(os.path.join(ROOT_DIR, "dorothea_train", "*.h5")))
-    val_paths = sorted(glob(os.path.join(ROOT_DIR, "dorothea_val", "*.h5")))
+    train_paths = sorted(glob(os.path.join(ROOT_DIR, "umg_rp_train", "*.h5")))
+    val_paths = sorted(glob(os.path.join(ROOT_DIR, "umg_rp_val", "*.h5")))
 
     train_dataset_02 = torch_em.default_segmentation_dataset(
         train_paths, image_key, train_paths, label_key,
@@ -105,7 +105,7 @@ def export_pretrained_model():
 
 def main():
     """Train Medico-SAM for semantic segmentation directly on all datasets -
-    two public datasets and the data from Dorothea.
+    two public datasets and the UMG-RP datset.
     """
     pretrain_medicosam(check=False)
     export_pretrained_model()

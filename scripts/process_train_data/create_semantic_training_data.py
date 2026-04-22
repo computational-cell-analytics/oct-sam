@@ -13,7 +13,7 @@ def create_semantic_sam_training_data(
     output_dir: str,
     nnunet_dir: str,
     json_file: str,
-    dorothea_data_dir: str,
+    umg_data_dir: str,
 ):
     """Create subset of octSAM training data based on a 'train'/'val' split in a JSON dictionary.
     The function scans the input directory for both training and validation data.
@@ -23,7 +23,7 @@ def create_semantic_sam_training_data(
         input_dir: Input directory for dataset.
         output_dir: Output directory for subset of data.
         json_file: JSON dictionary with names for training and validation.
-        dorothea_dir: Directory containing data from local annotations.
+        umg_data_dir: Directory containing data from local annotations.
     """
     with open(json_file, 'r') as myfile:
         data = myfile.read()
@@ -34,7 +34,7 @@ def create_semantic_sam_training_data(
     data_dict = {
         "hcms": {"train": [], "val": []},
         "duke_dme": {"train": [], "val": []},
-        "dorothea": {"train": [], "val": []},
+        "umg-rp": {"train": [], "val": []},
     }
     for (names, data_mode) in zip([train_names, val_names], ["train", "val"]):
         for name in names:
@@ -50,7 +50,7 @@ def create_semantic_sam_training_data(
                 middle_part = name[6:]
                 middle_part = middle_part[:-3] + "z" + middle_part[-2:]
                 input_name = f"RP{middle_part}"
-                data_dict["dorothea"][data_mode].append(input_name)
+                data_dict["umg-rp"][data_mode].append(input_name)
 
         for key, item in data_dict.items():
             print(f"Copying {data_mode} files for {key}.")
@@ -97,10 +97,10 @@ def create_semantic_sam_training_data(
                         f.create_dataset("image", data=img, compression="gzip")
                         f.create_dataset("masks", data=seg, compression="gzip")
 
-            elif key == "dorothea":
-                train_out = os.path.join(output_dir, f"dorothea_{data_mode}")
+            elif key == "umg-rp":
+                train_out = os.path.join(output_dir, f"umg-rp_{data_mode}")
                 os.makedirs(train_out, exist_ok=True)
-                copied, skipped = copy_files_by_subset(item[data_mode], dorothea_data_dir, train_out)
+                copied, skipped = copy_files_by_subset(item[data_mode], umg_data_dir, train_out)
 
         out_path = os.path.join(output_dir, "semantic_training_split.json")
         with open(out_path, "w") as f:
@@ -115,14 +115,14 @@ def main():
     parser.add_argument("-n", "--nnunet_dir", type=str, required=True)
     parser.add_argument("-o", "--output_dir", type=str, required=True)
     parser.add_argument("-j", "--json", type=str, required=True)
-    parser.add_argument("--dorothea_dir", type=str, required=True)
+    parser.add_argument("--umg_data_dir", type=str, required=True)
 
     args = parser.parse_args()
     create_semantic_sam_training_data(
         nnunet_dir=args.nnunet_dir,
         output_dir=args.output_dir,
         json_file=args.json,
-        dorothea_data_dir=args.dorothea_dir,
+        umg_data_dir=args.umg_data_dir,
     )
 
 
