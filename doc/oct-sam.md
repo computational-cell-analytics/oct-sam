@@ -1,6 +1,6 @@
 # Training and evaluation of OCT-SAM
 
-MedicoSAM was chosen as a base for the further training of OCT-SAM. [MedicoSAM](https://pubmed.ncbi.nlm.nih.gov/41406266/)
+MedicoSAM was chosen as the base for the further training of OCT-SAM. [MedicoSAM](https://pubmed.ncbi.nlm.nih.gov/41406266/)
 
 It was re-trained for these conditions:
 * First, only based on two public datasets (`oct-sam-pretrained-v2`):
@@ -32,7 +32,7 @@ For HCMS, the inner and outer photoreceptor segments were combined to the ellips
 The public datasets can be downloaded with the links referenced above.
 
 ### Internal data
-The internal data is stored in h5 files.
+The internal data is stored in H5 files.
 They contain different versions of the labels, e.g. the original annotations are stored under `["labels"]["orig"]`.
 The annotations can be further refined by removing stray pixels, restricting the labels to the image, and synchronizing the label IDs, so that the same label ID always corresponds to the same semantic layer.
 ```bash

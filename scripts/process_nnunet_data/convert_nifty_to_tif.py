@@ -20,7 +20,7 @@ def convert_nifty_to_tif(input_folder, output_folder):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert h5 input data into the nnU-Net format for inference."
+        description="Convert H5 input data into the nnU-Net format for inference."
     )
 
     parser.add_argument("-i", "--input_dir", type=str, required=True)

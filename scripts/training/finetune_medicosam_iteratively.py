@@ -80,7 +80,7 @@ def main():
     parser.add_argument("-v", "--val_dir", type=str, required=True,
                         help="Validation data.")
     parser.add_argument("-m", "--model", type=str, required=True,
-                        help="Model name of retrained model.")
+                        help="Model name of finetuned model.")
     parser.add_argument("-c", "--checkpoint", type=str, required=True,
                         help="Model checkpoint of pretrained model.")
 

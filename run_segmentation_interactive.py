@@ -26,8 +26,8 @@ from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.segmentation_utils import run_measurement, get_etdrs_mask
 from oct_tools.layer_information import identify_layers
-from oct_tools.table_widget import MeasurementTableWidget
-from oct_tools.linelength_widget import LineLengthTableWidget
+from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
+from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,

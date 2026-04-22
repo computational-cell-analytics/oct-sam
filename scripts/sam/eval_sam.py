@@ -133,7 +133,7 @@ def eval_model_sam(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate SAM model on all images in a folder. Evaluates data in h5 format."
+        description="Evaluate SAM model on all images in a folder. Evaluates data in H5 format."
     )
     parser.add_argument("-i", "--input_dir", type=str, default=DEFAULT_INPUT_FOLDER)
     parser.add_argument("-m", "--model", type=str, required=True)
@@ -149,7 +149,7 @@ def main():
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")
     parser.add_argument("--label_key", type=str, default="original",
-                        help="Key for labels stored in h5 format.")
+                        help="Key for labels stored in H5 format.")
 
     args = parser.parse_args()
 

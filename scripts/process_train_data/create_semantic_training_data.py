@@ -119,11 +119,11 @@ def main():
 
     args = parser.parse_args()
     create_semantic_sam_training_data(
-            nnunet_dir=args.nnunet_dir,
-            output_dir=args.output_dir,
-            json_file=args.json,
-            dorothea_data_dir=args.dorothea_dir,
-        )
+        nnunet_dir=args.nnunet_dir,
+        output_dir=args.output_dir,
+        json_file=args.json,
+        dorothea_data_dir=args.dorothea_dir,
+    )
 
 
 if __name__ == "__main__":

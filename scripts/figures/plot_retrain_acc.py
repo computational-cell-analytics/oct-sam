@@ -210,13 +210,13 @@ def plot_model_acc(
 
                 plt.scatter([x_pos - offset], precision, label="Precision",
                             color=COLOR_P, marker=marker, s=marker_size)
-                plt.scatter([x_pos],         recall, label="Recall",
+                plt.scatter([x_pos], recall, label="Recall",
                             color=COLOR_R, marker=marker, s=marker_size)
                 plt.scatter([x_pos + offset], f1score, label="F1-score",
                             color=COLOR_F, marker=marker, s=marker_size)
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=main_tick_size, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Value", fontsize=main_label_size)
@@ -238,7 +238,7 @@ def plot_model_acc(
                 plt.scatter([x_pos], runtime, label="Dice", color=COLOR_T, marker=marker, s=marker_size)
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=16, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Dice's coefficient", fontsize=main_label_size)
@@ -269,7 +269,7 @@ def plot_model_acc(
                             color=COLOR_T, marker=marker, s=marker_size)
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=main_tick_size, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Value", fontsize=main_label_size)
@@ -347,7 +347,7 @@ def plot_legend_acc(save_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate plots for comparing retrain accuracy of OCT.")
+    parser = argparse.ArgumentParser(description="Generate plots for comparing finetune accuracy of OCT.")
     parser.add_argument("-f", "--figure_dir", type=str, help="Output directory for plots.",
                         default="./panels/supp_fig2")
     parser.add_argument("--plot", action="store_true")

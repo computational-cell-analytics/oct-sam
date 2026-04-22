@@ -27,9 +27,9 @@ def edit_annotations(
     filling gaps between horizontal layers, and restricting the labels to the image area.
 
     Args:
-        input_dir: Input directory containing image and label data in h5 format.
+        input_dir: Input directory containing image and label data in H5 format.
         output_dir: Output directory for edited annotations.
-        label_version: String for labeling edited annotations in h5 output.
+        label_version: String for labeling edited annotations in H5 output.
         assign_class_id: Flag for assigning common class id.
     """
     if output_dir is None:
@@ -95,14 +95,14 @@ def edit_annotations(
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluate segmentation performance on all images in a folder. "
-        "Evaluates image and label data in h5 format and segmentation data in TIF format."
+        "Evaluates image and label data in H5 format and segmentation data in TIF format."
     )
     parser.add_argument("-i", "--input_dir", type=str, required=True,
-                        help="Directory containing images and labels in h5 format.")
+                        help="Directory containing images and labels in H5 format.")
     parser.add_argument("-o", "--output_dir", type=str, default=None,
                         help="Directory containing edited annotations. Default: Edit files in place.")
     parser.add_argument("-v", "--version", type=str, default="edit_v1",
-                        help="Description for data path of output in h5 file. Default: 'edit_v1'.")
+                        help="Description for data path of output in H5 file. Default: 'edit_v1'.")
 
     args = parser.parse_args()
 

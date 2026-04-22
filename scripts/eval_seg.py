@@ -71,16 +71,16 @@ def eval_segmentation(
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluate segmentation performance on all images in a folder. "
-        "Evaluates image and label data in h5 format and segmentation data in TIF format."
+        "Evaluates image and label data in H5 format and segmentation data in TIF format."
     )
     parser.add_argument("-i", "--img_dir", type=str, required=True,
-                        help="Directory containing images and labels in h5 format.")
+                        help="Directory containing images and labels in H5 format.")
     parser.add_argument("-s", "--seg_dir", type=str, required=True,
                         help="Directory containing segmentation in TIF format.")
     parser.add_argument("--nnunet", action="store_true",
                         help="Check for nnU-Net inference format.")
     parser.add_argument("--label_key", type=str, default="original",
-                        help="Key for labels stored in h5 format.")
+                        help="Key for labels stored in H5 format.")
 
     args = parser.parse_args()
 

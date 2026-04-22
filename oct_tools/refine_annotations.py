@@ -2,25 +2,7 @@ import numpy as np
 from scipy.ndimage import binary_closing
 from skimage.measure import label as label_binary
 
-from oct_tools.layer_information import find_layer_order
-
-LAYER_NUMBER_DICT = {
-    3: ["RFNL", "GCIPL", "RPE"],
-    4: ["RFNL", "GCIPL", "INL", "RPE"],
-    5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
-    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
-    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
-}
-
-LAYER_LABEL_DICT = {
-    "RFNL": 1,
-    "GCIPL": 2,
-    "INL": 3,
-    "OPL": 4,
-    "ONL": 5,
-    "EZ": 6,
-    "RPE": 7,
-}
+from oct_tools.layer_information import find_layer_order, LAYER_NUMBER_DICT, LAYER_LABEL_DICT
 
 
 def cleanup_label(

@@ -24,9 +24,9 @@ def prepare_internal_data(
     e.g. oct_30012_2023_OD_008_0000.nii.gz.
 
     Args:
-        input_folder: Folder containing files in h5 format.
+        input_folder: Folder containing files in H5 format.
         output_folder: Output directory for imagesTr and labelsTr.
-        label_key: Label key for path in h5 file.
+        label_key: Label key for path in H5 file.
         pixel_spacing: Voxel size for data.
     """
     # The affine matrix defines the spatial orientation and position
@@ -88,11 +88,11 @@ def main():
     )
 
     parser.add_argument("-i", "--input_dir", type=str, required=True,
-                        help="Input directory with files in h5 format.")
+                        help="Input directory with files in H5 format.")
     parser.add_argument("-o", "--output_dir", type=str, required=True,
                         help="Output directory for creating imagesTr and labelsTr folders.")
     parser.add_argument("-l", "--label_key", type=str, default="edit_v1",
-                        help="Description for data path to label data in h5 file. Default: 'edit_v3'.")
+                        help="Description for data path to label data in H5 file. Default: 'edit_v3'.")
 
     args = parser.parse_args()
 

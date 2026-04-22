@@ -14,6 +14,36 @@ LAYERS = {
     "RPE": "Retinal Pigment Epithelium",
 }
 
+# Number of layers matched to layer order
+LAYER_NUMBER_DICT = {
+    3: ["RFNL", "GCIPL", "RPE"],
+    4: ["RFNL", "GCIPL", "INL", "RPE"],
+    5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
+    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
+    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
+}
+
+# Matching of layer and label ID
+LAYER_LABEL_DICT = {
+    "RFNL": 1,
+    "GCIPL": 2,
+    "INL": 3,
+    "OPL": 4,
+    "ONL": 5,
+    "EZ": 6,
+    "RPE": 7,
+}
+
+LAYER_MAPPING = {
+    1: "RNFL",
+    2: "GCIPL",
+    3: "INL",
+    4: "OPL",
+    5: "ONL",
+    6: "EZ",
+    7: "RPE"
+}
+
 
 def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
     """Identify the order of segmentation layers.
@@ -68,6 +98,6 @@ def identify_layers(seg: np.ndarray, expected_number_of_layers: Optional[int] = 
     # The layers degrade from the bottom, so if layers are missing we can just index the first n-ids.
     # layer_names = list(LAYERS.keys())[:n_ids]
     # The automatic assignment of the correct layer names is currently too inaccurate.
-    layer_names = [f"layer_{str(i+1).zfill(2)}" for i in range(n_ids)]
+    layer_names = [f"layer_{str(i + 1).zfill(2)}" for i in range(n_ids)]
     seg_label_dict = {col_id: name for col_id, name in zip(col_ids, layer_names)}
     return seg_label_dict
