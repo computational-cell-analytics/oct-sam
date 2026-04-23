@@ -1,9 +1,11 @@
+"""private
+"""
 import argparse
 
 from oct_tools.interactive_segmentation import run_annotator
 
 
-def main():
+def interactive():
     parser = argparse.ArgumentParser(
         description="Apply SAM model on a single or multiple slices of input data."
     )
@@ -37,7 +39,3 @@ def main():
         ref_position=args.ref_position,
         more_info=args.more_info,
     )
-
-
-if __name__ == "__main__":
-    main()
