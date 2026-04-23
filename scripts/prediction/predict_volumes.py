@@ -5,8 +5,6 @@ from glob import glob
 import imageio.v3 as imageio
 import numpy as np
 
-from oct_tools.train_utils import BoundaryAndDistanceTransform  # noqa: F401
-
 
 def predict_volume(model, volume):
     import torch_em
