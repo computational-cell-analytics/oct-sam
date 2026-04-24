@@ -83,7 +83,7 @@ class LineLengthTableWidget(QWidget):
             # Check layer exists
             if layer_name not in self._viewer.layers:
                 if layer_name == "":
-                    napari.utils.notifications.show_info(f"Please provide a layer name.")
+                    napari.utils.notifications.show_info("Please provide a layer name.")
                 else:
                     napari.utils.notifications.show_info(f"Layer '{layer_name}' not found.")
                 return

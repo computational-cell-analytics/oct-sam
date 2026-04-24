@@ -3,7 +3,6 @@ import os
 from glob import glob
 
 import eyepy as ep
-import napari
 import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
@@ -300,25 +299,19 @@ def prepare_duke_dme(
             except ValueError:
                 images, labels = image_planes, label_planes
 
-        if output_folder is None:
-            v = napari.Viewer()
-            v.add_image(images)
-            v.add_labels(labels)
-            napari.run()
-        else:
-            if len(slice_indexes) == 0:
-                slice_indexes = [i for i in range(len(images))]
-            for z, slice_index in enumerate(slice_indexes):
-                nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}_{str(slice_index).zfill(3)}"
-                image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
+        if len(slice_indexes) == 0:
+            slice_indexes = [i for i in range(len(images))]
+        for z, slice_index in enumerate(slice_indexes):
+            nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}_{str(slice_index).zfill(3)}"
+            image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
 
-                # Create the NIfTI image
-                nifti_image = nib.Nifti1Image(images[z], affine)
-                nib.save(nifti_image, image_path)
+            # Create the NIfTI image
+            nifti_image = nib.Nifti1Image(images[z], affine)
+            nib.save(nifti_image, image_path)
 
-                nifti_label = nib.Nifti1Image(labels[z], affine)
-                label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
-                nib.save(nifti_label, label_path)
+            nifti_label = nib.Nifti1Image(labels[z], affine)
+            label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
+            nib.save(nifti_label, label_path)
 
 
 def main():
