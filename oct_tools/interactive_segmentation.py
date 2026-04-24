@@ -106,7 +106,7 @@ def run_annotator(
     input_path: str,
     output_folder: str,
     slices: List[int],
-    sam_model: str,
+    checkpoint_path: str,
     use_prompts: bool = True,
     precompute_segmentation: bool = True,
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
@@ -120,7 +120,7 @@ def run_annotator(
         input_path: Image data in TIF or H5 format.
         output_folder: Output folder for pre-computed segmentation.
         slices: Single or multiple slices of TIF data.
-        sam_model: File path to SAM model.
+        checkpoint_path: File path to OCT-SAM model.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
         precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
         postprocessing_functions: List of functions. Post-processing will be performed in the given order.
@@ -141,7 +141,7 @@ def run_annotator(
 
     if precompute_segmentation:
         embedding_path = _precompute_segmentation(
-            images, sam_model, output_folder,
+            images, checkpoint_path, output_folder,
             postprocess_functions=postprocess_functions, use_prompts=use_prompts,
         )
     else:
@@ -149,7 +149,7 @@ def run_annotator(
 
     # TODO use option for loading precomputed segmentations from another folder once this is in micro-sam master.
     viewer = image_series_annotator(
-        images, output_folder, model_type="vit_b", checkpoint_path=sam_model,
+        images, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
 

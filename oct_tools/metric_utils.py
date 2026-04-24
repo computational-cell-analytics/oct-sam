@@ -1,5 +1,7 @@
 from typing import List, Optional, Tuple
 
+import h5py
+import imageio.v3 as imageio
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -110,10 +112,15 @@ def _get_etdrs_grid_single(
 
 
 def get_columns(
-    mask, reference_point, min_dist, max_dist, spacing):
+    mask: np.ndarray,
+    reference_position: float,
+    spacing: Tuple[float],
+    min_dist: int = 0,
+    max_dist: int = 1,
+):
     """Get list of columns based on distance to reference point.
     """
-    central_y = round(reference_point[1])
+    central_y = round(reference_position)
     lower_limit = 0
     upper_limit = mask.shape[1] - 1
 
@@ -363,3 +370,64 @@ def run_measurement(
     if extra_columns is not None:
         measurement = pd.merge(measurement, extra_columns, on="label_id", how="outer")
     return measurement
+
+
+def calculate_metrics(
+    input_path: str,
+    output_path: Optional[str],
+    voxel_size: List[float],
+    fovea_position: Optional[float] = None,
+    reference_position: Optional[float] = None,
+    etdrs_grid: Optional[str] = None,
+):
+    """Calculate metrics for semgentation/label data.
+    The input is either label data in H5 format.
+
+    Args:
+        input_path: File path to 2D segmentation of OCT data.
+        output_path: File path to save metrics as table in TSV format.
+    """
+    if ".h5" in input_path:
+        h5_obj = h5py.File(input_path, "r")["labels"]
+        # look for refined annotations
+        if "edit_v3" in h5_obj.keys():
+            print("Loading refined annotation edit_v3.")
+            seg = np.array(h5_obj["edit_v3"])
+        # use original annotations
+        else:
+            print("Loading original annotation.")
+            seg = np.array(h5_obj["original"])
+    else:
+        seg = imageio.imread(input_path)
+
+    if len(voxel_size) == 1:
+        voxel_size = voxel_size * 2
+    voxel_size = np.array(voxel_size)[::-1]
+
+    fovea_point = None
+    if fovea_position is not None:
+        fovea_point = [0, fovea_position]
+
+    reference_point = None
+    if reference_position is not None:
+        reference_point = [0, reference_position]
+
+    tab = run_measurement(
+        seg, spacing=voxel_size, extra_information=True,
+        reference_point=reference_point,
+        fovea_point=fovea_point,
+    )
+    if etdrs_grid is not None:
+        if fovea_point is None:
+            raise ValueError("You have to provide a fovea point to export an ETDRS grid.")
+        etdrs_mask, notification_str = get_etdrs_mask(seg, tab, fovea_point=fovea_point)
+        print(notification_str)
+        imageio.imwrite(etdrs_grid, etdrs_mask)
+
+    if output_path is None:
+        print(tab)
+    else:
+        if ".tsv" in output_path:
+            tab.to_csv(output_path, sep="\t", index=False)
+        elif ".xlsx" in output_path:
+            tab.to_excel(output_path, index=False)
