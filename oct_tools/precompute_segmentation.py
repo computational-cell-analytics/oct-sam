@@ -11,9 +11,8 @@ from skimage.measure import label, regionprops
 from skimage.segmentation import relabel_sequential
 from torchvision.ops.boxes import batched_nms
 from torch_em.model.unet import UNet2d
-from torch_em.transform.raw import standardize
-from torch_em.util.prediction import predict_with_padding
 
+from oct_tools.segmentation_utils import normalize_sliding_max_2d
 
 #
 # TODO: refactor to micro-sam.
@@ -154,41 +153,6 @@ def apply_nms(predictions, shape, min_size, perform_box_nms=False, nms_thresh=0.
 #
 
 
-def _sliding_max_1d(a: np.ndarray, window: int) -> np.ndarray:
-    if window < 1 or window % 2 == 0:
-        raise ValueError("window must be a positive odd integer")
-    r = window // 2
-    b = np.pad(a, (r, r), mode="edge")
-    q = deque()
-    out = np.empty_like(a)
-    for i, val in enumerate(b):
-        while q and q[-1][0] <= val:
-            q.pop()
-        q.append((val, i))
-        if i >= window - 1:
-            start = i - (window - 1)
-            while q[0][1] < start:
-                q.popleft()
-            out[start] = q[0][0]
-    return out
-
-
-def normalize_sliding_max_2d(img: np.ndarray, window_y: int, window_x: int, eps: float = 1e-12) -> np.ndarray:
-    if img.ndim != 2:
-        raise ValueError("img must be a 2D array")
-    if window_y < 1 or window_y % 2 == 0 or window_x < 1 or window_x % 2 == 0:
-        raise ValueError("window_y and window_x must be positive odd integers")
-    H, W = img.shape
-    tmp = np.empty_like(img)
-    for y in range(H):
-        tmp[y, :] = _sliding_max_1d(img[y, :], window_x)
-    maxf = np.empty_like(img)
-    for x in range(W):
-        maxf[:, x] = _sliding_max_1d(tmp[:, x], window_y)
-    denom = np.maximum(maxf.astype(np.float64), eps)
-    return img.astype(np.float64) / denom
-
-
 def mask_data_to_segmentation(masks, min_object_size):
     masks = sorted(masks, key=(lambda x: x["area"]), reverse=True)
     shape = next(iter(masks))["segmentation"].shape
@@ -209,28 +173,6 @@ def mask_data_to_segmentation(masks, min_object_size):
     segmentation[np.isin(segmentation, filter_ids)] = 0
     segmentation = relabel_sequential(segmentation)[0]
     return segmentation
-
-
-def _derive_prompts(model, image, seed_threshold=0.6, return_pred=False):
-    input_ = standardize(image)
-    pred = predict_with_padding(model, input_, min_divisible=(16, 16))
-    pred = pred.squeeze()[:2]
-
-    foreground, boundaries = pred[0], pred[1]
-    mask = foreground > 0.5
-    bd_mask = boundaries > 0.5
-
-    directed_dist = vigra.filters.vectorDistanceTransform(bd_mask.astype("float32"))
-    directed_dist[~mask] = 0
-    directed_dist = np.abs(directed_dist.transpose((2, 0, 1)))[0]
-    directed_dist = normalize_sliding_max_2d(directed_dist, window_y=1, window_x=255)
-
-    seeds = label(directed_dist > seed_threshold)
-    props = regionprops(seeds)
-    prompts = np.array([prop.centroid for prop in props])
-    if return_pred:
-        return prompts, pred
-    return prompts
 
 
 def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):

@@ -11,7 +11,7 @@ from micro_sam.instance_segmentation import get_amg, get_predictor_and_decoder
 from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
-from oct_tools.segmentation_utils import run_measurement
+from oct_tools.metric_utils import run_measurement
 from tqdm import tqdm
 
 

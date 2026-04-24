@@ -8,7 +8,7 @@ import pandas as pd
 from skimage.measure import regionprops
 
 from oct_tools.layer_information import LAYER_MAPPING
-from oct_tools.segmentation_utils import _thickness_at_reference
+from oct_tools.metric_utils import _thickness_at_reference
 
 
 def eval_excel(

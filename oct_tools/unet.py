@@ -670,7 +670,7 @@ class AnisotropicUNet(UNetBase):
 
     def _check_shape(self, x):
         spatial_shape = tuple(x.shape)[2:]
-        scale_factors = self.init_kwargs.get("scale_factors", [[2, 2, 2]]*len(self.encoder))
+        scale_factors = self.init_kwargs.get("scale_factors", [[2, 2, 2]] * len(self.encoder))
         factor = [int(np.prod([sf[i] for sf in scale_factors])) for i in range(3)]
         if len(spatial_shape) != len(factor):
             msg = f"Invalid shape for U-Net: dimensions don't agree {len(spatial_shape)} != {len(factor)}"

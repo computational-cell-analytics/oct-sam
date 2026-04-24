@@ -23,8 +23,8 @@ except ImportError:
 
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
-from oct_tools.segmentation_utils import run_measurement, get_etdrs_mask
-from oct_tools.layer_information import identify_layers
+from oct_tools.metric_utils import run_measurement, get_etdrs_mask
+from oct_tools.layer_information import identify_layers_naively
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
 
@@ -82,8 +82,7 @@ def _find_call_button(viewer, button_text):
 
 
 def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
-    n_layers = len(np.unique(segmentation)) - 1
-    layer_mapping = identify_layers(segmentation, expected_number_of_layers=n_layers)
+    layer_mapping = identify_layers_naively(segmentation, generic_names=True)
     if layer_mapping is None:
         unique_ids = np.unique(segmentation)[1:]
         layer_mapping = pd.DataFrame(dict(label_id=unique_ids, layer=unique_ids))
@@ -138,7 +137,7 @@ def run_annotator(
         elif len(image_vol.shape) == 2:
             images = [image_vol]
         else:
-            raise ValueError("Check dimensionality of input TIF. Must be either 3D or 2D.")
+            raise ValueError("Check dimensionality of input TIF. Must be either 2D or 3D.")
 
     if precompute_segmentation:
         embedding_path = _precompute_segmentation(

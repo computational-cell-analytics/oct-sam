@@ -16,7 +16,7 @@ from napari.layers import Shapes
 from typing import Optional
 import matplotlib.pyplot as plt
 
-from oct_tools.segmentation_utils import VOXEL_SIZE
+from oct_tools.metric_utils import VOXEL_SIZE
 
 
 def df_to_png_bytes(df: pd.DataFrame, *, dpi: int = 200, fontsize: int = 10) -> bytes:
@@ -82,7 +82,10 @@ class LineLengthTableWidget(QWidget):
 
             # Check layer exists
             if layer_name not in self._viewer.layers:
-                napari.utils.notifications.show_info(f"Layer '{layer_name}' not found.")
+                if layer_name == "":
+                    napari.utils.notifications.show_info(f"Please provide a layer name.")
+                else:
+                    napari.utils.notifications.show_info(f"Layer '{layer_name}' not found.")
                 return
 
             layer = self._viewer.layers[layer_name]
