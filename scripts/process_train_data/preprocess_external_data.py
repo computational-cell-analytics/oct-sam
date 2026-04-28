@@ -1,78 +1,13 @@
+import argparse
 import os
 from glob import glob
 from pathlib import Path
 
+import eyepy as ep
 import h5py
-import imageio.v3 as imageio
-import napari
 import numpy as np
+from scipy.io import loadmat
 from tqdm import trange, tqdm
-
-ROOT_OCT5K = "./data/pretrain/OCT5k/data/OCT5k"
-ROOT_HCMS = "./data/hcms"
-ROOT_DUKE = "./data/2015_BOE_Chiu"
-
-
-def _view_masks(im_path, masks):
-    image = imageio.imread(im_path)
-    v = napari.Viewer()
-    v.add_image(image)
-    for name, data in masks.items():
-        v.add_labels(data, name=name)
-    napari.run()
-
-
-def _save_masks(im_path, masks, out_path):
-    os.makedirs(os.path.split(out_path)[0], exist_ok=True)
-    with h5py.File(out_path, mode="a") as f:
-        f.create_dataset("image", data=imageio.imread(im_path), compression="gzip")
-        for name, data in masks.items():
-            f.create_dataset(name, data=data, compression="gzip")
-
-
-def _load_mask(mask_path):
-    mask = imageio.imread(mask_path).copy()
-    mask[mask == mask.max()] = 0
-    return mask
-
-
-def _process_masks(image_root, *mask_roots, out_root=None):
-    mask_root, additional_mask_roots = mask_roots[0], mask_roots[1:]
-
-    files = glob(os.path.join(mask_root, "**/*png"), recursive=True)
-    print("Number of files:", len(files))
-
-    for ff in tqdm(files, desc="Process OCT5K masks"):
-        rel_path = os.path.relpath(ff, mask_root)
-        im_path = os.path.join(image_root, rel_path)
-        assert os.path.exists(im_path), im_path
-
-        masks = {"masks1": _load_mask(ff)}
-        for i, root in enumerate(additional_mask_roots, 2):
-            mask_path = os.path.join(root, rel_path)
-            masks[f"masks{i}"] = _load_mask(mask_path)
-
-        if out_root is None:
-            _view_masks(im_path, masks)
-        else:
-            out_name = rel_path.replace(" ", "").replace("(", "_").replace(")", "")
-            out_name = f"{os.path.splitext(out_name)[0]}.h5"
-            out_path = os.path.join(out_root, out_name)
-            _save_masks(im_path, masks, out_path)
-
-
-def prepare_oct5k_dataset():
-    if False:
-        image_root = os.path.join(ROOT_OCT5K, "Images/Images_Automatic")
-        automatic_masks = os.path.join(ROOT_OCT5K, "Masks/Masks_Automatic/Grading")
-        _process_masks(image_root, automatic_masks, out_root="./pretrain_data/oct5k/automatic")
-        return
-
-    image_root = os.path.join(ROOT_OCT5K, "Images/Images_Manual")
-    masks1 = os.path.join(ROOT_OCT5K, "Masks/Masks_Manual/Grading_1")
-    masks2 = os.path.join(ROOT_OCT5K, "Masks/Masks_Manual/Grading_2")
-    masks3 = os.path.join(ROOT_OCT5K, "Masks/Masks_Manual/Grading_3")
-    _process_masks(image_root, masks1, masks2, masks3, out_root="./pretrain_data/oct5k/manual")
 
 
 def _mat_to_labels(control_pts, shape):
@@ -87,7 +22,7 @@ def _mat_to_labels(control_pts, shape):
     used_surfaces = np.where(nonempty.any(axis=0))[0]
 
     # Create the segmentation.
-    seg = np.zeros(shape,  dtype="uint8")
+    seg = np.zeros(shape, dtype="uint8")
     _, height, width = shape
 
     # Regular x-grid in the same coordinate system as the control points (1-based).
@@ -137,14 +72,23 @@ def _mat_to_labels(control_pts, shape):
     return seg
 
 
-def prepare_hcms():
-    import eyepy as ep
-    from scipy.io import loadmat
+def prepare_hcms(
+    input_folder: str,
+    output_folder: str,
+    combine_is_os: bool = False,
+):
+    """Prepare HCMS data for training with the nnU-Net.
+    Publication: https://doi.org/10.1016/j.dib.2018.12.073
+    Data: https://medic.rad.jhmi.edu/index.php?title=OCT_Data
 
-    # output_folder = None
-    output_folder = "./pretrain_data/hcms"
-
-    tomograms = glob(os.path.join(ROOT_HCMS, "vol", "*.vol"))
+    Args:
+        input_folder: Root folder of the HCMS data after extraction of the download.
+        output_folder: Output folder for converted data.
+        pixel_spacing: Pixel spacing for conversion to NIfTI format.
+        combine_is_os: Combine inner (IS) with outer photoreceptor segments (OS) to ellipsoid zone
+        output_3d: Output 3D data. Default: Output single files for all slices.
+    """
+    tomograms = glob(os.path.join(input_folder, "vol", "*.vol"))
     for i, tomo in enumerate(tomograms):
         fname = os.path.basename(tomo).replace(".vol", ".mat")
         base_name = os.path.splitext(fname)[0]
@@ -153,10 +97,11 @@ def prepare_hcms():
             z = 0
             out_path = os.path.join(output_folder, f"{base_name}_{z:03}.h5")
             if os.path.exists(out_path):
+                print(f"Skipping tomogram {tomo}. Output already exists.")
                 continue
 
         print("Processing tomo", i, "/", len(tomograms))
-        label_path = os.path.join(ROOT_HCMS, "delineation", fname)
+        label_path = os.path.join(input_folder, "delineation", fname)
         try:
             masks = loadmat(label_path)["control_pts"]
         except KeyError:
@@ -168,18 +113,18 @@ def prepare_hcms():
         labels = _mat_to_labels(masks, data.shape)
         assert labels.shape == data.shape
 
-        if output_folder is None:
-            v = napari.Viewer()
-            v.add_image(data)
-            v.add_labels(labels)
-            napari.run()
-        else:
-            os.makedirs(output_folder, exist_ok=True)
-            for z in range(data.shape[0]):
-                out_path = os.path.join(output_folder, f"{base_name}_{z:03}.h5")
-                with h5py.File(out_path, "a") as f:
-                    f.create_dataset("image", data=data[z], compression="gzip")
-                    f.create_dataset("masks", data=labels[z], compression="gzip")
+        os.makedirs(output_folder, exist_ok=True)
+        for z in range(data.shape[0]):
+            out_path = os.path.join(output_folder, f"{base_name}_{z:03}.h5")
+            label = labels[z]
+            if combine_is_os:
+                unique_ids = np.unique(label)[1:]
+                assert unique_ids[-1] == 8
+                label[label == 7] = 6
+                label[label == 8] = 7
+            with h5py.File(out_path, "a") as f:
+                f.create_dataset("image", data=data[z], compression="gzip")
+                f.create_dataset("masks", data=label, compression="gzip")
 
 
 def _load_duke_data(data, which_layers="manual1"):
@@ -237,28 +182,37 @@ def _load_duke_data(data, which_layers="manual1"):
 
         # convert to pixels
         surf_pix = np.round(surf_y[:, cols] - 1).astype(int)
-        surf_pix = np.clip(surf_pix, 0, H-1)
+        surf_pix = np.clip(surf_pix, 0, H - 1)
 
         # fill bands
-        for band in range(L-1):
+        for band in range(L - 1):
             y0 = surf_pix[band]
-            y1 = surf_pix[band+1]
+            y1 = surf_pix[band + 1]
             top = np.minimum(y0, y1)
             bot = np.maximum(y0, y1)
             for i, x in enumerate(cols):
                 if bot[i] > top[i]:
-                    labels[b, top[i]:bot[i]+1, x] = band+1
+                    labels[b, top[i]:bot[i] + 1, x] = band + 1
 
     return images_bhw, labels
 
 
-def prepare_duke_dme(cut_labels=True):
-    from scipy.io import loadmat
+def prepare_duke_dme(
+    input_folder: str,
+    output_folder: str,
+    cut_labels: bool = True,
+):
+    """Prepare Duke DME data for training with the nnU-Net.
+    Publication: https://doi.org/10.1117/12.2654210
+    Data: https://people.duke.edu/~sf59/software.html
 
-    # output_folder = None
-    output_folder = "./pretrain_data/duke_dme"
-
-    files = glob(os.path.join(ROOT_DUKE, "**/*.mat"), recursive=True)
+    Args:
+        input_folder: Root folder of the Duke DME data after extraction of the download.
+        output_folder: Output folder for converted data.
+        cut_labels:
+        pixel_spacing: Pixel spacing for conversion to NIfTI format.
+    """
+    files = glob(os.path.join(input_folder, "**/*.mat"), recursive=True)
     for ff in tqdm(files, desc="Process files"):
         data = loadmat(ff, struct_as_record=False, squeeze_me=True)
         images, labels = _load_duke_data(data, which_layers="manual1")
@@ -278,27 +232,42 @@ def prepare_duke_dme(cut_labels=True):
             except ValueError:
                 images, labels = image_planes, label_planes
 
-        if output_folder is None:
-            v = napari.Viewer()
-            v.add_image(images)
-            v.add_labels(labels)
-            napari.run()
-        else:
-            fname = Path(ff).stem
-            os.makedirs(output_folder, exist_ok=True)
-            for z in range(len(images)):
-                out_path = os.path.join(output_folder, f"{fname}_z{z:03}.h5")
-                if os.path.exists(out_path):
-                    continue
-                with h5py.File(out_path, "a") as f:
-                    f.create_dataset("image", data=images[z], compression="gzip")
-                    f.create_dataset("masks", data=labels[z], compression="gzip")
+        fname = Path(ff).stem
+        os.makedirs(output_folder, exist_ok=True)
+        for z in range(len(images)):
+            out_path = os.path.join(output_folder, f"{fname}_z{z:03}.h5")
+            if os.path.exists(out_path):
+                continue
+            with h5py.File(out_path, "a") as f:
+                f.create_dataset("image", data=images[z], compression="gzip")
+                f.create_dataset("masks", data=labels[z], compression="gzip")
 
 
 def main():
-    # prepare_oct5k_dataset()
-    # prepare_hcms()
-    prepare_duke_dme()
+    parser = argparse.ArgumentParser(
+        description="Pre-process external training data for OCT-SAM. Output data is stored in H5 format."
+    )
+
+    parser.add_argument("-i", "--input_dir", type=str, required=True)
+    parser.add_argument("-o", "--output_dir", type=str, required=True)
+
+    parser.add_argument("--dataset", type=str, default="hcms",
+                        help="Specifiy dataset. Either 'duke_dme' or 'hcms'. Default: hcms.")
+
+    args = parser.parse_args()
+
+    if args.dataset == "hcms":
+        prepare_hcms(
+            input_folder=args.input_dir,
+            output_folder=args.output_dir,
+        )
+    elif args.dataset == "duke_dme":
+        prepare_duke_dme(
+            input_folder=args.input_dir,
+            output_folder=args.output_dir,
+        )
+    else:
+        raise ValueError("Choose either 'hcms' or 'duke_dme' for the creation of a dataset.")
 
 
 if __name__ == "__main__":

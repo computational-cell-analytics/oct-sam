@@ -7,17 +7,8 @@ import numpy as np
 import pandas as pd
 from skimage.measure import regionprops
 
-from oct_tools.segmentation_utils import _thickness_at_reference
-
-LAYER_MAPPING = {
-   1: "RNFL",
-   2: "GCIPL",
-   3: "INL",
-   4: "OPL",
-   5: "ONL",
-   6: "EZ",
-   7: "RPE"
-}
+from oct_tools.layer_information import LAYER_MAPPING
+from oct_tools.metric_utils import _thickness_at_reference
 
 
 def eval_excel(

@@ -26,14 +26,6 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "^",
             "symm_dice": 0.881,
         },
-        # "v7-no-prompts-pp": {
-        #     "label": "octSAM*",
-        #     "precision": 0.588,
-        #     "recall": 0.494,
-        #     "f1-score": 0.53,
-        #     "marker": "s",
-        #     "symm_dice": 0.623,
-        # },
         "v7-no-prompts": {
             "label": "OCT-SAM*",
             "precision": 0.349,
@@ -78,13 +70,13 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
 
             plt.scatter([x_pos - offset], precision,
                         color=COLOR_P, marker=marker, s=marker_size)
-            plt.scatter([x_pos],         recall,
+            plt.scatter([x_pos], recall,
                         color=COLOR_R, marker=marker, s=marker_size)
             plt.scatter([x_pos + offset], f1score,
                         color=COLOR_F, marker=marker, s=marker_size)
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=main_tick_size, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Value", fontsize=main_label_size)
@@ -109,7 +101,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             x_pos = x_pos + 1
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=16, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Dice's coefficient", fontsize=main_label_size)
@@ -139,7 +131,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
                         color=COLOR_T, marker=marker, s=marker_size)
 
         # Labels and formatting
-        x_pos = np.arange(1, len(labels)+1)
+        x_pos = np.arange(1, len(labels) + 1)
         plt.xticks(x_pos, labels, fontsize=main_tick_size, rotation=tick_rotation)
         plt.yticks(fontsize=main_tick_size)
         plt.ylabel("Value", fontsize=main_label_size)

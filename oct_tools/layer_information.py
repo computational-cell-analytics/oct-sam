@@ -14,6 +14,36 @@ LAYERS = {
     "RPE": "Retinal Pigment Epithelium",
 }
 
+# Number of layers matched to layer order
+LAYER_NUMBER_DICT = {
+    3: ["RFNL", "GCIPL", "RPE"],
+    4: ["RFNL", "GCIPL", "INL", "RPE"],
+    5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
+    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
+    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
+}
+
+# Matching of layer and label ID
+LAYER_LABEL_DICT = {
+    "RFNL": 1,
+    "GCIPL": 2,
+    "INL": 3,
+    "OPL": 4,
+    "ONL": 5,
+    "EZ": 6,
+    "RPE": 7,
+}
+
+LAYER_MAPPING = {
+    1: "RNFL",
+    2: "GCIPL",
+    3: "INL",
+    4: "OPL",
+    5: "ONL",
+    6: "EZ",
+    7: "RPE"
+}
+
 
 def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
     """Identify the order of segmentation layers.
@@ -38,36 +68,33 @@ def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
     return None
 
 
-def identify_layers(seg: np.ndarray, expected_number_of_layers: Optional[int] = None) -> Optional[dict]:
+def identify_layers_naively(
+    seg: np.ndarray,
+    generic_names: bool = True,
+) -> Optional[dict]:
     """Match the layer identification to the segmentation.
 
     If all the segmentation IDs are in the same column, they are ordered from top to bottom.
     Then, they are matched to labels from the label dictionary.
-    Once the segmentation of thin layers has improved and the necessity for such a process can be determined,
-    a more sophisticated identification can be implemented.
 
     Args:
         seg: The OCT segmentation.
-        expected_number_of_layers: Expected number of layers in the segmentation.
 
     Returns:
         The label dictionary matching layer identifiers (keys) to segmentation IDs (values).
     """
-    col_ids = find_layer_order(seg)
-    if col_ids is None:
-        warnings.warn("Could not determine the order of labels.")
+    layer_order = find_layer_order(seg)
+    if layer_order is None:
+        print("No layer order could be identified.")
         return None
-
-    n_ids = len(col_ids)
-    if expected_number_of_layers is not None and n_ids != expected_number_of_layers:
-        warnings.warn(
-            f"The number of expected layers {expected_number_of_layers} does not match the actual number {n_ids}."
-        )
-        return None
-
-    # The layers degrade from the bottom, so if layers are missing we can just index the first n-ids.
-    # layer_names = list(LAYERS.keys())[:n_ids]
-    # The automatic assignment of the correct layer names is currently too inaccurate.
-    layer_names = [f"layer_{str(i+1).zfill(2)}" for i in range(n_ids)]
-    seg_label_dict = {col_id: name for col_id, name in zip(col_ids, layer_names)}
+    else:
+        number_layers = len(layer_order)
+        if generic_names:
+            layer_names = [f"layer_{str(i + 1).zfill(2)}" for i in range(number_layers)]
+        elif number_layers in LAYER_NUMBER_DICT.keys():
+            layer_names = LAYER_NUMBER_DICT[number_layers]
+        else:
+            print(f"No predefined set for {number_layers} layers.")
+            return None
+    seg_label_dict = {col_id: name for col_id, name in zip(layer_order, layer_names)}
     return seg_label_dict

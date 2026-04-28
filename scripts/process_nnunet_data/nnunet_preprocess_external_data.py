@@ -3,7 +3,6 @@ import os
 from glob import glob
 
 import eyepy as ep
-import napari
 import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
@@ -22,7 +21,7 @@ def _mat_to_labels(control_pts, shape):
     used_surfaces = np.where(nonempty.any(axis=0))[0]
 
     # Create the segmentation.
-    seg = np.zeros(shape,  dtype="uint8")
+    seg = np.zeros(shape, dtype="uint8")
     _, height, width = shape
 
     # Regular x-grid in the same coordinate system as the control points (1-based).
@@ -72,7 +71,24 @@ def _mat_to_labels(control_pts, shape):
     return seg
 
 
-def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8, 123.6), combine_is_os=True, output_3d=False):
+def prepare_hcms(
+    input_folder: str,
+    output_folder: str,
+    pixel_spacing: tuple[float] = (3.87, 5.8, 123.6),
+    combine_is_os: bool = True,
+    output_3d: bool = False,
+):
+    """Prepare HCMS data for training with the nnU-Net.
+    Publication: https://doi.org/10.1016/j.dib.2018.12.073
+    Data: https://medic.rad.jhmi.edu/index.php?title=OCT_Data
+
+    Args:
+        input_folder: Root folder of the HCMS data after extraction of the download.
+        output_folder: Output folder for converted data.
+        pixel_spacing: Pixel spacing for conversion to NIfTI format.
+        combine_is_os: Combine inner (IS) with outer photoreceptor segments (OS) to ellipsoid zone
+        output_3d: Output 3D data. Default: Output single files for all slices.
+    """
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
     affine = np.eye(4)  # Identity matrix (standard for most cases)
@@ -121,7 +137,7 @@ def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8, 123.6), 
             nifti_image = nib.Nifti1Image(data, affine)
             nib.save(nifti_image, image_path)
 
-            # combine inner (label 6) and outer (label 7) photoreceptor segments
+            # combine inner (label 6) and outer (label 7) photoreceptor segments to be consistent with own data
             # combine labels 6 and 7, shift label 8 to 7
             if combine_is_os:
                 unique_ids = np.unique(labels)[1:]
@@ -141,7 +157,7 @@ def prepare_hcms(input_folder, output_folder, pixel_spacing=(3.87, 5.8, 123.6), 
                 nifti_image = nib.Nifti1Image(data[z], affine)
                 nib.save(nifti_image, image_path)
 
-                # combine inner (label 6) and outer (label 7) photoreceptor segments
+                # combine inner (label 6) and outer (label 7) photoreceptor segments to be consistent with own data
                 # combine labels 6 and 7, shift label 8 to 7
                 label = labels[z]
                 if combine_is_os:
@@ -210,22 +226,37 @@ def _load_duke_data(data, which_layers="manual1"):
 
         # convert to pixels
         surf_pix = np.round(surf_y[:, cols] - 1).astype(int)
-        surf_pix = np.clip(surf_pix, 0, H-1)
+        surf_pix = np.clip(surf_pix, 0, H - 1)
 
         # fill bands
-        for band in range(L-1):
+        for band in range(L - 1):
             y0 = surf_pix[band]
-            y1 = surf_pix[band+1]
+            y1 = surf_pix[band + 1]
             top = np.minimum(y0, y1)
             bot = np.maximum(y0, y1)
             for i, x in enumerate(cols):
                 if bot[i] > top[i]:
-                    labels[b, top[i]:bot[i]+1, x] = band+1
+                    labels[b, top[i]:bot[i] + 1, x] = band + 1
 
     return images_bhw, labels
 
 
-def prepare_duke_dme(input_folder, output_folder, cut_labels=True, pixel_spacing=(3.87, 11.33)):
+def prepare_duke_dme(
+    input_folder: str,
+    output_folder: str,
+    cut_labels: bool = True,
+    pixel_spacing: tuple[float] = (3.87, 11.33),
+):
+    """Prepare Duke DME data for training with the nnU-Net.
+    Publication: https://doi.org/10.1117/12.2654210
+    Data: https://people.duke.edu/~sf59/software.html
+
+    Args:
+        input_folder: Root folder of the Duke DME data after extraction of the download.
+        output_folder: Output folder for converted data.
+        cut_labels:
+        pixel_spacing: Pixel spacing for conversion to NIfTI format.
+    """
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
     affine = np.eye(4)  # Identity matrix (standard for most cases)
@@ -268,25 +299,19 @@ def prepare_duke_dme(input_folder, output_folder, cut_labels=True, pixel_spacing
             except ValueError:
                 images, labels = image_planes, label_planes
 
-        if output_folder is None:
-            v = napari.Viewer()
-            v.add_image(images)
-            v.add_labels(labels)
-            napari.run()
-        else:
-            if len(slice_indexes) == 0:
-                slice_indexes = [i for i in range(len(images))]
-            for z, slice_index in enumerate(slice_indexes):
-                nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}_{str(slice_index).zfill(3)}"
-                image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
+        if len(slice_indexes) == 0:
+            slice_indexes = [i for i in range(len(images))]
+        for z, slice_index in enumerate(slice_indexes):
+            nnunet_identifier = f"{dataset_id}{str(scan_id).zfill(3)}_{str(slice_index).zfill(3)}"
+            image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
 
-                # Create the NIfTI image
-                nifti_image = nib.Nifti1Image(images[z], affine)
-                nib.save(nifti_image, image_path)
+            # Create the NIfTI image
+            nifti_image = nib.Nifti1Image(images[z], affine)
+            nib.save(nifti_image, image_path)
 
-                nifti_label = nib.Nifti1Image(labels[z], affine)
-                label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
-                nib.save(nifti_label, label_path)
+            nifti_label = nib.Nifti1Image(labels[z], affine)
+            label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
+            nib.save(nifti_label, label_path)
 
 
 def main():

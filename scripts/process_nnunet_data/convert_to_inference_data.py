@@ -85,7 +85,7 @@ def convert_data_to_nnunet(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert h5 input data into the nnU-Net format for inference."
+        description="Convert H5 input data into the nnU-Net format for inference."
     )
 
     parser.add_argument("-i", "--input_dir", type=str, required=True)

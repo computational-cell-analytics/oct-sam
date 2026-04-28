@@ -8,7 +8,7 @@ from torch.utils.data import ConcatDataset
 
 ROOT_DME = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/duke_dme"
 ROOT_HCMS = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/hcms"
-ROOT_DOROTHEA = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data"
+ROOT_UMG_RP = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data"
 
 
 def raw_trafo(x):
@@ -49,15 +49,15 @@ def get_loaders(patch_shape, batch_size, val_size=0.1):
         raw_transform=raw_trafo,
     )
 
-    # training data from Dorothea
+    # training data from the UMG-RP dataset
     paths = []
     image_key = "image"
     label_key = "labels/edit_v3"
     input_folders = [
-        f"{ROOT_DOROTHEA}/standard_20250619",
-        f"{ROOT_DOROTHEA}/standard_20251126",
-        f"{ROOT_DOROTHEA}/standard_20251215",
-        f"{ROOT_DOROTHEA}/standard_20260105",
+        f"{ROOT_UMG_RP}/standard_20250619",
+        f"{ROOT_UMG_RP}/standard_20251126",
+        f"{ROOT_UMG_RP}/standard_20251215",
+        f"{ROOT_UMG_RP}/standard_20260105",
     ]
     for input_folder in input_folders:
         paths.extend(sorted(glob(os.path.join(input_folder, "*.h5"))))
@@ -115,7 +115,7 @@ def export_pretrained_model():
 
 
 def main():
-    """Train medico-sam directly on all datasets - two public datasets and the data from Dorothea.
+    """Train medico-SAM directly on all datasets - two public datasets and the UMG-RP datset.
     """
     pretrain_medicosam(check=False)
     export_pretrained_model()

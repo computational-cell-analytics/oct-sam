@@ -4,61 +4,6 @@ import shutil
 from typing import List, Optional, Tuple
 
 import numpy as np
-import torch_em
-import vigra
-from skimage.measure import regionprops
-
-
-class BoundaryAndDistanceTransform:
-    eps = 1e-7
-
-    def __init__(self):
-        self.label_transform = torch_em.transform.label.BoundaryTransform(add_binary_target=True, ndim=2)
-
-    def compute_normalized_directed_distances(self, mask, boundaries, bb, distances):
-        cropped_mask = mask[bb]
-        inv_mask = ~cropped_mask
-
-        cropped_boundary_mask = boundaries[bb]
-        this_distances = np.abs(vigra.filters.vectorDistanceTransform(cropped_boundary_mask))
-        this_distances[inv_mask] = 0
-
-        spatial_axes = tuple(range(mask.ndim))
-        this_distances /= (np.abs(this_distances).max(axis=spatial_axes, keepdims=True) + self.eps)
-
-        distances[bb][cropped_mask] = this_distances[cropped_mask]
-        return distances
-
-    def __call__(self, labels: np.ndarray) -> np.ndarray:
-        fg_and_bd = self.label_transform(labels)
-        assert fg_and_bd.shape[0] == 2
-        boundaries = fg_and_bd[1].astype("uint32")
-
-        # Compute region properties to derive bounding boxes and centers.
-        ndim = labels.ndim
-        labels = labels + 1
-        props = regionprops(labels)
-        bounding_boxes = {
-            prop.label: tuple(slice(prop.bbox[i], prop.bbox[i + ndim]) for i in range(ndim)) for prop in props
-        }
-
-        # Compute how many distance channels we have.
-        n_channels = 2
-
-        # Compute the per object distances.
-        distances = np.full(labels.shape + (n_channels,), 1, dtype="float32")
-        for prop in props:
-            label_id = prop.label
-            mask = labels == label_id
-            distances = self.compute_normalized_directed_distances(
-                mask, boundaries, bounding_boxes[label_id], distances
-            )
-
-        # Bring the distance channel to the first dimension.
-        to_channel_first = (ndim,) + tuple(range(ndim))
-        distances = distances.transpose(to_channel_first)
-
-        return np.concatenate([fg_and_bd, distances], axis=0)
 
 
 def create_train_val_splits(
@@ -69,8 +14,9 @@ def create_train_val_splits(
     sample_sizes_train: List[int] = [100, 50, 25, 10, 5, 1],
     sample_size_val: int = 10,
     output_sam: bool = False,
+    random_seed: int = 42,
 ):
-    """Create a list of names for training and validation.
+    """Create a list of names for training and validation used for iterative finetuning.
 
     Args:
         out_dir: Output directory for JSON dictionaries.
@@ -79,6 +25,8 @@ def create_train_val_splits(
         names_val: List of names for validation.
         sample_sizes_train: Sample sizes for training.
         sample_size_val: Fixed size for validation data.
+        output_sam: Output OCT-SAM naming scheme.
+        random_seed: Seed for randomization to determine train/val splits.
     """
     if names_train is None and names_val is None and input_json is None:
         raise ValueError("Pass a list of names for training, validation, or a JSON dictionary.")
@@ -93,7 +41,7 @@ def create_train_val_splits(
         if names_val is None:
             names_val = params["val"]
 
-    np.random.seed(42)
+    np.random.seed(random_seed)
 
     val_subset = []
     if names_val is not None:
@@ -148,12 +96,16 @@ def copy_files_by_subset(
     output_dir: str,
 ) -> Tuple[List[str], List[str]]:
     """
-    Copy files from input_dir to output_dir if the filename contains any of the subset names as substring.
+    Copy files from input_dir to output_dir if the filename contains any of the subset names as a substring.
 
     Args:
         subset_names: List of names to match (e.g., ['Name_1', 'Name_5'])
         input_dir: Path object to input directory
         output_dir: Path object to output directory
+
+    Returns:
+        List of copied files
+        List of skipped files
     """
     copied_files = []
     skipped_files = []
