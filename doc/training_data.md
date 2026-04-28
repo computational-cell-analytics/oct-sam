@@ -29,7 +29,7 @@
 #### Duke DME
 
 * [publication](https://doi.org/10.1117/12.2654210)
-* [data](https://people.duke.edu/~sf59/software.html)
+* [data](https://people.duke.edu/~sf59/Chiu_BOE_2014_dataset.htm)
 * 10 subjects, sparsely labeled
 * 110 B-scans, 7–8 layers + fluids
 * Featured layers:

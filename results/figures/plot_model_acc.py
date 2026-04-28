@@ -26,7 +26,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "^",
             "symm_dice": 0.881,
         },
-        "v7-no-prompts": {
+        "OCT-SAM-v1-no-prompts": {
             "label": "OCT-SAM*",
             "precision": 0.349,
             "recall": 0.47,
@@ -34,7 +34,7 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
             "marker": "s",
             "symm_dice": 0.533,
         },
-        "v7-post": {
+        "OCT-SAM-v1": {
             "label": "OCT-SAM",
             "precision": 0.928,
             "recall": 0.798,
@@ -86,8 +86,6 @@ def plot_model_acc(mode="precision", plot=False, save_path=None):
 
     elif mode == "dice":
         fig, ax = plt.subplots(figsize=(fig_width, 5))
-        if "Spiner" in labels:
-            labels.remove("Spiner")
 
         # Convert setting labels to numerical x positions
         offset = 0.08  # horizontal shift for scatter separation
