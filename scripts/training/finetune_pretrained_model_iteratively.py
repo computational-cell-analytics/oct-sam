@@ -1,13 +1,11 @@
+import argparse
 import os
 from glob import glob
 
 import torch_em
 from micro_sam.training import train_sam_for_configuration
 
-
-def raw_trafo(x):
-    x = 255 * torch_em.transform.raw.normalize(x)
-    return x
+from oct_tools.train_utils import raw_trafo, export_model
 
 
 def _get_loaders(train_dir, val_dir, patch_shape, batch_size):
@@ -45,7 +43,7 @@ def _get_loaders(train_dir, val_dir, patch_shape, batch_size):
     return train_loader, val_loader
 
 
-def finetune_medicosam(
+def finetune_oct_sam(
     train_dir,
     val_dir,
     model_name,
@@ -64,17 +62,10 @@ def finetune_medicosam(
     )
 
 
-def export_finetuned_model(model_name):
-    from micro_sam.util import export_custom_sam_model
-    export_custom_sam_model(
-        f"./checkpoints/{model_name}/best.pt", model_type="vit_b", save_path=f"./{model_name}.pt",
-        with_segmentation_decoder=True
-    )
-
-
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Finetune OCT-SAM model on UMG-RP dataset."
+    )
     parser.add_argument("-t", "--train_dir", type=str, required=True,
                         help="Train data.")
     parser.add_argument("-v", "--val_dir", type=str, required=True,
@@ -85,13 +76,13 @@ def main():
                         help="Model checkpoint of pretrained model.")
 
     args = parser.parse_args()
-    finetune_medicosam(
+    finetune_oct_sam(
         args.train_dir,
         args.val_dir,
         model_name=args.model,
         checkpoint_path=args.checkpoint,
     )
-    export_finetuned_model(args.model)
+    export_model(args.model)
 
 
 if __name__ == "__main__":

@@ -9,18 +9,21 @@ ChatGPT overview: https://chatgpt.com/share/6926b1ee-8ce8-8000-b4b9-1adc54159d74
 
 ## Overview
 
+Install command line functions by running `pip install -e .`
+The relevant functions are:
+- `oct_tools.interactive`: For automatic and interactive segmentation.
+    - Automatic segmentation is based on deriving prompts from the SAM predictions and then segmenting the layers with the fine-tuned SAM model based on these prompts.
+- `oct_tools.metrics`: Calculate metrics for a segmentation.
+- `oct_tools.apply_sam`: Apply an OCT-SAM model on multiple images without interactions.
+-
 The following scripts are relevant:
 - `scripts/training/finetune_medicosam.py`: For fine-tuning a SAM model for interactive segmentation.
 - `scripts/training/training_distances.py`: For training a U-Net for foreground and distance prediction.
-- `run_segmentation_interactive.py`: For automatic and interactive segmentation.
-    - Automatic segmentation is based on deriving prompts from the SAM predictions and then segmenting the layers with the fine-tuned SAM model based on these prompts.
-- `scripts/calculate_metrics.py`: For calculating metrics for a segmentation.
 
 The data is located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data`.
 
 The models are located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models`. Currently there are the models:
-- `oct-2d-v2.pt`: the U-Net for distance prediction, used for deriving prompts (V2).
-- `oct-sam-v3.pt`: The fine-tuned SAM model (V3).
+- `oct-sam-V1.pt`: The fine-tuned SAM model, which was trained on public datasets (HCMS and Duke DME) and the UMG-RP data.
 
 ## Data
 
@@ -33,7 +36,7 @@ Recommended data for pre-training:
     - I checked this out and converted it, but it's not detailed enough in the layer annotations.
       Pretraining on this data would be detrimental.
 - HCMS (35 vols, 8 layers each B-scan).
-    - https://www.sciencedirect.com/science/article/pii/S2352340918316135
+    - https://doi.org/10.1016/j.dib.2018.12.073
     - https://medic.rad.jhmi.edu/index.php?title=OCT_Data
     - Featured layers:
         - RNFL: Retina nerve fiber layer
@@ -77,13 +80,15 @@ All the preprocessed pre-training data is located at:
 Different batches with images and annotations.
 Annotations are refined to remove solitary pixels, fill holes, restrict labels to the image, and unify labeling to same classes.
 The layers are:
-    - RNFL: Retina nerve fiber layer
+    - RNFL: Retinal nerve fiber layer
     - GCL+IPL: Ganglion cell layer and inner plexiform layer
     - INL: Inner nuclear layer
     - OPL: Outer plexiform layer
     - ONL: Outer nuclear layer
     - EZ: Ellipsoid zone (Inner photoreceptor segments and Outer photoreceptor segments)
     - RPE: Retinal pigment epithelium
+The refined data is saved within the H5 data format as "labels/edit_v3".
+The naming scheme of the internal training data is standardized. An overview about the standardization can be found in `doc/name_mapping.tsv`.
 
 ## Meeting Notes
 

@@ -26,7 +26,6 @@ def _segment_image(
     segmenter,
     image: np.ndarray,
     save_path: str,
-    postprocess: bool = False,
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     use_prompts: bool = True,
 ):
@@ -47,8 +46,7 @@ def _segment_image(
         prompts = None
         seg = watershed_from_center_and_boundary_distances(center_distances, boundary_distances, foreground)
 
-    if postprocess:
-        seg = postprocess_segmentation(seg, image, postprocess_functions)
+    seg = postprocess_segmentation(seg, image, postprocess_functions)
 
     if save_path is not None:
         if ".h5" in save_path:
@@ -107,7 +105,6 @@ def apply_model_sam_2d(
     output_extension: str = "tif",
     force_overwrite: bool = False,
     use_prompts: bool = True,
-    postprocess: bool = False,
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
 ):
     """Apply OCT-SAM on 2D data.
@@ -119,7 +116,6 @@ def apply_model_sam_2d(
         output_extension: File extension for segmentation.
         force_overwrite: Forcefully overwrite output.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
-        postprocess: Flag for postprocessing segmentation.
         postprocess_functions: List of sequential postprocessing functions.
     """
     if os.path.isdir(input_path):
@@ -157,5 +153,5 @@ def apply_model_sam_2d(
             print(f"Skipping {basename}. Segmentation already exists.")
             continue
         _, _ = _segment_image(
-            predictor, segmenter, image, save_path, postprocess, postprocess_functions, use_prompts=use_prompts,
+            predictor, segmenter, image, save_path, postprocess_functions, use_prompts=use_prompts,
         )

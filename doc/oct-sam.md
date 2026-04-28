@@ -3,11 +3,11 @@
 MedicoSAM was chosen as the base for the further training of OCT-SAM. [MedicoSAM](https://pubmed.ncbi.nlm.nih.gov/41406266/)
 
 It was re-trained for these conditions:
-* First, only based on two public datasets (`oct-sam-pretrained-v2`):
+* First, only based on two public datasets (`oct-sam-pretrained-V1`):
     * Duke_DME(110 B-scans, 7–8 layers + fluids), [publication](https://doi.org/10.1117/12.2654210), [data](https://people.duke.edu/~sf59/software.html)
     * HCMS (35 vols, 8 layers each B-scan), [publication](https://www.sciencedirect.com/science/article/pii/S2352340918316135), [data](https://medic.rad.jhmi.edu/index.php?title=OCT_Data)
-* Secondly, with the addition of custom training data of the project (7 layers, 224 B-scans), `oct-sam-v7`
-* Lastly, based on the pre-trained network (`oct-sam-pretrained-v2`), several networks were trained with an iteratively increasing number of samples to test the influence of an increase in the number of local datasets. The networks were trained with 1, 5, 10, 25, 50, and 100 additional images, which are subsets from the custom training data. The same set of 10 validation images was used for validation during training. The train splits can be found under `doc/train_splits`.
+* Secondly, with the addition of custom training data of the project (7 layers, 224 B-scans), `oct-sam-V1`
+* Lastly, based on the pre-trained network (`oct-sam-pretrained-V1`), several networks were trained with an iteratively increasing number of samples to test the influence of an increase in the number of local datasets. The networks were trained with 1, 5, 10, 25, 50, and 100 additional images, which are subsets from the custom training data. The same set of 10 validation images was used for validation during training. The train splits can be found under `doc/train_splits`.
 
 ## Training data
 
@@ -41,14 +41,14 @@ python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_
 
 ## Training scripts
 
-`oct-sam-pretrained-v2`:
+`oct-sam-pretrained`:
 ```bash
-python /path/to/oct-analysis/scripts/training/pretrain_medicosam.py
+python /path/to/oct-analysis/scripts/training/pretrain_oct_sam_on_public_datasets.py
 ```
 
-`oct-sam-v7`:
+`oct-sam-V1`:
 ```bash
-python /path/to/oct-analysis/scripts/training/train_medicosam.py
+python /path/to/oct-analysis/scripts/training/train_oct_sam.py
 ```
 
 `oct-sam-pre-v2-n001`:
@@ -58,7 +58,7 @@ IPUT_VAL="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/split_data/val"
 MODEL_NAME="oct-sam-pre-v2-n001"
 CHECKPOINT=/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-pretrained-v2.pt
 
-python /path/to/oct-analysis/scripts/training/retrain_medicosam.py -t "$IPUT_TRAIN" -v "$IPUT_VAL" -m "$MODEL_NAME" -c "$CHECKPOINT"
+python /path/to/oct-analysis/scripts/training/finetune_pretrained_model_iteratively.py -t "$IPUT_TRAIN" -v "$IPUT_VAL" -m "$MODEL_NAME" -c "$CHECKPOINT"
 ```
 
 ## Running inference
@@ -73,8 +73,8 @@ After testing several configurations on the validation dataset, it seems that th
 ```bash
 OCT_DIR="/path/to/oct-analysis"
 DATA_DIR="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/validation_data/standard_20250717"
-MODEL="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-v7.pt"
-INFERENCE_DIR="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/oct-sam_inference/oct-sam-v7"
+MODEL="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-V1.pt"
+INFERENCE_DIR="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/oct-sam_inference/oct-sam-V1"
 
 # using no point prompts from initial prediction
 python "$OCT_DIR"/scripts/sam/eval_sam.py --input "$DATA_DIR" \

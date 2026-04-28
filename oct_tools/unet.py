@@ -110,7 +110,7 @@ class UNetBase(nn.Module):
         decoder: The decoder of the U-Net.
         out_conv: The output convolution applied after the last decoder layer.
         final_activation: The activation applied after the output convolution or last decoder layer.
-        postprocessing: A postprocessing function to apply after the U-Net output.
+        postprocessing: A post-processing function to apply after the U-Net output.
         check_shape: Whether to check the input shape to the U-Net forward call.
     """
     def __init__(
@@ -497,7 +497,7 @@ class UNet2d(UNetBase):
         return_side_outputs: Whether to return the outputs after each decoder level.
         conv_block_impl: The implementation of the convolutional block.
         pooler_impl: The implementation of the pooling layer.
-        postprocessing: A postprocessing function to apply after the U-Net output.
+        postprocessing: A post-processing function to apply after the U-Net output.
         check_shape: Whether to check the input shape to the U-Net forward call.
         conv_block_kwargs: The keyword arguments for the convolutional block.
     """
@@ -603,7 +603,7 @@ class AnisotropicUNet(UNetBase):
         return_side_outputs: Whether to return the outputs after each decoder level.
         conv_block_impl: The implementation of the convolutional block.
         anisotropic_kernel: Whether to use an anisotropic kernel in addition to anisotropic scaling factor.
-        postprocessing: A postprocessing function to apply after the U-Net output.
+        postprocessing: A post-processing function to apply after the U-Net output.
         check_shape: Whether to check the input shape to the U-Net forward call.
         conv_block_kwargs: The keyword arguments for the convolutional block.
     """
@@ -694,7 +694,7 @@ class UNet3d(AnisotropicUNet):
         final_activation: The activation applied after the output convolution or last decoder layer.
         return_side_outputs: Whether to return the outputs after each decoder level.
         conv_block_impl: The implementation of the convolutional block.
-        postprocessing: A postprocessing function to apply after the U-Net output.
+        postprocessing: A post-processing function to apply after the U-Net output.
         check_shape: Whether to check the input shape to the U-Net forward call.
         conv_block_kwargs: The keyword arguments for the convolutional block.
     """

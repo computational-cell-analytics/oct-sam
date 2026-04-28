@@ -1,19 +1,16 @@
+import argparse
 import os
 from glob import glob
 
 import torch_em
-from micro_sam.training import train_sam_for_configuration
 from sklearn.model_selection import train_test_split
 from torch.utils.data import ConcatDataset
+
+from oct_tools.train_utils import export_model, raw_trafo, train_oct_sam_model
 
 ROOT_DME = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/duke_dme"
 ROOT_HCMS = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/hcms"
 ROOT_UMG_RP = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/training_data"
-
-
-def raw_trafo(x):
-    x = 255 * torch_em.transform.raw.normalize(x)
-    return x
 
 
 def get_loaders(patch_shape, batch_size, val_size=0.1):
@@ -87,38 +84,23 @@ def get_loaders(patch_shape, batch_size, val_size=0.1):
     return train_loader, val_loader
 
 
-def pretrain_medicosam(check):
+def main():
+    parser = argparse.ArgumentParser(
+        description="Train OCT-SAM for semantic segmentation on both public and the UMG-RP datset."
+    )
+    parser.add_argument("-m", "--model", type=str, default="oct-sam-V1",
+                        help="Model name of pretrained model.")
+    args = parser.parse_args()
+
     patch_shape = (384, 992)
     train_loader, val_loader = get_loaders(patch_shape, batch_size=1)
-
-    if check:
-        from torch_em.util.debug import check_loader
-        check_loader(train_loader, n_samples=8)
-        check_loader(val_loader, n_samples=8)
-
-    train_sam_for_configuration(
-        name="oct-sam-v7", train_loader=train_loader, val_loader=val_loader,
-        configuration="V100", with_segmentation_decoder=True,
-        model_type="vit_b_medical_imaging",
-        verify_n_labels_in_loader=5,
-        n_epochs=40,
-        strict_decoder_loading=False,
+    train_oct_sam_model(
+        model_name=args.model_name,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        check=False,
     )
-
-
-def export_pretrained_model():
-    from micro_sam.util import export_custom_sam_model
-    export_custom_sam_model(
-        "./checkpoints/oct-sam-v7/best.pt", model_type="vit_b", save_path="./oct-sam-v7.pt",
-        with_segmentation_decoder=True
-    )
-
-
-def main():
-    """Train medico-SAM directly on all datasets - two public datasets and the UMG-RP datset.
-    """
-    pretrain_medicosam(check=False)
-    export_pretrained_model()
+    export_model(args.model_name)
 
 
 if __name__ == "__main__":

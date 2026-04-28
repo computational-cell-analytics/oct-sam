@@ -1,3 +1,4 @@
+import argparse
 import os
 from glob import glob
 
@@ -20,22 +21,14 @@ def _check_data(folder, label_key="labels/original"):
         napari.run()
 
 
-def check_initial_training_data():
-    _check_data("../data/data_20250619_resaved/")
-
-
-def check_more_initial_training_data():
-    _check_data("../data/data_20250717_resaved")
-
-
-def check_cycle1():
-    _check_data("../data/training_data_cycle_1")
-
-
 def main():
-    # check_initial_training_data()
-    check_more_initial_training_data()
-    # check_cycle1()
+    parser = argparse.ArgumentParser(
+        description="Check image and label data of H5 files in input folder with napari."
+    )
+    parser.add_argument("-i", "--input", required=True, help="Input folder.")
+
+    args = parser.parse_args()
+    _check_data(args.input)
 
 
 if __name__ == "__main__":
