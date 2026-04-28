@@ -74,11 +74,11 @@ Next, we used subsets of varying sizes for the training data and a fixed subset 
 
 JSON dictionaries documenting the train/val splits are located at `doc/train_splits` and were created using the following function:
 ```python
-from oct_tools.train_utils import create_train_val_splits
+from oct_tools.train_utils import create_train_val_splits_for_finetuning
 
 input_json = "/path/to/oct-repo/doc/train_splits/train_splits_all.json"
 out_dir = "/path/to/oct-repo/doc/train_splits"
-create_train_val_splits(out_dir, input_json)
+create_train_val_splits_for_finetuning(out_dir, input_json)
 ```
 They have the format `train_splits_n<n_train>.json` and can be used to copy a subset of training data to a new directory:
 ```bash
