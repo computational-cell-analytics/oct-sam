@@ -1,17 +1,16 @@
 import os
+from functools import partial
 from typing import Optional
 
 import numpy as np
 import napari
-import pandas as pd
 from qtpy.QtWidgets import QPushButton
 from imageio.v3 import imread
 from h5py import File
 
-from oct_tools.metric_utils import run_measurement, get_etdrs_mask
-from oct_tools.layer_information import identify_layers_naively
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
+from oct_tools.napari_widgets.utils import _measure, save_measurements
 
 
 def run_measurement_only(
@@ -36,6 +35,8 @@ def run_measurement_only(
     """
     # Ensure output folder exists
     os.makedirs(output_folder, exist_ok=True)
+
+    basename = os.path.splitext(os.path.basename(image_path))[0]
 
     # Load image
     if image_path.endswith(".h5"):
@@ -80,27 +81,6 @@ def run_measurement_only(
     viewer.add_image(image, name="Image", colormap="gray", opacity=0.8)
     viewer.add_labels(segmentation, name="Segmentation", opacity=0.8)
 
-    # Define measurement function (same as in original)
-    def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
-        layer_mapping = identify_layers_naively(segmentation, generic_names=True)
-        if layer_mapping is None:
-            unique_ids = np.unique(segmentation)[1:]
-            layer_mapping = pd.DataFrame(dict(label_id=unique_ids, layer=unique_ids))
-        else:
-            layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-        measurements = run_measurement(
-            segmentation, extra_columns=layer_mapping, fovea_point=fovea_point,
-            reference_point=reference_point, extra_information=extra_information
-        )
-        etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, fovea_point=fovea_point)
-        # Reorder columns
-        cols = measurements.columns.values.tolist()
-        new_col_order = cols[-1:] + cols[:1] + cols[1:-1]
-        measurements = measurements[new_col_order]
-        measurements = measurements.sort_values("layer").reset_index(drop=True).copy()
-        print(measurements)
-        return measurements, etdrs_mask, notification_str
-
     # Set reference point
     image_shape = image.shape
     central_point = (image_shape[0] // 2, image_shape[1] // 2)
@@ -129,19 +109,18 @@ def run_measurement_only(
     line_length_widget = LineLengthTableWidget(viewer)
     viewer.window.add_dock_widget(line_length_widget, name="Line Length Measurer", area="right")
 
-    # Add a button to save measurements
-    def save_measurements():
-        segmentation_layer = viewer.layers["Segmentation"].data
-        measurements, _, _ = _measure(segmentation_layer, fovea_point=central_point,
-                                      reference_point=ref_point, extra_information=more_info)
-        i = len([f for f in os.listdir(output_folder) if f.startswith("measurement_") and f.endswith(".tsv")])
-        output_path = os.path.join(output_folder, f"measurement_{i:05}.tsv")
-        measurements.to_csv(output_path, sep="\t", index=False)
-        napari.utils.notifications.show_info(f"Measurements saved to {output_path}")
-
     # Add a button to trigger measurement saving
+    save_func = partial(
+        save_measurements,
+        viewer=viewer,
+        reference_name=basename,
+        output_folder=output_folder,
+        segmentation_layer_name="Segmentation",
+        more_info=more_info
+    )
+
     save_button = QPushButton("Save Measurements")
-    save_button.clicked.connect(save_measurements)
+    save_button.clicked.connect(save_func)
     viewer.window.add_dock_widget(save_button, name="Save Measurements", area="bottom")
 
     # Run napari

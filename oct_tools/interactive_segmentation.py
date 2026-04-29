@@ -1,18 +1,16 @@
 import os
-from glob import glob
+from functools import partial
 from typing import List, Optional
 
 import h5py
 import imageio.v3 as imageio
 import napari
 import numpy as np
-import pandas as pd
 
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_predictor_and_decoder
 from micro_sam.util import precompute_image_embeddings
-from napari.utils.notifications import show_info
-from qtpy.QtWidgets import QDockWidget, QPushButton
+from qtpy.QtWidgets import QPushButton
 from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 from tqdm import tqdm
 
@@ -23,10 +21,9 @@ except ImportError:
 
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
-from oct_tools.metric_utils import run_measurement, get_etdrs_mask
-from oct_tools.layer_information import identify_layers_naively
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
+from oct_tools.napari_widgets.utils import _find_call_button, _measure, save_measurements
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
@@ -70,38 +67,6 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
     return embedding_folder
 
 
-def _find_call_button(viewer, button_text):
-    for dw in viewer.window._qt_window.findChildren(QDockWidget):
-        root = dw.widget()
-        if root is None:
-            continue
-        for b in root.findChildren(QPushButton):
-            if b.text() == button_text:
-                return b
-    raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
-
-
-def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
-    layer_mapping = identify_layers_naively(segmentation, generic_names=True)
-    if layer_mapping is None:
-        unique_ids = np.unique(segmentation)[1:]
-        layer_mapping = pd.DataFrame(dict(label_id=unique_ids, layer=unique_ids))
-    else:
-        layer_mapping = pd.DataFrame(dict(label_id=layer_mapping.keys(), layer=layer_mapping.values()))
-    measurements = run_measurement(
-        segmentation, extra_columns=layer_mapping, fovea_point=fovea_point, reference_point=reference_point,
-        extra_information=extra_information,
-    )
-    etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, fovea_point=fovea_point)
-    # Reorder the columns so that the layer name is the second column.
-    cols = measurements.columns.values.tolist()
-    new_col_order = cols[-1:] + cols[:1] + cols[1:-1]
-    measurements = measurements[new_col_order]
-    measurements = measurements.sort_values("layer").reset_index(drop=True).copy()
-    print(measurements)
-    return measurements, etdrs_mask, notification_str
-
-
 def run_annotator(
     input_path: str,
     output_folder: str,
@@ -127,6 +92,7 @@ def run_annotator(
         ref_position: Horizontal pixel coordinate of initial reference point for calculating layer thicknesses.
         more_info: Add additional information about layer length, max, min, and mean thickness.
     """
+    basename = os.path.splitext(os.path.basename(input_path))[0]
     if ".h5" in input_path:
         images = [np.array(h5py.File(input_path, "r")["image"])]
 
@@ -153,17 +119,22 @@ def run_annotator(
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
 
-    def post_measurement():
-        segmentation = viewer.layers["committed_objects"].data
-        measurements, _, _ = _measure(segmentation)
-        i = len(glob(os.path.join(output_folder, "measurement*.tsv")))
-        table_out = os.path.join(output_folder, f"measurement_{i:05}.tsv")
-        measurements.to_csv(table_out, sep="\t", index=False)
-        show_info(f"Measurements saved to {table_out}")
+    # Add a button to trigger measurement saving
+    save_func = partial(
+        save_measurements,
+        viewer=viewer,
+        reference_name=basename,
+        output_folder=output_folder,
+        segmentation_layer_name="committed_objects",
+        more_info=more_info
+    )
+    save_button = QPushButton("Save Measurements")
+    save_button.clicked.connect(save_func)
+    viewer.window.add_dock_widget(save_button, name="Save Measurements", area="bottom")
 
     # Get the next image button and bind the measurement function to it.
     next_image_button = _find_call_button(viewer, "Next Image [N]")
-    next_image_button.clicked.connect(post_measurement)
+    next_image_button.clicked.connect(save_func)
 
     # widget measuring line lengths
     viewer.add_shapes(

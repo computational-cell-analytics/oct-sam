@@ -276,7 +276,7 @@ def get_etdrs_mask(
     area_c, area_i, area_o, mask_c, mask_i, mask_o = _get_etdrs_grid_all(mask, fovea_point, spacing)
     etdrs_mask = mask_c + 2 * mask_i + 3 * mask_o
 
-    central_foveal_thickness = sum(measurement[f"central_thickness[{unit}]"])
+    central_foveal_thickness = sum(measurement[f"CFT@{fovea_point[1]}px[{unit}]"])
     notification_str = f"The central foveal thickness is {round(central_foveal_thickness, 2)} {unit}."
     return etdrs_mask, notification_str
 
@@ -325,10 +325,10 @@ def run_measurement(
         print(f"ref point {reference_point}")
         if reference_point[0] > segmentation.shape[0] or reference_point[1] > segmentation.shape[1]:
             raise ValueError(f"Reference point {reference_point} does not lie within segmentation boundary.")
-        measurement[f"thickness[{unit}]"] = []
+        measurement[f"thickness@{reference_point[1]}px[{unit}]"] = []
 
     if fovea_point is not None:
-        measurement[f"central_thickness[{unit}]"] = []
+        measurement[f"CFT@{fovea_point[1]}px[{unit}]"] = []
         measurement[f"central_area[{unit_area}²]"] = []
         measurement[f"inner_ring[{unit_area}²]"] = []
         measurement[f"outer_ring[{unit_area}²]"] = []
@@ -355,7 +355,7 @@ def run_measurement(
 
         if fovea_point is not None:
             central_thickness = _thickness_at_reference(mask_all, fovea_point[1], spacing)
-            measurement[f"central_thickness[{unit}]"].append(central_thickness)
+            measurement[f"CFT@{fovea_point[1]}px[{unit}]"].append(central_thickness)
 
             area_c, area_i, area_o, _, _, _ = _get_etdrs_grid_all(mask_all, fovea_point, spacing)
             measurement[f"central_area[{unit_area}²]"].append(area_c * factor_area)
@@ -364,7 +364,7 @@ def run_measurement(
 
         if reference_point is not None:
             thickness_at_ref = _thickness_at_reference(mask_all, reference_point[1], spacing)
-            measurement[f"thickness[{unit}]"].append(thickness_at_ref)
+            measurement[f"thickness@{reference_point[1]}px[{unit}]"].append(thickness_at_ref)
 
     measurement = pd.DataFrame(measurement)
     if extra_columns is not None:
