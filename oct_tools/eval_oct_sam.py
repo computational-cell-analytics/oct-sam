@@ -10,7 +10,7 @@ from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
 
 
-def eval_segmentation(
+def eval_segmentation_2d(
     img_dir: str,
     seg_dir: str,
     output_extension: str = "tif",
@@ -28,6 +28,7 @@ def eval_segmentation(
         output_extension = "nii.gz"
         for h5_path in h5_paths:
             basename = "".join(os.path.basename(h5_path).split(".")[:-1])
+            # reference nnU-Net output format
             seg_path = os.path.join(seg_dir, f"oct_{basename}.{output_extension}")
             nib_data = nib.load(seg_path)
             seg = nib_data.get_fdata()
@@ -66,31 +67,3 @@ def eval_segmentation(
     print("Overall recall:", recall)
     print("Overall f1-score:", f1)
     print("Overall symm-dice:", symm_dice_score)
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Evaluate segmentation performance on all images in a folder. "
-        "Evaluates image and label data in H5 format and segmentation data in TIF format."
-    )
-    parser.add_argument("-i", "--img_dir", type=str, required=True,
-                        help="Directory containing images and labels in H5 format.")
-    parser.add_argument("-s", "--seg_dir", type=str, required=True,
-                        help="Directory containing segmentation in TIF format.")
-    parser.add_argument("--nnunet", action="store_true",
-                        help="Check for nnU-Net inference format.")
-    parser.add_argument("--label_key", type=str, default="original",
-                        help="Key for labels stored in H5 format.")
-
-    args = parser.parse_args()
-
-    eval_segmentation(
-        args.img_dir,
-        args.seg_dir,
-        check_nnunet=args.nnunet,
-        label_key=args.label_key,
-    )
-
-
-if __name__ == "__main__":
-    main()
