@@ -41,14 +41,16 @@ python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_
 
 ## Training scripts
 
-`oct-sam-pretrained`:
-```bash
-python /path/to/oct-analysis/scripts/training/pretrain_oct_sam_on_public_datasets.py
-```
-
 `oct-sam-V1`:
 ```bash
 python /path/to/oct-analysis/scripts/training/train_oct_sam.py
+```
+
+### Training scripts for iterative finetuning
+
+`oct-sam-pretrained-V1`:
+```bash
+python /path/to/oct-analysis/scripts/training/pretrain_oct_sam_on_public_datasets.py
 ```
 
 `oct-sam-pre-v2-n001`:
@@ -63,45 +65,14 @@ python /path/to/oct-analysis/scripts/training/finetune_pretrained_model_iterativ
 
 ## Running inference
 
-The trained OCT-SAM networks are applied using `/path/to/oct-analysis/scripts/sam/eval_sam.py`.
+The trained OCT-SAM networks are applied using `oct_tools.apply_sam`.
 Different settings can be chosen for the application.
 The default pipeline involves an initial prediction of the network, which is used to derive point prompts for a second application.
 This can be switched off using the `--no_prompts` argument.
 Additionally, the prediction can be post-processed using post-processing functions.
 After testing several configurations on the validation dataset, it seems that the optimal post-processing is achieved by merging the horizontal layer predictions and subsequently filtering out layers thinner than 5 pixels.
 
-```bash
-OCT_DIR="/path/to/oct-analysis"
-DATA_DIR="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/validation_data/standard_20250717"
-MODEL="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models/oct-sam-V1.pt"
-INFERENCE_DIR="/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/oct-sam_inference/oct-sam-V1"
-
-# using no point prompts from initial prediction
-python "$OCT_DIR"/scripts/sam/eval_sam.py --input "$DATA_DIR" \
-    --model "$MODEL" \
-    -o "$ODIR" \
-    --no_prompts \
-    --label_key edit_v3
-
-# using point prompts but no post-processing
-python "$OCT_DIR"/scripts/sam/eval_sam.py --input "$DATA_DIR" \
-    --model "$MODEL" \
-    -o "$ODIR" \
-    --label_key edit_v3
-
-# using point prompts and post-processing
-python "$OCT_DIR"/scripts/sam/eval_sam.py --input "$DATA_DIR" \
-    --model "$MODEL" \
-    -o "$ODIR" \
-    --postprocess --postprocess_functions merge_horizontal filter_thin \
-    --label_key edit_v3
-```
-
 ## Evaluate iterative prompting of OCT-SAM
 The SAM derivatives (µSAM, MedicoSAM, OCT-SAM) are designed for an iterative approach to improve the segmentation.
 The user can refine the initial segmentation by providing bounding poxes or point prompts using positive and negative markers.
-To emulate this process, the following function was used:
-
-```bash
-python /path/to/oct-analysis/scripts/sam/eval_iterative_prompting.py -m vit_b -i /path/to/oct-data/20250717_images -l /path/to/oct-data/20250717_labels --checkpoint /path/to/oct-models/oct-sam-pre-v2-n100.pt -o /path/to/oct-data/eval_interactive/oct-sam-pre-v2-n100
-```
+To emulate this process, the following function can be used was used `scripts/oct-sam/eval_iterative_prompting.py`.

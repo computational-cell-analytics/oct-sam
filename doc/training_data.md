@@ -1,6 +1,6 @@
-# Training data
+# Training Data
 
-## Public datasets
+## Public Datasets
 
 ### HCMS - Healthy Control - Multiple Sclerosis
 
@@ -26,7 +26,7 @@
     * Through-plane distance (slice separation) is 123.6 µm (±3.6) between images
     * Imaging area of approximately 6 x 6 mm²
 
-#### Duke DME
+### Duke DME
 
 * [publication](https://doi.org/10.1117/12.2654210)
 * [data](https://people.duke.edu/~sf59/Chiu_BOE_2014_dataset.htm)
@@ -48,7 +48,7 @@
 ### Download
 The public datasets can be downloaded with the links referenced above.
 
-### Export into nnU-Net data format
+### Export into nnU-Net Data Format
 Both external and internal data has to be transformed into a format, which is compatible with nnU-Net and features spatial information in form of the voxel size.
 A good choice for this is the NIfTI file format.
 The conversion process creates two directories, `imagesTr` and `labelsTr` inside the output directory, which can be used for the training of the nnU-Net.
@@ -61,17 +61,17 @@ python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/t
 python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme
 ```
 
-#### OCT-SAM
-
-## Custom Data
+## Private Data - UMG-RP
 The internal data is stored in H5 files.
 They contain different versions of the labels, e.g. the original annotations are stored under `["labels"]["orig"]`.
 The annotations can be further refined by removing stray pixels, restricting the labels to the image, and synchronizing the label IDs, so that the same label ID always corresponds to the same semantic layer.
 ```bash
 python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3
 ```
+The refined data is saved within the H5 data format as "labels/edit_v3".
+The naming scheme of the internal training data is standardized. An overview about the standardization can be found in `doc/name_mapping.tsv`.
 
-## Layers
+## Retinal Layers
 The segmentation data was limited to the 7 layers:
 * RNFL: Retina nerve fiber layer
 * GCL+IPL: Ganglion cell layer and inner plexiform layer
@@ -83,7 +83,7 @@ The segmentation data was limited to the 7 layers:
 
 For HCMS, the inner and outer photoreceptor segments were combined to the ellipsoid zone.
 
-### Voxel size
+### Voxel Size
 The data was exported in NIfTI format with the voxel sizes:
 * HCMS: (3.87, 5.8, 123.6) µm
 * DUKE_DME: (3.87, 11.33) µm
