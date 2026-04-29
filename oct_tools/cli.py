@@ -6,6 +6,7 @@ from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
 from oct_tools.eval_segmentation import eval_segmentation_2d
+from oct_tools.measure_segmentation import run_measurement_only
 
 
 def interactive():
@@ -131,4 +132,32 @@ def eval_segmentation():
         check_nnunet=args.nnunet,
         label_key=args.label_key,
         json_file=args.json,
+    )
+
+
+def measure():
+    parser = argparse.ArgumentParser(
+        description="Measure segmentation metrics using napari."
+    )
+    parser.add_argument("-i", "--img", required=True, help="Image path.")
+    parser.add_argument("-s", "--seg", required=True, help="Segmentation path.")
+    parser.add_argument("-o", "--output", required=True, help="Output folder.")
+    parser.add_argument("-z", "--slice", type=int, default=0,
+                        help="Slice in z-direction. The first slice if taken by default.")
+    parser.add_argument("--ref_position", type=int, default=None,
+                        help="Initial position on vertical axis of reference point for calculating layer thickness.")
+    parser.add_argument(
+        "--more_info", action="store_true",
+        help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
+    )
+
+    args = parser.parse_args()
+
+    run_measurement_only(
+        image_path=args.img,
+        segmentation_path=args.seg,
+        output_folder=args.output,
+        ref_position=args.ref_position,
+        more_info=args.more_info,
+        slice_index=args.slice,
     )
