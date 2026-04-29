@@ -5,7 +5,7 @@ import argparse
 from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
-from oct_tools.eval_oct_sam import eval_segmentation_2d
+from oct_tools.eval_segmentation import eval_segmentation_2d
 
 
 def interactive():
@@ -112,7 +112,7 @@ def eval_segmentation():
         description="Evaluate segmentation performance on all images in a folder. "
         "Evaluates image and label data in H5 format and segmentation data in TIF format."
     )
-    parser.add_argument("-i", "--img_dir", type=str, required=True,
+    parser.add_argument("-d", "--data_dir", type=str, required=True,
                         help="Directory containing images and labels in H5 format.")
     parser.add_argument("-s", "--seg_dir", type=str, required=True,
                         help="Directory containing segmentation in TIF format.")
@@ -120,12 +120,15 @@ def eval_segmentation():
                         help="Check for nnU-Net inference format.")
     parser.add_argument("--label_key", type=str, default="original",
                         help="Key for labels stored in H5 format.")
+    parser.add_argument("--json", type=str, default=None,
+                        help="Output path for JSON dictionary documenting performance.")
 
     args = parser.parse_args()
 
     eval_segmentation_2d(
-        args.img_dir,
+        args.data_dir,
         args.seg_dir,
         check_nnunet=args.nnunet,
         label_key=args.label_key,
+        json_file=args.json,
     )

@@ -13,6 +13,7 @@ setup(
             "oct_tools.interactive = oct_tools.cli:interactive",
             "oct_tools.metrics = oct_tools.cli:metrics",
             "oct_tools.apply_sam = oct_tools.cli:apply_sam",
+            "oct_tools.eval_segmentation = oct_tools.cli:eval_segmentation",
         ]
     }
 )
