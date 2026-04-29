@@ -61,7 +61,7 @@ def metrics():
     parser.add_argument("--ref_position", type=float, default=None,
                         help="Initial position on vertical axis of reference point for calculating layer thickness.")
     parser.add_argument("--fovea", type=float, default=None,
-                        help="Position of fovea point on vertical axis for calculating area of ETDRS grid.")
+                        help="Position of foveal point on vertical axis for calculating area of ETDRS grid.")
     parser.add_argument("--etdrs_grid", type=str, default=None,
                         help="File path to export ETDRS grid.")
 

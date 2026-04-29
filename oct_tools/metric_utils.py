@@ -419,7 +419,7 @@ def calculate_metrics(
     )
     if etdrs_grid is not None:
         if fovea_point is None:
-            raise ValueError("You have to provide a fovea point to export an ETDRS grid.")
+            raise ValueError("You have to provide the foveal point to export an ETDRS grid.")
         etdrs_mask, notification_str = get_etdrs_mask(seg, tab, fovea_point=fovea_point)
         print(notification_str)
         imageio.imwrite(etdrs_grid, etdrs_mask)
