@@ -159,7 +159,7 @@ def run_annotator(
         i = len(glob(os.path.join(output_folder, "measurement*.tsv")))
         table_out = os.path.join(output_folder, f"measurement_{i:05}.tsv")
         measurements.to_csv(table_out, sep="\t", index=False)
-        show_info(f"Measurements for saved to {table_out}")
+        show_info(f"Measurements saved to {table_out}")
 
     # Get the next image button and bind the measurement function to it.
     next_image_button = _find_call_button(viewer, "Next Image [N]")
