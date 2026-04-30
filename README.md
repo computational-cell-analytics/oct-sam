@@ -2,9 +2,37 @@
 
 Segmentation and measurements for retinal layers in OCT data using neural networks, e.g. OCT-SAM and nnU-Net.
 
-## Overview
+## Installation
 
-Install command line functions by running `pip install -e .`
+OCT-SAM can be installed via `conda` (or [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)). To install it:
+
+Download the github repository:
+```bash
+git clone https://github.com/computational-cell-analytics/oct-sam
+```
+Go to the directory:
+```bash
+cd oct-sam
+```
+Create an environment with the required dependencies:
+```bash
+conda env create -f environment.yaml
+```
+Activate the environment:
+```bash
+conda activate cochlea-net
+```
+Install the oct_tools package:
+```bash
+pip install -e .
+```
+(Optional) To process external data from the public dataset, `eyepy` is required ([Github](https://github.com/MedVisBonn/eyepy)). It can be installed with:
+```bash
+pip install -U eyepy
+```
+
+## Usage
+
 The relevant functions are:
 - `oct_tools.interactive`: For automatic and interactive segmentation.
     - Automatic segmentation is based on deriving prompts from the SAM predictions and then segmenting the layers with the fine-tuned SAM model based on these prompts.
@@ -18,7 +46,8 @@ The following scripts are relevant:
 
 The data is located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data`. Currently (2026-04-29), it is not clear if the data will be published.
 
-The models are located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models`. Currently there are the models:
+The models are located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/models`.
+Models available for download online:
 - `oct-sam-V1.pt`: The fine-tuned SAM model, which was trained on public datasets (HCMS and Duke DME) and the UMG-RP data. [Download from ownCloud](https://owncloud.gwdg.de/index.php/s/12FhJAc8XTNzHLA)
 
 ## Data

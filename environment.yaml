@@ -1,0 +1,13 @@
+name: oct-sam
+
+channels:
+  - conda-forge
+
+dependencies:
+  - micro_sam
+  - napari
+  - nibabel
+  - pip
+  - pyqt
+  - pytorch
+  - torch_em
