@@ -4,6 +4,8 @@ import numpy as np
 from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
 
+from oct_tools.refine_annotations import assign_layer_id as _assign_layer_id
+
 
 def get_instance_stats(
     mask: np.ndarray,
@@ -363,6 +365,28 @@ def merge_segmentation_horizontally(
     return seg
 
 
+def assign_layer_ids(seg: np.ndarray) -> np.ndarray:
+    """Reassign instance label IDs to match the canonical LAYER_MAPPING.
+
+    Uses the spatial order of segments (top to bottom) and the number of
+    detected layers to remap arbitrary instance IDs to the fixed IDs defined
+    in ``oct_tools.layer_information.LAYER_MAPPING`` (RNFL=1 … RPE=7).
+    If the layer order cannot be determined, the segmentation is returned
+    unchanged with a warning.
+
+    Args:
+        seg: Integer-labeled segmentation mask.
+
+    Returns:
+        Segmentation with relabeled layer IDs.
+    """
+    result = _assign_layer_id(seg.copy())
+    if result is None:
+        print("Warning: could not determine layer order — label IDs left unchanged.")
+        return seg
+    return result
+
+
 def postprocess_segmentation(
     seg: np.ndarray,
     img: np.ndarray,
@@ -405,8 +429,12 @@ def postprocess_segmentation(
             "func": fill_gaps_watershed,
             "requires_img": True,
             "params": {}
-        }
-        # Add new methods here as needed
+        },
+        "assign_layer_id": {
+            "func": assign_layer_ids,
+            "requires_img": False,
+            "params": {}
+        },
     }
 
     if any(element in ["no", "No", "none", "None"] for element in postprocess_functions):
