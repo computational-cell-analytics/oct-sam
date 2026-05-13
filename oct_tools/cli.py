@@ -32,6 +32,10 @@ def interactive():
         "--more_info", action="store_true",
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
+    parser.add_argument(
+        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
+        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
+    )
 
     args = parser.parse_args()
     run_annotator(
@@ -43,6 +47,7 @@ def interactive():
         postprocess_functions=args.postprocess_functions,
         ref_position=args.ref_position,
         more_info=args.more_info,
+        color_style=args.color_style,
     )
 
 
@@ -150,6 +155,10 @@ def measure():
         "--more_info", action="store_true",
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
+    parser.add_argument(
+        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
+        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
+    )
 
     args = parser.parse_args()
 
@@ -160,4 +169,5 @@ def measure():
         ref_position=args.ref_position,
         more_info=args.more_info,
         slice_index=args.slice,
+        color_style=args.color_style,
     )

@@ -63,13 +63,25 @@ def _hex_to_rgba(hex_color: str) -> np.ndarray:
 LAYER_COLORS = {
     None: np.zeros(4),                   # transparent
     0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("782506"),        # RNFL
-    2:    _hex_to_rgba("5bd5f8"),        # GCIPL
-    3:    _hex_to_rgba("9289e8"),        # INL
-    4:    _hex_to_rgba("6c02c1"),        # OPL
-    5:    _hex_to_rgba("473a9f"),        # ONL
-    6:    _hex_to_rgba("abec8a"),        # EZ
-    7:    _hex_to_rgba("8fadb2"),        # RPE
+    1:    _hex_to_rgba("#782506"),        # RNFL
+    2:    _hex_to_rgba("#5bd5f8"),        # GCIPL
+    3:    _hex_to_rgba("#9289e8"),        # INL
+    4:    _hex_to_rgba("#6c02c1"),        # OPL
+    5:    _hex_to_rgba("#473a9f"),        # ONL
+    6:    _hex_to_rgba("#abec8a"),        # EZ
+    7:    _hex_to_rgba("#8fadb2"),        # RPE
+}
+
+LAYER_COLORS_PASTEL = {
+    None: np.zeros(4),                   # transparent
+    0:    np.zeros(4),                   # background
+    1:    _hex_to_rgba("#B76649"),        # RNFL
+    2:    _hex_to_rgba("#B84953"),        # GCIPL
+    3:    _hex_to_rgba("#4992B8"),        # INL
+    4:    _hex_to_rgba("#49B8A2"),        # OPL
+    5:    _hex_to_rgba("#AD49B8"),        # ONL
+    6:    _hex_to_rgba("#B88649"),        # EZ
+    7:    _hex_to_rgba("#495AB8"),        # RPE
 }
 
 
@@ -82,14 +94,25 @@ class _LayerColorDict(dict):
         return _WARNING_COLORS[int(key) % len(_WARNING_COLORS)]
 
 
-def get_layer_colormap():
-    """Return a DirectLabelColormap with fixed colors for the 7 retinal layers.
+def get_layer_colormap(style: str = "default"):
+    """Return a colormap for the 7 retinal layer label IDs.
+
+    Args:
+        style: ``"default"`` uses the fixed project colors; ``"pastel"`` uses a
+               softer palette; ``"random"`` leaves coloring to napari (returns
+               ``None`` — callers should skip setting the colormap in that case).
+
+    Returns:
+        A ``DirectLabelColormap`` instance, or ``None`` for ``"random"``.
 
     Label IDs outside the expected range 0–7 get distinct bright warning colors
-    so they are immediately visible as unexpected values.
+    when a fixed style is used.
     """
+    if style == "random":
+        return None
     from napari.utils.colormaps import direct_colormap
-    colors = _LayerColorDict(LAYER_COLORS)
+    color_dict = LAYER_COLORS if style == "default" else LAYER_COLORS_PASTEL
+    colors = _LayerColorDict(color_dict)
     return direct_colormap(colors)
 
 
