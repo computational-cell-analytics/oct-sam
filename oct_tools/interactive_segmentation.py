@@ -19,6 +19,7 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
+from oct_tools.layer_information import get_layer_colormap
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
@@ -118,6 +119,7 @@ def run_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
+    viewer.layers["committed_objects"].colormap = get_layer_colormap()
 
     # Add a button to trigger measurement saving
     save_func = partial(

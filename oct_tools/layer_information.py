@@ -44,6 +44,54 @@ LAYER_MAPPING = {
     7: "RPE"
 }
 
+# Bright warning colors cycled for unexpected label IDs (> 7).
+_WARNING_COLORS = [
+    np.array([1.0, 1.0, 0.0, 1.0]),  # yellow
+    np.array([1.0, 0.0, 1.0, 1.0]),  # magenta
+    np.array([1.0, 0.5, 0.0, 1.0]),  # orange
+    np.array([0.0, 1.0, 0.0, 1.0]),  # lime
+]
+
+
+def _hex_to_rgba(hex_color: str) -> np.ndarray:
+    h = hex_color.lstrip("#")[:6]
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return np.array([r / 255, g / 255, b / 255, 1.0])
+
+
+# Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
+LAYER_COLORS = {
+    None: np.zeros(4),                   # transparent
+    0:    np.zeros(4),                   # background
+    1:    _hex_to_rgba("782506"),        # RNFL
+    2:    _hex_to_rgba("5bd5f8"),        # GCIPL
+    3:    _hex_to_rgba("9289e8"),        # INL
+    4:    _hex_to_rgba("6c02c1"),        # OPL
+    5:    _hex_to_rgba("473a9f"),        # ONL
+    6:    _hex_to_rgba("abec8a"),        # EZ
+    7:    _hex_to_rgba("8fadb2"),        # RPE
+}
+
+
+class _LayerColorDict(dict):
+    """Dict that returns a cycling bright warning color for unknown label IDs."""
+
+    def __missing__(self, key):
+        if key is None:
+            return np.zeros(4)
+        return _WARNING_COLORS[int(key) % len(_WARNING_COLORS)]
+
+
+def get_layer_colormap():
+    """Return a DirectLabelColormap with fixed colors for the 7 retinal layers.
+
+    Label IDs outside the expected range 0–7 get distinct bright warning colors
+    so they are immediately visible as unexpected values.
+    """
+    from napari.utils.colormaps import direct_colormap
+    colors = _LayerColorDict(LAYER_COLORS)
+    return direct_colormap(colors)
+
 
 def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
     """Identify the order of segmentation layers.
