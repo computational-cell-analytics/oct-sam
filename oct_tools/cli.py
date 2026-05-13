@@ -21,9 +21,9 @@ def interactive():
     parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from SAM prediction.")
     parser.add_argument("--postprocess_functions", nargs="+", type=str,
-                        default=["merge_horizontal", "filter_thin"],
-                        help="Select and order post-processing functions 'merge_horizontal', 'filter_thin',"
-                        "and 'fill_gaps'. Use 'no' or 'none' for no post-processing.")
+                        default=["merge_horizontal", "filter_thin", "assign_layer_id"],
+                        help="Select and order post-processing functions: 'merge_horizontal', 'filter_thin',"
+                        " 'fill_gaps', 'assign_layer_id'. Use 'no' or 'none' for no post-processing.")
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")
     parser.add_argument("--ref_position", type=int, default=None,
@@ -31,6 +31,10 @@ def interactive():
     parser.add_argument(
         "--more_info", action="store_true",
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
+    )
+    parser.add_argument(
+        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
+        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
     )
 
     args = parser.parse_args()
@@ -43,6 +47,7 @@ def interactive():
         postprocess_functions=args.postprocess_functions,
         ref_position=args.ref_position,
         more_info=args.more_info,
+        color_style=args.color_style,
     )
 
 
@@ -150,6 +155,10 @@ def measure():
         "--more_info", action="store_true",
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
+    parser.add_argument(
+        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
+        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
+    )
 
     args = parser.parse_args()
 
@@ -160,4 +169,5 @@ def measure():
         ref_position=args.ref_position,
         more_info=args.more_info,
         slice_index=args.slice,
+        color_style=args.color_style,
     )

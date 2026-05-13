@@ -19,6 +19,7 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
+from oct_tools.layer_information import get_layer_colormap
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
@@ -77,6 +78,7 @@ def run_annotator(
     postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
     ref_position: Optional[int] = None,
     more_info: bool = False,
+    color_style: str = "default",
 ):
     """Run annotator for a single or multiple slices of input data.
     A pre-computed segmentation can be used as an initial starting point.
@@ -91,6 +93,7 @@ def run_annotator(
         postprocessing_functions: List of functions. Post-processing will be performed in the given order.
         ref_position: Horizontal pixel coordinate of initial reference point for calculating layer thicknesses.
         more_info: Add additional information about layer length, max, min, and mean thickness.
+        color_style: Color style for the visualization in napari.
     """
     basename = os.path.splitext(os.path.basename(input_path))[0]
     if ".h5" in input_path:
@@ -118,6 +121,9 @@ def run_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
+    colormap = get_layer_colormap(color_style)
+    if colormap is not None:
+        viewer.layers["committed_objects"].colormap = colormap
 
     # Add a button to trigger measurement saving
     save_func = partial(
