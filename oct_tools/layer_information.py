@@ -1,5 +1,4 @@
 from typing import List, Optional
-import warnings
 
 import numpy as np
 
@@ -44,20 +43,28 @@ LAYER_MAPPING = {
     7: "RPE"
 }
 
-# Bright warning colors cycled for unexpected label IDs (> 7).
-_WARNING_COLORS = [
-    np.array([1.0, 1.0, 0.0, 1.0]),  # yellow
-    np.array([1.0, 0.0, 1.0, 1.0]),  # magenta
-    np.array([1.0, 0.5, 0.0, 1.0]),  # orange
-    np.array([0.0, 1.0, 0.0, 1.0]),  # lime
-]
-
 
 def _hex_to_rgba(hex_color: str) -> np.ndarray:
     h = hex_color.lstrip("#")[:6]
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return np.array([r / 255, g / 255, b / 255, 1.0])
 
+
+# Muddy/Brown warning colors cycled for unexpected label IDs (> 7).
+_WARNING_COLORS_MUDDY = [
+    _hex_to_rgba("#634849"),    # muddy red
+    _hex_to_rgba("#574B63"),    # muddy purple
+    _hex_to_rgba("#515C63"),    # muddy blue
+    _hex_to_rgba("#506351"),    # muddy green
+]
+
+# Bright warning colors cycled for unexpected label IDs (> 7).
+_WARNING_COLORS_BRIGHT = [
+    np.array([1.0, 1.0, 0.0, 1.0]),  # yellow
+    np.array([1.0, 0.0, 1.0, 1.0]),  # magenta
+    np.array([1.0, 0.5, 0.0, 1.0]),  # orange
+    np.array([0.0, 1.0, 0.0, 1.0]),  # lime
+]
 
 # Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
 LAYER_COLORS = {
@@ -75,26 +82,17 @@ LAYER_COLORS = {
 LAYER_COLORS_PASTEL = {
     None: np.zeros(4),                   # transparent
     0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("#B76649"),        # RNFL
+    1:    _hex_to_rgba("#49B8A5"),        # RNFL
     2:    _hex_to_rgba("#B84953"),        # GCIPL
     3:    _hex_to_rgba("#4992B8"),        # INL
-    4:    _hex_to_rgba("#49B8A2"),        # OPL
+    4:    _hex_to_rgba("#B76649"),        # OPL
     5:    _hex_to_rgba("#AD49B8"),        # ONL
-    6:    _hex_to_rgba("#B88649"),        # EZ
+    6:    _hex_to_rgba("#B89E49"),        # EZ
     7:    _hex_to_rgba("#495AB8"),        # RPE
 }
 
 
-class _LayerColorDict(dict):
-    """Dict that returns a cycling bright warning color for unknown label IDs."""
-
-    def __missing__(self, key):
-        if key is None:
-            return np.zeros(4)
-        return _WARNING_COLORS[int(key) % len(_WARNING_COLORS)]
-
-
-def get_layer_colormap(style: str = "default"):
+def get_layer_colormap(style: str = "default", warning_color_style: str = "bright"):
     """Return a colormap for the 7 retinal layer label IDs.
 
     Args:
@@ -105,14 +103,21 @@ def get_layer_colormap(style: str = "default"):
     Returns:
         A ``DirectLabelColormap`` instance, or ``None`` for ``"random"``.
 
-    Label IDs outside the expected range 0–7 get distinct bright warning colors
-    when a fixed style is used.
+    Label IDs outside the expected range 0–7 receive distinct muddy warning
+    colors. Entries for the full uint8 range (8–255) are pre-populated so that
+    napari's precomputed array-rendering path also picks them up (it only
+    considers keys that are explicitly present in the color dict).
     """
     if style == "random":
         return None
     from napari.utils.colormaps import direct_colormap
-    color_dict = LAYER_COLORS if style == "default" else LAYER_COLORS_PASTEL
-    colors = _LayerColorDict(color_dict)
+    colors = LAYER_COLORS if style == "default" else LAYER_COLORS_PASTEL
+    if warning_color_style == "bright":
+        warning_colors = _WARNING_COLORS_BRIGHT
+    else:
+            warning_colors = _WARNING_COLORS_MUDDY
+    for i in range(8, 256):
+        colors[i] = warning_colors[i % len(warning_colors)]
     return direct_colormap(colors)
 
 

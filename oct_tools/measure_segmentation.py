@@ -22,6 +22,7 @@ def run_measurement_only(
     more_info: bool = False,
     slice_index: int = 0,
     color_style: str = "default",
+    warning_colors: str = "bright",
 ):
     """
     Load an image and a pre-computed segmentation, then run measurements using the same tools
@@ -35,6 +36,7 @@ def run_measurement_only(
         more_info: Whether to include additional thickness metrics.
         slice_index: Index of slice to load if input is 3D (only used for TIF/H5 3D).
         color_style: Color style for the visualization in napari.
+        warning_colors: Color style for unexpected label IDs.
     """
     # Ensure output folder exists
     os.makedirs(output_folder, exist_ok=True)
@@ -83,7 +85,7 @@ def run_measurement_only(
     # Add image and segmentation layers
     viewer.add_image(image, name="Image", colormap="gray", opacity=0.8)
     viewer.add_labels(segmentation, name="Segmentation", opacity=0.8)
-    colormap = get_layer_colormap(color_style)
+    colormap = get_layer_colormap(color_style, warning_color_style=warning_colors)
     if colormap is not None:
         viewer.layers["Segmentation"].colormap = colormap
 
