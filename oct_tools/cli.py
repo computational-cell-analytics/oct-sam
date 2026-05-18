@@ -33,8 +33,8 @@ def interactive():
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
     parser.add_argument(
-        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
-        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
+        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
     parser.add_argument(
         "--warning_colors", type=str, default="bright", choices=["bright", "muddy"],
@@ -161,8 +161,8 @@ def measure():
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
     parser.add_argument(
-        "--color_style", type=str, default="default", choices=["default", "pastel", "random"],
-        help="Label color scheme for napari: 'default', 'pastel', or 'random'.",
+        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
     parser.add_argument(
         "--warning_colors", type=str, default="bright", choices=["bright", "muddy"],

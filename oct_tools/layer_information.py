@@ -60,10 +60,12 @@ _WARNING_COLORS_MUDDY = [
 
 # Bright warning colors cycled for unexpected label IDs (> 7).
 _WARNING_COLORS_BRIGHT = [
-    np.array([1.0, 1.0, 0.0, 1.0]),  # yellow
-    np.array([1.0, 0.0, 1.0, 1.0]),  # magenta
-    np.array([1.0, 0.5, 0.0, 1.0]),  # orange
-    np.array([0.0, 1.0, 0.0, 1.0]),  # lime
+    _hex_to_rgba("#A6FE00"),
+    _hex_to_rgba("#00FE9A"),
+    _hex_to_rgba("#00FEEA"),
+    _hex_to_rgba("#FEB000"),
+    _hex_to_rgba("#FE1700"),
+    _hex_to_rgba("#FE00B0"),
 ]
 
 # Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
@@ -79,16 +81,16 @@ LAYER_COLORS = {
     7:    _hex_to_rgba("#8fadb2"),        # RPE
 }
 
-LAYER_COLORS_PASTEL = {
+LAYER_COLORS_CUSTOM = {
     None: np.zeros(4),                   # transparent
     0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("#49B8A5"),        # RNFL
-    2:    _hex_to_rgba("#B84953"),        # GCIPL
-    3:    _hex_to_rgba("#4992B8"),        # INL
-    4:    _hex_to_rgba("#B76649"),        # OPL
-    5:    _hex_to_rgba("#AD49B8"),        # ONL
-    6:    _hex_to_rgba("#B89E49"),        # EZ
-    7:    _hex_to_rgba("#495AB8"),        # RPE
+    1:    _hex_to_rgba("#1C8A3D"),        # RNFL
+    2:    _hex_to_rgba("#A52A2A"),        # GCIPL
+    3:    _hex_to_rgba("#2599B8"),        # INL
+    4:    _hex_to_rgba("#B85D11"),        # OPL
+    5:    _hex_to_rgba("#970BB8"),        # ONL
+    6:    _hex_to_rgba("#B8AC25"),        # EZ
+    7:    _hex_to_rgba("#244BB8"),        # RPE
 }
 
 
@@ -96,22 +98,22 @@ def get_layer_colormap(style: str = "default", warning_color_style: str = "brigh
     """Return a colormap for the 7 retinal layer label IDs.
 
     Args:
-        style: ``"default"`` uses the fixed project colors; ``"pastel"`` uses a
+        style: ``"default"`` uses the fixed project colors; ``"custom"`` uses a
                softer palette; ``"random"`` leaves coloring to napari (returns
                ``None`` — callers should skip setting the colormap in that case).
 
     Returns:
         A ``DirectLabelColormap`` instance, or ``None`` for ``"random"``.
 
-    Label IDs outside the expected range 0–7 receive distinct muddy warning
-    colors. Entries for the full uint8 range (8–255) are pre-populated so that
+    Label IDs outside the expected range 0-7 receive distinct muddy warning
+    colors. Entries for the full uint8 range (8-255) are pre-populated so that
     napari's precomputed array-rendering path also picks them up (it only
     considers keys that are explicitly present in the color dict).
     """
     if style == "random":
         return None
     from napari.utils.colormaps import direct_colormap
-    colors = LAYER_COLORS if style == "default" else LAYER_COLORS_PASTEL
+    colors = LAYER_COLORS if style == "default" else LAYER_COLORS_CUSTOM
     if warning_color_style == "bright":
         warning_colors = _WARNING_COLORS_BRIGHT
     else:
