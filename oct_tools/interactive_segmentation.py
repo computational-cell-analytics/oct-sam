@@ -126,6 +126,10 @@ def run_annotator(
     colormap = get_layer_colormap(color_style, warning_color_style=warning_colors)
     if colormap is not None:
         viewer.layers["committed_objects"].colormap = colormap
+        # add new committed objects layer
+        new_arr = np.zeros(images[0].shape, dtype=np.uint8)
+        viewer.add_labels(new_arr, visible=True, name="new_committed_objects")
+        viewer.layers["new_committed_objects"].colormap = colormap
 
     # Add a button to trigger measurement saving
     save_func = partial(
