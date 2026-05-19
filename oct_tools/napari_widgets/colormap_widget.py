@@ -17,7 +17,7 @@ class ColormapWidget(QWidget):
         layout.addWidget(QLabel("Color style:"))
 
         self._combo = QComboBox()
-        self._combo.addItems(["default", "custom", "random"])
+        self._combo.addItems(["default", "custom", "random", "check"])
         layout.addWidget(self._combo)
 
         btn = QPushButton("Apply to selected layer(s)")

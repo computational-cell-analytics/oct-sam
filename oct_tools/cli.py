@@ -40,7 +40,7 @@ def interactive():
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
     parser.add_argument(
-        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
         help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
 
@@ -163,7 +163,7 @@ def measure():
         help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
     )
     parser.add_argument(
-        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
         help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
 
@@ -189,7 +189,7 @@ def open_labels():
         help="Segmentation files in TIF or H5 format.",
     )
     parser.add_argument(
-        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
         help="Initial label color scheme: 'default', 'custom', or 'random'.",
     )
     parser.add_argument(

@@ -1,3 +1,4 @@
+import colorsys
 from typing import List, Optional
 
 import numpy as np
@@ -50,15 +51,26 @@ def _hex_to_rgba(hex_color: str) -> np.ndarray:
     return np.array([r / 255, g / 255, b / 255, 1.0])
 
 
-# Bright green warning colors cycled for unexpected label IDs (> 7).
-_WARNING_COLORS_BRIGHT = [
-    _hex_to_rgba("#05fc11"),
-    _hex_to_rgba("#28fc05"),
-    _hex_to_rgba("#4bfc05"),
-    _hex_to_rgba("#68fc05"),
-    _hex_to_rgba("#7ffc05"),
-    _hex_to_rgba("#8bfc05"),
-]
+def _generate_warning_colors(n: int = 20, seed: int = 42) -> list:
+    """Generate n visually distinct warning colors using golden-ratio hue spacing.
+
+    Consecutive hues jump by ~222° so the sequence looks random rather than
+    a smooth gradient.  Saturation and value are fixed at 1.0, making every
+    color fully vivid and immediately distinguishable from the more muted
+    layer palettes regardless of hue overlap.
+    """
+    rng = np.random.default_rng(seed)
+    golden_ratio_conjugate = 0.6180339887498949
+    h = float(rng.random())
+    colors = []
+    for _ in range(n):
+        h = (h + golden_ratio_conjugate) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
+        colors.append(np.array([r, g, b, 1.0]))
+    return colors
+
+
+_WARNING_COLORS_BRIGHT = _generate_warning_colors(20)
 
 # Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
 LAYER_COLORS = {
@@ -90,25 +102,36 @@ def get_layer_colormap(style: str = "default"):
     """Return a colormap for the 7 retinal layer label IDs.
 
     Args:
-        style: ``"default"`` uses the fixed project colors; ``"custom"`` uses a
-               softer palette; ``"random"`` leaves coloring to napari (returns
-               ``None`` — callers should skip setting the colormap in that case).
+        style: Color style to apply.
+
+            * ``"default"`` — fixed project colors for IDs 1–7, bright warning
+              colors for IDs 8–255.
+            * ``"custom"`` — alternative palette for IDs 1–7, same warning
+              colors for IDs 8–255.
+            * ``"check"`` — all IDs 1–7 green, all other IDs red; useful for
+              a quick visual validation that every pixel has been assigned a
+              valid layer label.
+            * ``"random"`` — leaves coloring to napari; returns ``None`` so
+              callers skip setting the colormap.
 
     Returns:
         A ``DirectLabelColormap`` instance, or ``None`` for ``"random"``.
-
-    Label IDs outside the expected range 0-7 receive distinct green warning
-    colors. Entries for the full uint8 range (8-255) are pre-populated so that
-    napari's precomputed array-rendering path also picks them up (it only
-    considers keys that are explicitly present in the color dict).
     """
     if style == "random":
         return None
     from napari.utils.colormaps import direct_colormap
-    colors = LAYER_COLORS if style == "default" else LAYER_COLORS_CUSTOM
-    warning_colors = _WARNING_COLORS_BRIGHT
+    if style == "check":
+        green = np.array([0.0, 1.0, 0.0, 1.0])
+        red = np.array([1.0, 0.0, 0.0, 1.0])
+        colors: dict = {None: np.zeros(4), 0: np.zeros(4)}
+        for i in range(1, 8):
+            colors[i] = green
+        for i in range(8, 256):
+            colors[i] = red
+        return direct_colormap(colors)
+    colors = dict(LAYER_COLORS if style == "default" else LAYER_COLORS_CUSTOM)
     for i in range(8, 256):
-        colors[i] = warning_colors[i % len(warning_colors)]
+        colors[i] = _WARNING_COLORS_BRIGHT[i % len(_WARNING_COLORS_BRIGHT)]
     return direct_colormap(colors)
 
 
