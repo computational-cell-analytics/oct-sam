@@ -36,10 +36,6 @@ def interactive():
         "--color_style", type=str, default="default", choices=["default", "custom", "random"],
         help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
-    parser.add_argument(
-        "--warning_colors", type=str, default="bright", choices=["bright", "muddy"],
-        help="Color scheme for unexpected label IDs in napari: 'bright', or 'muddy'.",
-    )
 
     args = parser.parse_args()
     run_annotator(
@@ -52,7 +48,6 @@ def interactive():
         ref_position=args.ref_position,
         more_info=args.more_info,
         color_style=args.color_style,
-        warning_colors=args.warning_colors,
     )
 
 
@@ -164,10 +159,6 @@ def measure():
         "--color_style", type=str, default="default", choices=["default", "custom", "random"],
         help="Label color scheme for napari: 'default', 'custom', or 'random'.",
     )
-    parser.add_argument(
-        "--warning_colors", type=str, default="bright", choices=["bright", "muddy"],
-        help="Color scheme for unexpected label IDs in napari: 'bright', or 'muddy'.",
-    )
 
     args = parser.parse_args()
 
@@ -179,5 +170,4 @@ def measure():
         more_info=args.more_info,
         slice_index=args.slice,
         color_style=args.color_style,
-        warning_colors=args.warning_colors,
     )

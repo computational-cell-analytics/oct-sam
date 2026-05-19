@@ -79,7 +79,6 @@ def run_annotator(
     ref_position: Optional[int] = None,
     more_info: bool = False,
     color_style: str = "default",
-    warning_colors: str = "bright",
 ):
     """Run annotator for a single or multiple slices of input data.
     A pre-computed segmentation can be used as an initial starting point.
@@ -95,7 +94,6 @@ def run_annotator(
         ref_position: Horizontal pixel coordinate of initial reference point for calculating layer thicknesses.
         more_info: Add additional information about layer length, max, min, and mean thickness.
         color_style: Color style for the visualization in napari.
-        warning_colors: Color style for unexpected label IDs.
     """
     basename = os.path.splitext(os.path.basename(input_path))[0]
     if ".h5" in input_path:
@@ -123,7 +121,7 @@ def run_annotator(
         images, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
-    colormap = get_layer_colormap(color_style, warning_color_style=warning_colors)
+    colormap = get_layer_colormap(color_style)
     if colormap is not None:
         viewer.layers["committed_objects"].colormap = colormap
         # add new committed objects layer

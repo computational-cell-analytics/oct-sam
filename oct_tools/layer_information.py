@@ -50,22 +50,14 @@ def _hex_to_rgba(hex_color: str) -> np.ndarray:
     return np.array([r / 255, g / 255, b / 255, 1.0])
 
 
-# Muddy/Brown warning colors cycled for unexpected label IDs (> 7).
-_WARNING_COLORS_MUDDY = [
-    _hex_to_rgba("#634849"),    # muddy red
-    _hex_to_rgba("#574B63"),    # muddy purple
-    _hex_to_rgba("#515C63"),    # muddy blue
-    _hex_to_rgba("#506351"),    # muddy green
-]
-
-# Bright warning colors cycled for unexpected label IDs (> 7).
+# Bright green warning colors cycled for unexpected label IDs (> 7).
 _WARNING_COLORS_BRIGHT = [
-    _hex_to_rgba("#A6FE00"),
-    _hex_to_rgba("#00FE9A"),
-    _hex_to_rgba("#00FEEA"),
-    _hex_to_rgba("#FEB000"),
-    _hex_to_rgba("#FE1700"),
-    _hex_to_rgba("#FE00B0"),
+    _hex_to_rgba("#05fc11"),
+    _hex_to_rgba("#28fc05"),
+    _hex_to_rgba("#4bfc05"),
+    _hex_to_rgba("#68fc05"),
+    _hex_to_rgba("#7ffc05"),
+    _hex_to_rgba("#8bfc05"),
 ]
 
 # Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
@@ -84,17 +76,17 @@ LAYER_COLORS = {
 LAYER_COLORS_CUSTOM = {
     None: np.zeros(4),                   # transparent
     0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("#1C8A3D"),        # RNFL
-    2:    _hex_to_rgba("#A52A2A"),        # GCIPL
-    3:    _hex_to_rgba("#2599B8"),        # INL
-    4:    _hex_to_rgba("#B85D11"),        # OPL
-    5:    _hex_to_rgba("#970BB8"),        # ONL
-    6:    _hex_to_rgba("#B8AC25"),        # EZ
-    7:    _hex_to_rgba("#244BB8"),        # RPE
+    1:    _hex_to_rgba("#218561"),        # RNFL
+    2:    _hex_to_rgba("#833733"),        # GCIPL
+    3:    _hex_to_rgba("#73aebd"),        # INL
+    4:    _hex_to_rgba("#d58940"),        # OPL
+    5:    _hex_to_rgba("#972892"),        # ONL
+    6:    _hex_to_rgba("#d7ca52"),        # EZ
+    7:    _hex_to_rgba("#1b41a4"),        # RPE
 }
 
 
-def get_layer_colormap(style: str = "default", warning_color_style: str = "bright"):
+def get_layer_colormap(style: str = "default"):
     """Return a colormap for the 7 retinal layer label IDs.
 
     Args:
@@ -105,7 +97,7 @@ def get_layer_colormap(style: str = "default", warning_color_style: str = "brigh
     Returns:
         A ``DirectLabelColormap`` instance, or ``None`` for ``"random"``.
 
-    Label IDs outside the expected range 0-7 receive distinct muddy warning
+    Label IDs outside the expected range 0-7 receive distinct green warning
     colors. Entries for the full uint8 range (8-255) are pre-populated so that
     napari's precomputed array-rendering path also picks them up (it only
     considers keys that are explicitly present in the color dict).
@@ -114,10 +106,7 @@ def get_layer_colormap(style: str = "default", warning_color_style: str = "brigh
         return None
     from napari.utils.colormaps import direct_colormap
     colors = LAYER_COLORS if style == "default" else LAYER_COLORS_CUSTOM
-    if warning_color_style == "bright":
-        warning_colors = _WARNING_COLORS_BRIGHT
-    else:
-            warning_colors = _WARNING_COLORS_MUDDY
+    warning_colors = _WARNING_COLORS_BRIGHT
     for i in range(8, 256):
         colors[i] = warning_colors[i % len(warning_colors)]
     return direct_colormap(colors)
