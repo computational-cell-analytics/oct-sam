@@ -2,11 +2,18 @@
 """
 import argparse
 
+import imageio.v3 as imageio
+import napari
+import numpy as np
+from h5py import File
+
 from oct_tools.interactive_segmentation import run_annotator
+from oct_tools.layer_information import get_layer_colormap
 from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
 from oct_tools.eval_segmentation import eval_segmentation_2d
 from oct_tools.measure_segmentation import run_measurement_only
+from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 
 
 def interactive():
@@ -171,3 +178,53 @@ def measure():
         slice_index=args.slice,
         color_style=args.color_style,
     )
+
+
+def open_labels():
+    parser = argparse.ArgumentParser(
+        description="Open one or more segmentation files in napari with a custom label color map."
+    )
+    parser.add_argument(
+        "files", nargs="+",
+        help="Segmentation files in TIF or H5 format.",
+    )
+    parser.add_argument(
+        "--color_style", type=str, default="default", choices=["default", "custom", "random"],
+        help="Initial label color scheme: 'default', 'custom', or 'random'.",
+    )
+    parser.add_argument(
+        "--slice", type=int, default=0,
+        help="Slice index for 3D TIF files (default: 0).",
+    )
+
+    args = parser.parse_args()
+    colormap = get_layer_colormap(args.color_style)
+
+    viewer = napari.Viewer()
+
+    for filepath in args.files:
+        if filepath.endswith(".h5"):
+            with File(filepath, "r") as f:
+                for key in ("segmentation", "seg"):
+                    if key in f:
+                        data = f[key][:]
+                        break
+                else:
+                    raise KeyError(f"{filepath}: no 'segmentation' or 'seg' dataset found.")
+        elif filepath.endswith(".tif"):
+            vol = imageio.imread(filepath)
+            data = vol[args.slice] if vol.ndim == 3 else vol
+        else:
+            raise ValueError(f"Unsupported format for {filepath}. Use .tif or .h5.")
+
+        if not np.issubdtype(data.dtype, np.integer):
+            data = data.astype(np.uint32)
+
+        layer = viewer.add_labels(data, name=filepath)
+        if colormap is not None:
+            layer.colormap = colormap
+
+    widget = ColormapWidget(viewer)
+    viewer.window.add_dock_widget(widget, name="Label Color Map", area="right")
+
+    napari.run()
