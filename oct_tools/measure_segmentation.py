@@ -9,6 +9,7 @@ from imageio.v3 import imread
 from h5py import File
 
 from oct_tools.layer_information import get_layer_colormap
+from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
 from oct_tools.napari_widgets.utils import _measure, save_measurements
@@ -114,6 +115,9 @@ def run_measurement_only(
 
     line_length_widget = LineLengthTableWidget(viewer)
     viewer.window.add_dock_widget(line_length_widget, name="Line Length Measurer", area="right")
+
+    colormap_widget = ColormapWidget(viewer)
+    viewer.window.add_dock_widget(colormap_widget, name="Label Color Map", area="right")
 
     # Add a button to trigger measurement saving
     save_func = partial(

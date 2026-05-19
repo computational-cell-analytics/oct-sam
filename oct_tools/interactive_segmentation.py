@@ -20,6 +20,7 @@ except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
 from oct_tools.layer_information import get_layer_colormap
+from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.postprocessing import postprocess_segmentation
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
@@ -170,5 +171,8 @@ def run_annotator(
     viewer.add_points(ref_point, visible=True, name="thickness reference point", face_color="blue")
     measurement_widget = MeasurementTableWidget(viewer, _measure, more_info)
     viewer.window.add_dock_widget(measurement_widget, name="Measurement Table", area="right")
+
+    colormap_widget = ColormapWidget(viewer)
+    viewer.window.add_dock_widget(colormap_widget, name="Label Color Map", area="right")
 
     napari.run()
