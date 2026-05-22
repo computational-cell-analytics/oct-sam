@@ -11,6 +11,7 @@ from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
+from oct_tools.apply_nnunet import apply_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
 from oct_tools.measure_segmentation import run_measurement_only
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
@@ -117,6 +118,40 @@ def apply_sam():
         force_overwrite=args.force,
         use_prompts=not args.no_prompts,
         postprocess_functions=args.postprocess_functions,
+    )
+
+
+def apply_nnunet():
+    parser = argparse.ArgumentParser(
+        description="Apply nnU-Net on all images in a folder. Outputs segmentations in TIF format."
+    )
+    parser.add_argument("-i", "--input", type=str, required=True,
+                        help="Input directory containing images in TIF or H5 format.")
+    parser.add_argument("-o", "--output", type=str, required=True,
+                        help="Output directory for TIF segmentations.")
+    parser.add_argument("-m", "--env_manager", type=str, default="micromamba",
+                        help="Environment manager, e.g. micromamba or conda. Default: micromamba")
+    parser.add_argument("-n", "--env_nnunet", type=str, default="nnunet",
+                        help="Environment name with nnU-Net installed. Default: nnunet")
+    parser.add_argument("-d", "--dataset_id", type=str, default="001",
+                        help="nnU-Net dataset ID (zero-padded). Default: 001")
+    parser.add_argument("-c", "--configuration", type=str, default="2d",
+                        help="nnU-Net configuration (e.g. '2d', '3d_fullres'). Default: 2d")
+    parser.add_argument("-f", "--fold", type=int, default=0,
+                        help="Fold index for nnU-Net prediction. Default: 0")
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda", "mps"],
+                        help="Compute device for nnU-Net. Default: cpu")
+
+    args = parser.parse_args()
+    apply_model_nnunet(
+        input_dir=args.input,
+        output_dir=args.output,
+        env_manager=args.env_manager,
+        env_nnunet=args.env_nnunet,
+        dataset_id=args.dataset_id,
+        configuration=args.configuration,
+        fold=args.fold,
+        device=args.device,
     )
 
 
