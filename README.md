@@ -1,9 +1,10 @@
-# Analysis of Retinal Layers with OCT-SAM
+# Analysis of Retinal Layers with OCT-SAM and nnU-Net
 
 Segmentation and measurements for retinal layers in OCT data using neural networks, e.g. OCT-SAM and nnU-Net.
 
-## Installation
+# Installation
 
+## OCT-SAM
 OCT-SAM can be installed via `conda` (or [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)). To install it:
 
 Download the github repository:
@@ -26,12 +27,16 @@ Install the oct_tools package:
 ```bash
 pip install -e .
 ```
-(Optional) To process external data from the public dataset, `eyepy` is required ([Github](https://github.com/MedVisBonn/eyepy)). It can be installed with:
+(Optional) To process external data from the public dataset, which is used for training, `eyepy` is required ([Github](https://github.com/MedVisBonn/eyepy)). It can be installed with:
 ```bash
 pip install -U eyepy
 ```
 
-## Usage
+## nnU-Net
+
+Follow the instructions specified in `docs/nnunet.md`.
+
+# Usage
 
 The relevant functions are:
 - `oct_tools.interactive`: For automatic and interactive segmentation.
@@ -50,13 +55,13 @@ The models are located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/mo
 Models available for download online:
 - `oct-sam-V1.pt`: The fine-tuned SAM model, which was trained on public datasets (HCMS and Duke DME) and the UMG-RP data. [Download from ownCloud](https://owncloud.gwdg.de/index.php/s/12FhJAc8XTNzHLA)
 
-## Data
+# Data
 
 Two public datasets, HCMS and Duke DME, and a private dataset UMG-RP were used for network training.
 UMG-RP consists of a retrospective cohort of 37 retinitis pigmentosa (RP) patients who presented at the Department of Ophthalmology, University Medical Center of Göttingen, between 2019 and 2025.
 Detailed information about the data can be found here: `docs/training_data.md`
 
-### Retinal Layers
+## Retinal Layers
 The segmentation data was limited to the 7 layers:
 * RNFL: Retina nerve fiber layer
 * GCL+IPL: Ganglion cell layer and inner plexiform layer
@@ -66,7 +71,7 @@ The segmentation data was limited to the 7 layers:
 * EZ: Ellipsoid zone (Inner photoreceptor segments and Outer photoreceptor segments)
 * RPE: Retinal pigment epithelium
 
-## Segmentation models
+# Segmentation models
 
 Two segmentation models were used:
 - OCT-SAM:
@@ -75,5 +80,9 @@ Two segmentation models were used:
 - nnU-Net:
     - open source network for 2D and 3D semantic segmentation in medical imaging
     - [paper](https://doi.org/10.1038/s41592-020-01008-z)
+
+The pre-trained models can be downloaded here:
+- [OCT-SAM-V1](https://owncloud.gwdg.de/index.php/s/12FhJAc8XTNzHLA)
+- [nnU-Net](https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv)
 
 Additional information about network training and application can be found here: `docs/oct-sam.md` and `docs/nnunet.md`.

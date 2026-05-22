@@ -1,4 +1,4 @@
-# Training and evaluation of nnU-Net v2
+# nnU-Net v2
 
 nnU-Net v2 was chosen as the baseline method for comparison ([GitHub repository](https://github.com/MIC-DKFZ/nnUNet/tree/master)).
 
@@ -8,6 +8,45 @@ It was trained for these conditions:
     * HCMS (35 vols, 8 layers each B-scan), [publication](https://www.sciencedirect.com/science/article/pii/S2352340918316135), [data](https://medic.rad.jhmi.edu/index.php?title=OCT_Data)
 * Secondly, with the addition of custom training data of the project (7 layers, 224 B-scans)
 * Lastly, based on the pre-trained network, several networks were trained with an iteratively increasing number of samples to test the influence of an increase in the number of local datasets. The networks were trained with 1, 5, 10, 25, 50, and 100 additional images, which are subsets from the custom training data. The same set of 10 validation images was used for validation during training. The train splits can be found under `doc/train_splits`.
+
+The performance of nnU-Net on the test data has been superior to OCT-SAM, so we chose to also focus on the application of the nnU-Net model.
+
+## Evaluation using nnU-Net
+
+To apply nnU-Net v2 it can be installed in a python environment. We suggest using [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+
+### Installation of nnU-Net v2
+Follow the explanations on the [nnU-Net Github](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/getting-started/installation-and-setup.md).
+
+The pre-trained nnU-Net model for 2D segmentation of OCT data can be downloaded from [ownCloud](https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv).
+
+Example:
+```bash
+# create nnunet environment
+micromamba create -n nnunet python=3.12
+
+micromamba activate nnunet
+
+# instructions from https://pytorch.org/get-started/locally/
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# install pre-trained model (download it first from: https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv)
+nnUNetv2_install_pretrained_model_from_zip /path/to/nnunet_model_001_oct-2d.zip
+
+#inference
+nnUNetv2_predict -i <input_dir_nifti> -o <output_dir_nifti> -d 001 -c 2d -f 0 -device cpu
+```
+
+The nnU-Net model can only be applied on data which contains the spatial information, e.g. the voxel size.
+The format supported within the scripts of this repository is the NIfTI file format.
+The conversion between TIF and NIfTI can be performed using `scripts/process_nnunet_data/convert_to_inference_data.py` and vice versa with `scripts/process_nnunet_data/convert_nifti_to_tif.py`.
+For convenience, the bash script `script/apply_nnunet.sh` combines the data conversion, which has to be performed in the `oct-sam` environment, and the nnU-Net application, which is performed within the `nnunet` environment.
+It is executed using:
+```bash
+bash apply_nnunet.sh  <input_dir> <output_dir>
+```
+where `<input_dir>` refers to a directory containing image data in TIF format and `output_dir` is the directory where the nnU-Net segmentation will be stored.
+
 
 ## Training data
 

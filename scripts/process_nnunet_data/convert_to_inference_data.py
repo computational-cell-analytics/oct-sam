@@ -1,6 +1,7 @@
 import argparse
 import os
-from typing import List, Tuple, Union
+from collections import Counter
+from typing import List, Optional, Tuple, Union
 
 import h5py
 import imageio.v3 as imageio
@@ -25,8 +26,18 @@ def convert_data_to_nnunet(
     output_folder: str,
     image_key: Union[str, List[str]] = "image",
     pixel_spacing: Tuple[float] = (3.87, 5.88),
-    file_format: str = "h5",
+    file_format: Optional[str] = None,
 ):
+    # find most common file format in input directory
+    if file_format is None:
+        file_formats = [os.path.splitext(entry.name)[1][1:] for entry in os.scandir(input_folder) if
+                        len(entry.name.split(".")) > 1]
+        if len(file_formats) == 0:
+            raise ValueError(f"No elligible file format in input directory {input_folder}. Check data.")
+        data = Counter(file_formats)
+        file_format = data.most_common(1)[0][0]
+        print(f"Automatically determined file format: {file_format}")
+
     file_paths = [entry.path for entry in os.scandir(input_folder) if f".{file_format}" in entry.name]
     file_paths.sort()
 
@@ -40,6 +51,7 @@ def convert_data_to_nnunet(
     os.makedirs(output_folder, exist_ok=True)
 
     # get index for output in nnUNet format
+    print(f"Converting {len(file_paths)} files from {file_format} to NIfTI.")
 
     for ff in tqdm(file_paths, desc="Process files"):
         if file_format in ["h5", "H5"]:
@@ -49,49 +61,33 @@ def convert_data_to_nnunet(
         else:
             raise ValueError(f"Unsupported file format: {file_format}.")
 
-        base_name = os.path.basename(ff).split(f".{file_format}")[0]
-
-        name_content = base_name.split("_")
-        patient_id = name_content[0]
-        meas_year = name_content[1]
-        eye_id = name_content[2]
-        if len(name_content) == 4:
-            slice_id = name_content[3][1:]
-        elif len(name_content) != 3:
-            raise ValueError(f"File {base_name} does not correspond to file format RP<id>_<year>_<eye_id> "
-                             "or RP<id>_<year>_<eye_id>_z<slice_id>.")
-
-        if "_z" in base_name:
-            slice_id = base_name[-2:]
-        else:
-            slice_id = None
-
+        base_name = os.path.splitext(os.path.basename(ff))[0]
         data = data.astype(np.uint8)
-        if slice_id is None:
+
+        if len(data.shape) == 3:
             slice_number = data.shape[0]
             for slice_id in range(slice_number):
                 data_slice = data[slice_id, :, :]
-                nnunet_identifier = f"{patient_id}_{meas_year}_{eye_id}_z{str(slice_id).zfill(3)}"
-                image_path = os.path.join(output_folder, f"oct_{nnunet_identifier}_0000.nii.gz")
+                image_path = os.path.join(output_folder, f"{base_name}_z{str(slice_id).zfill(3)}_0000.nii.gz")
                 nifti_image = nib.Nifti1Image(data_slice, affine)
                 nib.save(nifti_image, image_path)
-
         else:
-            nnunet_identifier = f"{patient_id}_{meas_year}_{eye_id}_z{str(slice_id).zfill(3)}"
-            image_path = os.path.join(output_folder, f"oct_{nnunet_identifier}_0000.nii.gz")
+            image_path = os.path.join(output_folder, f"{base_name}_0000.nii.gz")
             nifti_image = nib.Nifti1Image(data, affine)
             nib.save(nifti_image, image_path)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert H5 input data into the nnU-Net format for inference."
+        description="Convert input data into the nnU-Net format for inference."
     )
 
-    parser.add_argument("-i", "--input_dir", type=str, required=True)
-    parser.add_argument("-o", "--output_dir", type=str, required=True)
-    parser.add_argument("-f", "--file_format", type=str, default="h5",
-                        help="File format of input data. Default: h5")
+    parser.add_argument("-i", "--input_dir", type=str, required=True,
+                        help="Input directory containing image data.")
+    parser.add_argument("-o", "--output_dir", type=str, required=True,
+                        help="Output directory for converted NIfTI files.")
+    parser.add_argument("-f", "--file_format", type=str, default=None, choices=[None, "h5", "tif"],
+                        help="File format of input data. Default: Most frequent file type in input directory.")
 
     args = parser.parse_args()
 

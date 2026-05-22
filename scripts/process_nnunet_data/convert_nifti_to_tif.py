@@ -18,6 +18,8 @@ def convert_nifti_to_tif(
     if output_folder is None:
         output_folder = input_folder
 
+    os.makedirs(output_folder, exist_ok=True)
+
     for ff in file_paths:
         base_name = os.path.basename(ff)
         base_name = base_name.split(".nii.gz")[0]
