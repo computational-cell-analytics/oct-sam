@@ -75,26 +75,26 @@ _WARNING_COLORS_BRIGHT = _generate_warning_colors(20)
 # Fixed colors for the 7 retinal layers (label IDs 1–7), inner → outer retina.
 LAYER_COLORS = {
     None: np.zeros(4),                   # transparent
-    0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("#782506"),        # RNFL
-    2:    _hex_to_rgba("#5bd5f8"),        # GCIPL
-    3:    _hex_to_rgba("#9289e8"),        # INL
-    4:    _hex_to_rgba("#6c02c1"),        # OPL
-    5:    _hex_to_rgba("#473a9f"),        # ONL
-    6:    _hex_to_rgba("#abec8a"),        # EZ
-    7:    _hex_to_rgba("#8fadb2"),        # RPE
+    0: np.zeros(4),                   # background
+    1: _hex_to_rgba("#782506"),        # RNFL
+    2: _hex_to_rgba("#5bd5f8"),        # GCIPL
+    3: _hex_to_rgba("#9289e8"),        # INL
+    4: _hex_to_rgba("#6c02c1"),        # OPL
+    5: _hex_to_rgba("#473a9f"),        # ONL
+    6: _hex_to_rgba("#abec8a"),        # EZ
+    7: _hex_to_rgba("#8fadb2"),        # RPE
 }
 
 LAYER_COLORS_CUSTOM = {
     None: np.zeros(4),                   # transparent
-    0:    np.zeros(4),                   # background
-    1:    _hex_to_rgba("#218561"),        # RNFL
-    2:    _hex_to_rgba("#833733"),        # GCIPL
-    3:    _hex_to_rgba("#73aebd"),        # INL
-    4:    _hex_to_rgba("#d58940"),        # OPL
-    5:    _hex_to_rgba("#972892"),        # ONL
-    6:    _hex_to_rgba("#d7ca52"),        # EZ
-    7:    _hex_to_rgba("#1b41a4"),        # RPE
+    0: np.zeros(4),                   # background
+    1: _hex_to_rgba("#218561"),        # RNFL
+    2: _hex_to_rgba("#833733"),        # GCIPL
+    3: _hex_to_rgba("#73aebd"),        # INL
+    4: _hex_to_rgba("#d58940"),        # OPL
+    5: _hex_to_rgba("#972892"),        # ONL
+    6: _hex_to_rgba("#d7ca52"),        # EZ
+    7: _hex_to_rgba("#1b41a4"),        # RPE
 }
 
 
