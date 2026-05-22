@@ -40,12 +40,13 @@ nnUNetv2_predict -i <input_dir_nifti> -o <output_dir_nifti> -d 001 -c 2d -f 0 -d
 The nnU-Net model can only be applied on data which contains the spatial information, e.g. the voxel size.
 The format supported within the scripts of this repository is the NIfTI file format.
 The conversion between TIF and NIfTI can be performed using `scripts/process_nnunet_data/convert_to_inference_data.py` and vice versa with `scripts/process_nnunet_data/convert_nifti_to_tif.py`.
-For convenience, the bash script `script/apply_nnunet.sh` combines the data conversion, which has to be performed in the `oct-sam` environment, and the nnU-Net application, which is performed within the `nnunet` environment.
+For convenience, the CLI function `oct_tools.apply_nnunet` combines the data conversion, which has to be performed in the `oct-sam` environment, and the nnU-Net application, which is performed within the `nnunet` environment.
 It is executed using:
 ```bash
-bash apply_nnunet.sh  <input_dir> <output_dir>
+oct_tools.apply_nnunet -i <input_dir> -o <output_dir>
 ```
 where `<input_dir>` refers to a directory containing image data in TIF format and `output_dir` is the directory where the nnU-Net segmentation will be stored.
+Other arguments allow the customization of the application, e.g. change the environment manager from the default micromamba to conda using `-m conda`.
 
 
 ## Training data

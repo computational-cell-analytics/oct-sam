@@ -44,6 +44,7 @@ The relevant functions are:
 - `oct_tools.metrics`: Calculate metrics for a segmentation.
 - `oct_tools.measure`: Interactive measurement tool for segmentation analysis with napari.
 - `oct_tools.apply_sam`: Apply an OCT-SAM model on multiple images without interactions.
+- `oct_tools.apply_nnunet`: Apply the pre-trained nnU-Net model on multiple images without interactions.
 - `oct_tools.eval_segmentation`: Evaluate segmentation by comparing it to labels to measure network performance.
 The following scripts are relevant:
 - `scripts/training/finetune_medicosam.py`: For fine-tuning a SAM model for interactive segmentation.
