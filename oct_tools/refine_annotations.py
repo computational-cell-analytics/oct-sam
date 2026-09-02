@@ -98,3 +98,17 @@ def assign_layer_id(
             label[label == i + offset] = layer_indexes[num]
 
     return label
+
+
+def binarize_layer_label(
+    label: np.ndarray,
+) -> np.ndarray:
+    """Merge all retinal layer IDs into a single foreground class.
+
+    Args:
+        label: Label image with one ID per retinal layer.
+
+    Returns:
+        Label image with 0 for the background and 1 for the retinal layers.
+    """
+    return (label > 0).astype(np.uint8)
