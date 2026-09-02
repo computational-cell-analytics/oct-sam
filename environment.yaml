@@ -7,7 +7,15 @@ dependencies:
   - micro_sam
   - napari
   - nibabel
+  - nifty
   - pip
   - pyqt
   - pytorch
   - torch_em
+  - vigra
+  - pip:
+    # eyepy 0.20.0 fails to import with construct-typing >= 0.8.0, which rejects the
+    # csfield(cs.Seek(...)) in eyepy/io/he/e2e_format.py. eyepy requires construct-typing>=0.7.0
+    # without an upper bound, so both versions have to be pinned here.
+    - eyepy==0.20.0
+    - construct-typing==0.7.0
