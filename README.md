@@ -21,7 +21,7 @@ conda env create -f environment.yaml
 ```
 Activate the environment:
 ```bash
-conda activate cochlea-net
+conda activate oct-sam
 ```
 Install the oct_tools package:
 ```bash
@@ -34,7 +34,7 @@ pip install -U eyepy
 
 ## nnU-Net
 
-Follow the instructions specified in `docs/nnunet.md`.
+Follow the instructions specified in `doc/nnunet.md`.
 
 # Usage
 
@@ -46,9 +46,13 @@ The relevant functions are:
 - `oct_tools.apply_sam`: Apply an OCT-SAM model on multiple images without interactions.
 - `oct_tools.apply_nnunet`: Apply the pre-trained nnU-Net model on multiple images without interactions.
 - `oct_tools.eval_segmentation`: Evaluate segmentation by comparing it to labels to measure network performance.
+- `oct_tools.open_labels`: Open one or more segmentations in napari with the retinal layer color map.
+
 The following scripts are relevant:
-- `scripts/training/finetune_medicosam.py`: For fine-tuning a SAM model for interactive segmentation.
-- `scripts/training/training_distances.py`: For training a U-Net for foreground and distance prediction.
+- `scripts/training/pretrain_oct_sam_on_public_datasets.py`: For pre-training a SAM model on the public datasets.
+- `scripts/training/train_oct_sam.py`: For fine-tuning a SAM model on the public datasets and the UMG-RP data.
+- `scripts/training/finetune_pretrained_model_iteratively.py`: For fine-tuning a pre-trained checkpoint on a data subset.
+- `scripts/training/train_oct_sam_semantic.py`: For training a SAM model for semantic segmentation.
 
 The data is located at `/mnt/vast-nhr/projects/nim00007/data/mace/oct-data`. Currently (2026-04-29), it is not clear if the data will be published.
 
@@ -60,7 +64,7 @@ Models available for download online:
 
 Two public datasets, HCMS and Duke DME, and a private dataset UMG-RP were used for network training.
 UMG-RP consists of a retrospective cohort of 37 retinitis pigmentosa (RP) patients who presented at the Department of Ophthalmology, University Medical Center of Göttingen, between 2019 and 2025.
-Detailed information about the data can be found here: `docs/training_data.md`
+Detailed information about the data can be found here: `doc/training_data.md`
 
 ## Retinal Layers
 The segmentation data was limited to the 7 layers:
@@ -86,4 +90,4 @@ The pre-trained models can be downloaded here:
 - [OCT-SAM-V1](https://owncloud.gwdg.de/index.php/s/12FhJAc8XTNzHLA)
 - [nnU-Net](https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv)
 
-Additional information about network training and application can be found here: `docs/oct-sam.md` and `docs/nnunet.md`.
+Additional information about network training and application can be found here: `doc/oct-sam.md` and `doc/nnunet.md`.

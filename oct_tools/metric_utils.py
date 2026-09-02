@@ -402,7 +402,9 @@ def calculate_metrics(
 
     if len(voxel_size) == 1:
         voxel_size = voxel_size * 2
-    voxel_size = np.array(voxel_size)[::-1]
+    # The order is (vertical, horizontal), matching VOXEL_SIZE[1:] and the spacing that
+    # run_measurement expects. Do not reverse it: spacing[0] scales the layer thickness.
+    voxel_size = np.array(voxel_size)
 
     fovea_point = None
     if fovea_position is not None:
