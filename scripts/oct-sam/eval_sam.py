@@ -107,7 +107,7 @@ def main():
     eval_model_sam(
         input_path=args.input,
         checkpoint_path=args.model,
-        save_folder=args.output_dir,
+        save_folder=args.output,
         output_extension=args.output_extension,
         force_overwrite=args.force,
         view=args.view,
