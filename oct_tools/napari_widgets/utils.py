@@ -65,20 +65,19 @@ def save_measurements(
         return
     segmentation = viewer.layers[segmentation_layer_name].data
 
-    # Get the fovea reference point layer
-    fovea_layer = viewer.layers["fovea reference point"]
-    if fovea_layer is None or len(fovea_layer.data) == 0:
+    # Get the fovea reference point layer. A missing or empty layer means "skip those columns".
+    fovea_point = None
+    if "fovea reference point" in viewer.layers and len(viewer.layers["fovea reference point"].data) > 0:
+        fovea_point = tuple(viewer.layers["fovea reference point"].data[0])  # First point only
+    else:
         napari.utils.notifications.show_warning("No fovea reference point found.")
-        fovea_point = None
-    else:
-        fovea_point = tuple(fovea_layer.data[0])  # First point only
 
-    # Get the thickness reference point layer
-    ref_layer = viewer.layers["thickness reference point"]
-    if ref_layer is None or len(ref_layer.data) == 0:
-        napari.utils.notifications.show_warning("No thickness reference point found.")
+    # Get the thickness reference point layer.
+    ref_point = None
+    if "thickness reference point" in viewer.layers and len(viewer.layers["thickness reference point"].data) > 0:
+        ref_point = tuple(viewer.layers["thickness reference point"].data[0])  # First point only
     else:
-        ref_point = tuple(ref_layer.data[0])  # First point only
+        napari.utils.notifications.show_warning("No thickness reference point found.")
 
     # Run measurement with current point positions
     measurements, _, _ = _measure(segmentation, fovea_point=fovea_point, reference_point=ref_point,

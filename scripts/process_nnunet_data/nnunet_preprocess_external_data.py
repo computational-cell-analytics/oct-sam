@@ -8,6 +8,8 @@ import numpy as np
 from scipy.io import loadmat
 from tqdm import trange, tqdm
 
+from oct_tools.refine_annotations import binarize_layer_label
+
 
 def _mat_to_labels(control_pts, shape):
     n_slices, n_surfaces = control_pts.shape
@@ -77,6 +79,7 @@ def prepare_hcms(
     pixel_spacing: tuple[float] = (3.87, 5.8, 123.6),
     combine_is_os: bool = True,
     output_3d: bool = False,
+    binary: bool = False,
 ):
     """Prepare HCMS data for training with the nnU-Net.
     Publication: https://doi.org/10.1016/j.dib.2018.12.073
@@ -88,6 +91,7 @@ def prepare_hcms(
         pixel_spacing: Pixel spacing for conversion to NIfTI format.
         combine_is_os: Combine inner (IS) with outer photoreceptor segments (OS) to ellipsoid zone
         output_3d: Output 3D data. Default: Output single files for all slices.
+        binary: Merge all retinal layers into one label with the ID 1.
     """
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
@@ -139,7 +143,9 @@ def prepare_hcms(
 
             # combine inner (label 6) and outer (label 7) photoreceptor segments to be consistent with own data
             # combine labels 6 and 7, shift label 8 to 7
-            if combine_is_os:
+            if binary:
+                labels = binarize_layer_label(labels)
+            elif combine_is_os:
                 unique_ids = np.unique(labels)[1:]
                 assert unique_ids[-1] == 8
                 labels[labels == 7] = 6
@@ -160,7 +166,9 @@ def prepare_hcms(
                 # combine inner (label 6) and outer (label 7) photoreceptor segments to be consistent with own data
                 # combine labels 6 and 7, shift label 8 to 7
                 label = labels[z]
-                if combine_is_os:
+                if binary:
+                    label = binarize_layer_label(label)
+                elif combine_is_os:
                     unique_ids = np.unique(label)[1:]
                     assert unique_ids[-1] == 8
                     label[label == 7] = 6
@@ -246,6 +254,7 @@ def prepare_duke_dme(
     output_folder: str,
     cut_labels: bool = True,
     pixel_spacing: tuple[float] = (3.87, 11.33),
+    binary: bool = False,
 ):
     """Prepare Duke DME data for training with the nnU-Net.
     Publication: https://doi.org/10.1117/12.2654210
@@ -256,6 +265,7 @@ def prepare_duke_dme(
         output_folder: Output folder for converted data.
         cut_labels:
         pixel_spacing: Pixel spacing for conversion to NIfTI format.
+        binary: Merge all retinal layers into one label with the ID 1.
     """
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
@@ -309,7 +319,8 @@ def prepare_duke_dme(
             nifti_image = nib.Nifti1Image(images[z], affine)
             nib.save(nifti_image, image_path)
 
-            nifti_label = nib.Nifti1Image(labels[z], affine)
+            label = binarize_layer_label(labels[z]) if binary else labels[z]
+            nifti_label = nib.Nifti1Image(label, affine)
             label_path = os.path.join(label_dir, f"oct_{nnunet_identifier}.nii.gz")
             nib.save(nifti_label, label_path)
 
@@ -323,6 +334,8 @@ def main():
     parser.add_argument("-o", "--output_dir", type=str, required=True)
     parser.add_argument("--output_3d", action="store_true",
                         help="Output 3D data for hcms dataset.")
+    parser.add_argument("--binary", action="store_true",
+                        help="Write a binary label with 0 for the background and 1 for the retinal layers.")
 
     parser.add_argument("--dataset", type=str, default="hcms",
                         help="Specifiy dataset. Either 'duke_dme' or 'hcms'. Default: hcms.")
@@ -334,11 +347,13 @@ def main():
             input_folder=args.input_dir,
             output_folder=args.output_dir,
             output_3d=args.output_3d,
+            binary=args.binary,
         )
     elif args.dataset == "duke_dme":
         prepare_duke_dme(
             input_folder=args.input_dir,
             output_folder=args.output_dir,
+            binary=args.binary,
         )
     else:
         raise ValueError("Choose either 'hcms' or 'duke_dme' for the creation of a dataset.")

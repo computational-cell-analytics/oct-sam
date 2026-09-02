@@ -95,12 +95,12 @@ def main():
     patch_shape = (384, 992)
     train_loader, val_loader = get_loaders(patch_shape, batch_size=1)
     train_oct_sam_model(
-        model_name=args.model_name,
+        model_name=args.model,
         train_loader=train_loader,
         val_loader=val_loader,
         check=False,
     )
-    export_model(args.model_name)
+    export_model(args.model)
 
 
 if __name__ == "__main__":

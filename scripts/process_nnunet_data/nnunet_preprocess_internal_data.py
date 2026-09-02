@@ -8,6 +8,8 @@ import nibabel as nib
 import numpy as np
 from tqdm import tqdm
 
+from oct_tools.refine_annotations import binarize_layer_label
+
 FILTER_DATA = ["RP122_2025_OS_z08", "RP041_2025_OD_z10"]
 
 
@@ -16,6 +18,7 @@ def prepare_internal_data(
     output_folder: str,
     label_key: str = "edit_v3",
     pixel_spacing: Tuple[float] = (3.87, 5.88),
+    binary: bool = False,
 ):
     """Prepare internal data for nnU-Net training.
     This function reads data in H5 format and creates NIfTI files for training with nnU-Net.
@@ -28,6 +31,7 @@ def prepare_internal_data(
         output_folder: Output directory for imagesTr and labelsTr.
         label_key: Label key for path in H5 file.
         pixel_spacing: Voxel size for data.
+        binary: Merge all retinal layers into one label with the ID 1.
     """
     # The affine matrix defines the spatial orientation and position
     # Default affine assumes the origin is at (0,0,0) and voxel spacing is as specified
@@ -70,6 +74,9 @@ def prepare_internal_data(
         image = image.astype(np.uint8)
         label = label.astype(np.uint8)
 
+        if binary:
+            label = binarize_layer_label(label)
+
         nnunet_identifier = f"{dataset_id}{patient_id.zfill(3)}_{meas_year}_{eye_id}_{slice_id.zfill(3)}"
         image_path = os.path.join(image_dir, f"oct_{nnunet_identifier}_0000.nii.gz")
 
@@ -91,8 +98,10 @@ def main():
                         help="Input directory with files in H5 format.")
     parser.add_argument("-o", "--output_dir", type=str, required=True,
                         help="Output directory for creating imagesTr and labelsTr folders.")
-    parser.add_argument("-l", "--label_key", type=str, default="edit_v1",
+    parser.add_argument("-l", "--label_key", type=str, default="edit_v3",
                         help="Description for data path to label data in H5 file. Default: 'edit_v3'.")
+    parser.add_argument("--binary", action="store_true",
+                        help="Write a binary label with 0 for the background and 1 for the retinal layers.")
 
     args = parser.parse_args()
 
@@ -100,6 +109,7 @@ def main():
         input_folder=args.input_dir,
         output_folder=args.output_dir,
         label_key=args.label_key,
+        binary=args.binary,
     )
 
 

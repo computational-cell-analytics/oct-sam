@@ -92,6 +92,36 @@ The annotations can be further refined by removing stray pixels, restricting the
 python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3
 ```
 
+#### Binary retinal band
+
+Both pre-processing scripts accept `--binary`.
+This option merges all retinal layers into a single label.
+The output label has the value 0 for the background and the value 1 for the retinal layers.
+Use it to train a network that segments the retinal band as a whole.
+This is necessary for data where the signal-to-noise ratio is too low to separate the individual layers, for example OCT of mice.
+
+```bash
+# HCMS dataset
+python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms --binary
+# DUKE DME
+python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme --binary
+# internal data
+python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3 --binary
+```
+
+For HCMS, `--binary` replaces the combination of the inner and outer photoreceptor segments, because that step has no effect on a binary label.
+
+The scripts do not create a `dataset.json`.
+Write it manually with two classes:
+```json
+{
+    "channel_names": {"0": "OCT"},
+    "labels": {"background": 0, "retina": 1},
+    "numTraining": <NUMBER_OF_FILES_IN_LABELSTR>,
+    "file_ending": ".nii.gz"
+}
+```
+
 ## Analysis
 There is a clear difference in the performance of the nnU-Net when it is only trained on public datasets, compared to when it is also trained on internal data.
 While the public datasets always include every layer, the internal data features cases, where the lower layers of EZ, ONL, and OPL are degenerated and missing.
@@ -146,6 +176,8 @@ Dataset011_OCT-2d-finetune-n005
 Dataset012_OCT-2d-finetune-n001
 ```
 Their evaluation on the validation dataset `20250717` can be found under `analysis/`.
+
+The next free dataset ID is 013, e.g. `Dataset013_OCT-2d-binary` for a network that segments the retinal band as a whole.
 
 ## Running inference
 

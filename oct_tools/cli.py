@@ -38,7 +38,7 @@ def interactive():
                         help="Initial position on vertical axis of reference point for calculating layer thickness.")
     parser.add_argument(
         "--more_info", action="store_true",
-        help="Display additional information (length, max_thickness, min_thickness, etc.) in measuremnt table.",
+        help="Display additional information (length, max_thickness, min_thickness, etc.) in measurement table.",
     )
     parser.add_argument(
         "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
@@ -70,7 +70,9 @@ def metrics():
                         help="Output path. Supports 'tsv' and 'xlsx' as file extensions.")
     parser.add_argument("-v", "--voxel_size", type=float, nargs="+",
                         default=[3.87166976, 5.8814],
-                        help="Voxel size of 2D input in micrometer.")
+                        help="Voxel size of the 2D input in micrometer, as (vertical, horizontal). "
+                        "Vertical is across the retinal layers, horizontal is along them. "
+                        "A single value is used for both axes.")
     parser.add_argument("--ref_position", type=float, default=None,
                         help="Initial position on vertical axis of reference point for calculating layer thickness.")
     parser.add_argument("--fovea", type=float, default=None,
