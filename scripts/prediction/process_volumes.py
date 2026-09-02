@@ -3,19 +3,19 @@ from glob import glob
 
 import imageio.v3 as imageio
 
+from oct_tools.heyex_vol import read_heyex_vol
+
 ROOT = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/data_20250625"
 
 
 def convert_volumes():
-    import eyepy as ep
-
     output_folder = os.path.join(ROOT, "converted")
     os.makedirs(output_folder, exist_ok=True)
 
     print("Start conversion ...")
     files = glob(os.path.join(ROOT, "volumes", "*.vol"))
     for ff in files:
-        data = ep.import_heyex_vol(ff).data
+        data = read_heyex_vol(ff)
         output_path = os.path.join(output_folder, os.path.basename(ff).replace(".vol", ".tif"))
         imageio.imwrite(output_path, data)
 

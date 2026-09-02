@@ -27,10 +27,7 @@ Install the oct_tools package:
 ```bash
 pip install -e .
 ```
-(Optional) To process external data from the public dataset, which is used for training, `eyepy` is required ([Github](https://github.com/MedVisBonn/eyepy)). It can be installed with:
-```bash
-pip install -U eyepy
-```
+Heidelberg Heyex tomograms in VOL format are read by `oct_tools.heyex_vol`, which is part of the package. No additional dependency is required to process the external data from the public datasets.
 
 ## nnU-Net
 
