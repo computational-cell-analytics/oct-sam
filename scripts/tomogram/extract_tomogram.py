@@ -4,7 +4,8 @@ import os
 import imageio.v3 as imageio
 import mrcfile
 import numpy as np
-import eyepy as ep
+
+from oct_tools.heyex_vol import read_heyex_vol
 
 
 def main():
@@ -14,7 +15,7 @@ def main():
     parser.add_argument("--for_imod", action="store_true")
     args = parser.parse_args()
 
-    data = ep.import_heyex_vol(args.input_path).data
+    data = read_heyex_vol(args.input_path)
 
     output_path = args.output_path
     os.makedirs(os.path.split(output_path)[0], exist_ok=True)

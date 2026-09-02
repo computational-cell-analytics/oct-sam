@@ -7,7 +7,9 @@ dependencies:
   - micro_sam
   - napari
   - nibabel
+  - nifty
   - pip
   - pyqt
   - pytorch
   - torch_em
+  - vigra

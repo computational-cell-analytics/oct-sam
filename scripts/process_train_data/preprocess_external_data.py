@@ -3,11 +3,12 @@ import os
 from glob import glob
 from pathlib import Path
 
-import eyepy as ep
 import h5py
 import numpy as np
 from scipy.io import loadmat
 from tqdm import trange, tqdm
+
+from oct_tools.heyex_vol import read_heyex_vol
 
 
 def _mat_to_labels(control_pts, shape):
@@ -108,8 +109,7 @@ def prepare_hcms(
             print("Could not find control points for", tomo)
             continue
 
-        ev = ep.import_heyex_vol(tomo)
-        data = ev.data
+        data = read_heyex_vol(tomo)
         labels = _mat_to_labels(masks, data.shape)
         assert labels.shape == data.shape
 

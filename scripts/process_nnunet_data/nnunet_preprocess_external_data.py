@@ -2,12 +2,12 @@ import argparse
 import os
 from glob import glob
 
-import eyepy as ep
 import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
 from tqdm import trange, tqdm
 
+from oct_tools.heyex_vol import read_heyex_vol
 from oct_tools.refine_annotations import binarize_layer_label
 
 
@@ -128,8 +128,7 @@ def prepare_hcms(
             print("Could not find control points for", tomo)
             continue
 
-        ev = ep.import_heyex_vol(tomo)
-        data = ev.data
+        data = read_heyex_vol(tomo)
         labels = _mat_to_labels(masks, data.shape)
         assert labels.shape == data.shape
 

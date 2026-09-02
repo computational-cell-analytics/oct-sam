@@ -7,13 +7,9 @@ import numpy as np
 import torch
 
 from tqdm import tqdm
+from .heyex_vol import read_heyex_vol
 from .unet import UNet2d
 from skimage.measure import regionprops
-
-try:
-    import eyepy as ep
-except ImportError:
-    ep = None
 
 
 def standardize(raw: np.ndarray, eps: float = 1e-7) -> np.ndarray:
@@ -88,7 +84,7 @@ def load_volume(path):
     if ext in (".tif", ".tiff"):
         vol = imageio.imread(path)
     elif ext == ".vol":
-        vol = ep.import_heyex_vol(path).data
+        vol = read_heyex_vol(path)
     else:
         raise ValueError(f"Can't load filetype with ending: {ext}")
     return vol
