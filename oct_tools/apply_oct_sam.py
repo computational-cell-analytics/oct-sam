@@ -17,7 +17,7 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
-from oct_tools.postprocessing import postprocess_segmentation
+from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
 
@@ -26,7 +26,7 @@ def _segment_image(
     segmenter,
     image: np.ndarray,
     save_path: str,
-    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
+    postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     use_prompts: bool = True,
 ):
     if save_path is not None and os.path.exists(save_path) and ".h5" in save_path:
@@ -105,7 +105,7 @@ def apply_model_sam_2d(
     output_extension: str = "tif",
     force_overwrite: bool = False,
     use_prompts: bool = True,
-    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
+    postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
 ):
     """Apply OCT-SAM on 2D data.
 

@@ -15,6 +15,7 @@ from oct_tools.apply_nnunet import apply_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
 from oct_tools.measure_segmentation import run_measurement_only
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
+from oct_tools.postprocessing import DEFAULT_POSTPROCESS
 
 
 def interactive():
@@ -29,9 +30,10 @@ def interactive():
     parser.add_argument("--precompute_segmentation", action="store_true",
                         help="Pre-compute segmentation using prompts derived from SAM prediction.")
     parser.add_argument("--postprocess_functions", nargs="+", type=str,
-                        default=["merge_horizontal", "filter_thin", "assign_layer_id"],
+                        default=list(DEFAULT_POSTPROCESS),
                         help="Select and order post-processing functions: 'merge_horizontal', 'filter_thin',"
-                        " 'fill_gaps', 'assign_layer_id'. Use 'no' or 'none' for no post-processing.")
+                        " 'fill_gaps', 'assign_layer_id'."
+                        " Use 'no' or 'none' for no post-processing.")
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")
     parser.add_argument("--ref_position", type=int, default=None,
@@ -106,9 +108,10 @@ def apply_sam():
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")
     parser.add_argument("--postprocess_functions", nargs="+", type=str,
-                        default=["merge_horizontal", "filter_thin", "assign_layer_id"],
+                        default=list(DEFAULT_POSTPROCESS),
                         help="Select and order post-processing functions: 'merge_horizontal', 'filter_thin',"
-                        " 'fill_gaps', 'assign_layer_id'. Use 'no' or 'none' for no post-processing.")
+                        " 'fill_gaps', 'assign_layer_id'."
+                        " Use 'no' or 'none' for no post-processing.")
 
     args = parser.parse_args()
 

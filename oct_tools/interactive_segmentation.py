@@ -21,7 +21,7 @@ except ImportError:
 
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
-from oct_tools.postprocessing import postprocess_segmentation
+from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
@@ -29,7 +29,7 @@ from oct_tools.napari_widgets.utils import _find_call_button, _measure, save_mea
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
-                             postprocess_functions=["merge_horizontal", "filter_thin"],
+                             postprocess_functions=DEFAULT_POSTPROCESS,
                              use_prompts=True):
     """Precompute segmentation using SAM.
     """
@@ -76,7 +76,7 @@ def run_annotator(
     checkpoint_path: str,
     use_prompts: bool = True,
     precompute_segmentation: bool = True,
-    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
+    postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     ref_position: Optional[int] = None,
     more_info: bool = False,
     color_style: str = "default",

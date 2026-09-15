@@ -6,6 +6,10 @@ from skimage.segmentation import watershed
 
 from oct_tools.refine_annotations import assign_layer_id as _assign_layer_id
 
+# Default post-processing chain. "assign_layer_id" must stay last: it derives the layer IDs from
+# the spatial order of the segments, so merging and filtering have to run first.
+DEFAULT_POSTPROCESS = ["merge_horizontal", "filter_thin", "assign_layer_id"]
+
 
 def get_instance_stats(
     mask: np.ndarray,
@@ -390,7 +394,7 @@ def assign_layer_ids(seg: np.ndarray) -> np.ndarray:
 def postprocess_segmentation(
     seg: np.ndarray,
     img: np.ndarray,
-    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
+    postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     min_thickness: int = 5,
     matching_method: str = "offset",
     verbose: bool = True,
@@ -400,6 +404,7 @@ def postprocess_segmentation(
     "merge_horizontal": Merge disconnected segmentation instances along horizontal layers.
     "filter_thin": Filter segmentation instances which are thinner than a given minimal pixel value.
     "fill_gaps": Fill gaps within holes not connected to the upper or lower background via watershed.
+    "assign_layer_id": Remap the instance IDs to the canonical layer IDs 1-7.
 
     Args:
         seg: Segmentation.
