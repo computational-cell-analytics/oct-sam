@@ -56,6 +56,17 @@ The point in the `thickness reference point` layer can be repositioned in the sa
 
 The CFT spans the whole retina, from the upper boundary of the RNFL to the lower boundary of the RPE. It is reported in the `CFT_total@<x>px[µm]` column. The `CFT@<x>px[µm]` column holds the thickness of a single layer at the foveal point.
 
+# Share annotations without napari
+
+Reviewers without napari can look at the annotation with the `oct_tools.export_annotations` function:
+```bash
+# Two-channel ImageJ TIF. Fiji shows the annotation as an overlay that can be switched off.
+oct_tools.export_annotations -i /path/to/input_image.tif -s /path/to/input_segmentation.tif -o /path/to/overlay.tif
+
+# Flat color overlay for any image viewer. A PNG holds a single B-scan, a TIF a whole stack.
+oct_tools.export_annotations -i /path/to/input_image.tif -s /path/to/input_segmentation.tif -o /path/to/overlay.png --mode rgb -z 8
+```
+
 # Manually measure thicknesses
 
 Distances in the scan can also be measured using manually drawn lines.

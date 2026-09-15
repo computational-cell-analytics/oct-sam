@@ -13,6 +13,7 @@ from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
 from oct_tools.apply_nnunet import apply_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
+from oct_tools.export_overlay import export_overlay
 from oct_tools.measure_segmentation import run_measurement_only
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.postprocessing import DEFAULT_POSTPROCESS
@@ -184,6 +185,37 @@ def eval_segmentation():
         check_nnunet=args.nnunet,
         label_key=args.label_key,
         json_file=args.json,
+    )
+
+
+def export_annotations():
+    parser = argparse.ArgumentParser(
+        description="Export B-scans together with their annotation as a single file, "
+        "so that they can be reviewed without napari."
+    )
+    parser.add_argument("-i", "--img", required=True, help="Image path.")
+    parser.add_argument("-s", "--seg", required=True, help="Segmentation path.")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output file. A TIF holds a whole stack, a PNG only a single B-scan.")
+    parser.add_argument("-z", "--slices", nargs="+", type=int, default=None,
+                        help="Slice(s) in z-direction. All slices are taken by default.")
+    parser.add_argument("--mode", type=str, default="composite", choices=["composite", "rgb"],
+                        help="'composite' writes a two-channel ImageJ TIF in which the annotation can be "
+                        "switched off. 'rgb' writes a flat overlay for any image viewer.")
+    parser.add_argument(
+        "--color_style", type=str, default="custom", choices=["default", "custom"],
+        help="Label color scheme for the 'rgb' mode: 'default' or 'custom'.",
+    )
+
+    args = parser.parse_args()
+
+    export_overlay(
+        image_path=args.img,
+        segmentation_path=args.seg,
+        output_path=args.output,
+        mode=args.mode,
+        color_style=args.color_style,
+        slices=args.slices,
     )
 
 
