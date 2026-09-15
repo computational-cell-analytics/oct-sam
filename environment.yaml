@@ -8,6 +8,7 @@ dependencies:
   - napari
   - nibabel
   - nifty
+  - openpyxl
   - pip
   - pyqt
   - pytorch

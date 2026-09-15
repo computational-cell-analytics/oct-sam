@@ -1,23 +1,20 @@
 import os
+import re
+from typing import Callable, Optional, Tuple, Union
+
 import napari
 import numpy as np
 import pandas as pd
 
-from qtpy.QtWidgets import QDockWidget, QPushButton
-
 from oct_tools.metric_utils import run_measurement, get_etdrs_mask
 from oct_tools.layer_information import identify_layers_naively
 
+MEASUREMENT_FILE = "measurements.xlsx"
 
-def _find_call_button(viewer, button_text):
-    for dw in viewer.window._qt_window.findChildren(QDockWidget):
-        root = dw.widget()
-        if root is None:
-            continue
-        for b in root.findChildren(QPushButton):
-            if b.text() == button_text:
-                return b
-    raise RuntimeError(f"Could not find a QPushButton with text={button_text!r}")
+# Column names carry the position they were measured at, e.g. "CFT@103px[µm]". The position is
+# split off into its own column so that a whole session shares one set of column names.
+_POSITION_COLUMN = re.compile(r"^(?P<name>.+)@(?P<position>[0-9.]+)px(?P<unit>\[.*\])$")
+_POSITION_COLUMNS = {"CFT": "fovea_x", "CFT_total": "fovea_x", "thickness": "ref_x"}
 
 
 def _measure(segmentation, fovea_point=None, reference_point=None, extra_information=False):
@@ -41,52 +38,97 @@ def _measure(segmentation, fovea_point=None, reference_point=None, extra_informa
     return measurements, etdrs_mask, notification_str
 
 
-def save_measurements(
-    viewer: napari.Viewer,
-    reference_name: str,
-    output_folder,
-    segmentation_layer_name: str = "Segmentation",
-    more_info: bool = False,
-):
-    """Save measurement table in an output folder.
-    Checks for 'fovea reference point' and 'thickness reference point' layers.
-    Only takes the first point in each of these layers.
+def _first_point(viewer: napari.Viewer, layer_name: str) -> Optional[Tuple[float]]:
+    """Return the first point of a napari point layer.
+
+    A missing or empty layer is not an error. It means that the caller skips the columns which
+    depend on that point.
 
     Args:
         viewer: Napari viewer.
-        reference_name: Name prefix for output file.
-        output_folder: Output folder
-        segmentation_layer_name: Name of layer in which the segmentation is located.
-        more_info: Add additional global information about retinal layers like length, max, min, and mean thickness.
+        layer_name: Name of the point layer.
+
+    Returns:
+        The first point as (row, column), or None.
     """
-    # Get the segmentation layer
+    if layer_name not in viewer.layers or len(viewer.layers[layer_name].data) == 0:
+        napari.utils.notifications.show_warning(f"No {layer_name} found.")
+        return None
+    points = viewer.layers[layer_name].data
+    if len(points) > 1:
+        napari.utils.notifications.show_warning(f"More than one point in layer {layer_name}. Taking the first one.")
+    return tuple(points[0])
+
+
+def read_measurement_inputs(
+    viewer: napari.Viewer,
+    segmentation_layer_name: str = "Segmentation",
+    fovea_layer: str = "fovea reference point",
+    ref_layer: str = "thickness reference point",
+):
+    """Read the segmentation and the two reference points from the viewer.
+
+    Args:
+        viewer: Napari viewer.
+        segmentation_layer_name: Name of layer in which the segmentation is located.
+        fovea_layer: Name of the point layer holding the foveal reference point.
+        ref_layer: Name of the point layer holding the thickness reference point.
+
+    Returns:
+        (segmentation, fovea_point, reference_point). The segmentation is None if its layer is
+        missing. Either point is None if its layer is missing or empty.
+    """
     if segmentation_layer_name not in viewer.layers:
         napari.utils.notifications.show_error(f"No {segmentation_layer_name} layer found.")
-        return
+        return None, None, None
     segmentation = viewer.layers[segmentation_layer_name].data
+    return segmentation, _first_point(viewer, fovea_layer), _first_point(viewer, ref_layer)
 
-    # Get the fovea reference point layer. A missing or empty layer means "skip those columns".
-    fovea_point = None
-    if "fovea reference point" in viewer.layers and len(viewer.layers["fovea reference point"].data) > 0:
-        fovea_point = tuple(viewer.layers["fovea reference point"].data[0])  # First point only
-    else:
-        napari.utils.notifications.show_warning("No fovea reference point found.")
 
-    # Get the thickness reference point layer.
-    ref_point = None
-    if "thickness reference point" in viewer.layers and len(viewer.layers["thickness reference point"].data) > 0:
-        ref_point = tuple(viewer.layers["thickness reference point"].data[0])  # First point only
-    else:
-        napari.utils.notifications.show_warning("No thickness reference point found.")
+def _split_positions(measurements: pd.DataFrame) -> pd.DataFrame:
+    """Move the measurement position out of the column names into its own column."""
+    positions = {}
+    renamed = {}
+    for column in measurements.columns:
+        match = _POSITION_COLUMN.match(column)
+        if match is None or match["name"] not in _POSITION_COLUMNS:
+            continue
+        renamed[column] = f"{match['name']}{match['unit']}"
+        positions[_POSITION_COLUMNS[match["name"]]] = float(match["position"])
+    measurements = measurements.rename(columns=renamed)
+    for name in ("ref_x", "fovea_x"):
+        if name in positions:
+            measurements.insert(0, name, positions[name])
+    return measurements
 
-    # Run measurement with current point positions
-    measurements, _, _ = _measure(segmentation, fovea_point=fovea_point, reference_point=ref_point,
-                                  extra_information=more_info)
 
-    # Save to file
-    i = len([f for f in os.listdir(output_folder) if
-             f.startswith(f"{reference_name}_measurement_") and
-             f.endswith(".tsv")])
-    output_path = os.path.join(output_folder, f"{reference_name}_measurement_{i:02}.tsv")
-    measurements.to_csv(output_path, sep="\t", index=False)
+def append_measurements(
+    measurements: pd.DataFrame,
+    output_folder: str,
+    source_name: str,
+    slice_index: Union[int, Callable[[], int]] = 0,
+):
+    """Append one measurement table to the workbook in an output folder.
+
+    All measurements of a session accumulate in a single file. Every row records the source file,
+    the B-scan index and the positions the measurement was taken at.
+
+    Args:
+        measurements: Measurement table for one B-scan.
+        output_folder: Output folder.
+        source_name: Name of the file the measurement was taken from.
+        slice_index: Index of the measured B-scan, or a callable returning it.
+    """
+    if callable(slice_index):
+        slice_index = slice_index()
+
+    measurements = _split_positions(measurements.copy())
+    measurements.insert(0, "z", slice_index)
+    measurements.insert(0, "file", source_name)
+
+    os.makedirs(output_folder, exist_ok=True)
+    output_path = os.path.join(output_folder, MEASUREMENT_FILE)
+    if os.path.exists(output_path):
+        measurements = pd.concat([pd.read_excel(output_path), measurements], ignore_index=True)
+    measurements.to_excel(output_path, index=False)
     napari.utils.notifications.show_info(f"Measurements saved to {output_path}")

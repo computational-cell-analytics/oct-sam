@@ -51,7 +51,7 @@ A list of all available layers titled **layer list** can be found on the left si
 
 ![FRP5](img/napari_foveal_05_measurement_table_terminal.png)
 
-The measurement table can be saved using the `Save Measurements` button at the bottom of the interface.
+Every press of `Measure` also writes the table to `measurements.xlsx` in the output folder. All measurements of a session accumulate in this one file. Each row records the source file, the B-scan index and the positions of the two reference points.
 The point in the `thickness reference point` layer can be repositioned in the same way as the foveal reference point.
 
 The CFT spans the whole retina, from the upper boundary of the RNFL to the lower boundary of the RPE. It is reported in the `CFT_total@<x>px[µm]` column. The `CFT@<x>px[µm]` column holds the thickness of a single layer at the foveal point.
