@@ -54,6 +54,8 @@ A list of all available layers titled **layer list** can be found on the left si
 The measurement table can be saved using the `Save Measurements` button at the bottom of the interface.
 The point in the `thickness reference point` layer can be repositioned in the same way as the foveal reference point.
 
+The CFT spans the whole retina, from the upper boundary of the RNFL to the lower boundary of the RPE. It is reported in the `CFT_total@<x>px[µm]` column. The `CFT@<x>px[µm]` column holds the thickness of a single layer at the foveal point.
+
 # Manually measure thicknesses
 
 Distances in the scan can also be measured using manually drawn lines.

@@ -31,7 +31,7 @@ def _measure(segmentation, fovea_point=None, reference_point=None, extra_informa
         segmentation, extra_columns=layer_mapping, fovea_point=fovea_point, reference_point=reference_point,
         extra_information=extra_information,
     )
-    etdrs_mask, notification_str = get_etdrs_mask(segmentation, measurements, fovea_point=fovea_point)
+    etdrs_mask, notification_str = get_etdrs_mask(segmentation, fovea_point=fovea_point)
     # Reorder the columns so that the layer name is the second column.
     cols = measurements.columns.values.tolist()
     new_col_order = cols[-1:] + cols[:1] + cols[1:-1]
