@@ -72,5 +72,36 @@ class TestAssignLayerIds(unittest.TestCase):
         self.assertEqual(_single_id(seg, np.s_[_band_rows(2), :]), 7)
 
 
+class TestFilterFragments(unittest.TestCase):
+    def test_removes_crumbs_and_keeps_the_band(self):
+        from oct_tools.postprocessing import filter_fragments
+        seg = np.zeros((HEIGHT, WIDTH), dtype=np.uint32)
+        seg[20:26, 30:90] = 6  # the EZ body
+        seg[22:24, 5:8] = 6    # a crumb on the left
+        seg[22:23, 110:112] = 6  # a crumb on the right
+        body = seg[20:26, 30:90].copy()
+
+        seg = filter_fragments(seg)
+        np.testing.assert_array_equal(seg[20:26, 30:90], body)
+        self.assertEqual(seg[:, :30].sum(), 0)
+        self.assertEqual(seg[:, 90:].sum(), 0)
+
+    def test_keeps_components_of_similar_size(self):
+        from oct_tools.postprocessing import filter_fragments
+        seg = np.zeros((HEIGHT, WIDTH), dtype=np.uint32)
+        seg[20:26, 10:50] = 6
+        seg[20:26, 60:95] = 6
+        expected = seg.copy()
+        np.testing.assert_array_equal(filter_fragments(seg), expected)
+
+    def test_leaves_other_labels_alone(self):
+        from oct_tools.postprocessing import filter_fragments
+        seg = _stacked_bands(3)
+        seg[50:52, 0:2] = 2  # a crumb of label 2, far from its band
+        seg = filter_fragments(seg)
+        self.assertEqual(seg[50:52, 0:2].sum(), 0)
+        self.assertEqual(_single_id(seg, np.s_[_band_rows(1), :]), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

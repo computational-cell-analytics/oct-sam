@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--postprocess_functions", nargs="+", type=str,
                         default=list(DEFAULT_POSTPROCESS),
                         help="Select and order post-processing functions: 'merge_horizontal', 'filter_thin',"
-                        " 'fill_gaps', 'assign_layer_id'."
+                        " 'filter_fragments', 'fill_gaps', 'assign_layer_id'."
                         " Use 'no' or 'none' for no post-processing.")
     parser.add_argument("--no_prompts", action="store_true",
                         help="Do not use two-phase prediction with prompts but only single prediction.")

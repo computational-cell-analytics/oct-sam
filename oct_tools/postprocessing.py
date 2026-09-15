@@ -8,7 +8,7 @@ from oct_tools.refine_annotations import assign_layer_id as _assign_layer_id
 
 # Default post-processing chain. "assign_layer_id" must stay last: it derives the layer IDs from
 # the spatial order of the segments, so merging and filtering have to run first.
-DEFAULT_POSTPROCESS = ["merge_horizontal", "filter_thin", "assign_layer_id"]
+DEFAULT_POSTPROCESS = ["merge_horizontal", "filter_thin", "filter_fragments", "assign_layer_id"]
 
 
 def get_instance_stats(
@@ -396,6 +396,7 @@ def postprocess_segmentation(
     img: np.ndarray,
     postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     min_thickness: int = 5,
+    min_fragment_fraction: float = 0.1,
     matching_method: str = "offset",
     verbose: bool = True,
 ) -> np.ndarray:
@@ -403,6 +404,7 @@ def postprocess_segmentation(
     The order and selection of the functions are determined by the parameter "postprocess_functions".
     "merge_horizontal": Merge disconnected segmentation instances along horizontal layers.
     "filter_thin": Filter segmentation instances which are thinner than a given minimal pixel value.
+    "filter_fragments": Filter connected components much smaller than the largest one of the same label.
     "fill_gaps": Fill gaps within holes not connected to the upper or lower background via watershed.
     "assign_layer_id": Remap the instance IDs to the canonical layer IDs 1-7.
 
@@ -411,6 +413,7 @@ def postprocess_segmentation(
         img: Image.
         postprocessing_functions: List of functions. Post-processing will be performed in the given order.
         min_thickness: Minimal thickness of layers for "filter_thin"-method.
+        min_fragment_fraction: Minimal relative component size for "filter_fragments"-method.
         matching_method: Method for matching disconnected segmentation IDs for "merge_horizontal"-method.
             Either "offset" or "y_position".
         verbose: Whether to print post-processing info.
@@ -429,6 +432,11 @@ def postprocess_segmentation(
             "func": filter_min_thickness,
             "requires_img": False,
             "params": {"min_thickness": min_thickness}
+        },
+        "filter_fragments": {
+            "func": filter_fragments,
+            "requires_img": False,
+            "params": {"min_fraction": min_fragment_fraction}
         },
         "fill_gaps": {
             "func": fill_gaps_watershed,
@@ -495,6 +503,40 @@ def filter_min_thickness(
         if thickness < min_thickness:
             print(f"Removed label {idx} because it is too thin with a thickness of {thickness}.")
             seg[seg == idx] = 0
+    return seg
+
+
+def filter_fragments(
+    seg: np.ndarray,
+    min_fraction: float = 0.1,
+) -> np.ndarray:
+    """Remove connected components that are much smaller than the largest one of the same label.
+
+    A layer that fades out laterally, like the EZ in RP, leaves scattered fragments beyond its
+    two lateral end points. They inflate the area and dilute the thickness statistics of that
+    layer. Only components of at least min_fraction of the largest component are kept.
+
+    Args:
+        seg: Integer labeled segmentation mask.
+        min_fraction: Minimal size of a component relative to the largest component of the
+            same label.
+
+    Returns:
+        Filtered segmentation.
+    """
+    ids = np.unique(seg)
+    ids = ids[ids != 0]  # remove background
+    for idx in ids:
+        components = label(seg == idx)
+        component_ids, sizes = np.unique(components, return_counts=True)
+        sizes = sizes[component_ids != 0]
+        component_ids = component_ids[component_ids != 0]
+        if len(component_ids) < 2:
+            continue
+        too_small = component_ids[sizes < min_fraction * sizes.max()]
+        if len(too_small) > 0:
+            print(f"Removed {len(too_small)} fragment(s) of label {idx}.")
+            seg[np.isin(components, too_small)] = 0
     return seg
 
 
