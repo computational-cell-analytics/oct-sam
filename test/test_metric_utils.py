@@ -109,6 +109,47 @@ class TestEtdrsGrid(unittest.TestCase):
             self.assertAlmostEqual(table.loc[label_id, column], rows * SPACING_Y, places=6)
 
 
+class TestTotalCentralFovealThickness(unittest.TestCase):
+    """The total CFT spans the whole retina, from the top of the RNFL to the bottom of the RPE."""
+
+    def setUp(self):
+        self.fovea_column = WIDTH // 2
+        self.column = f"CFT_total@{self.fovea_column}px[µm]"
+
+    def _table(self, seg):
+        return run_measurement(seg, fovea_point=[0, self.fovea_column])
+
+    def test_matches_the_sum_without_gaps(self):
+        table = self._table(_make_segmentation())
+        per_layer = table[f"CFT@{self.fovea_column}px[µm]"].sum()
+        self.assertAlmostEqual(table[self.column].iloc[0], per_layer, places=6)
+        self.assertAlmostEqual(table[self.column].iloc[0], sum(LAYER_ROWS.values()) * SPACING_Y, places=6)
+
+    def test_includes_an_empty_layer(self):
+        # Remove the middle layer. Its rows are now unlabeled, but they still lie within the retina.
+        seg = _make_segmentation()
+        seg[seg == 2] = 0
+        table = self._table(seg)
+        per_layer = table[f"CFT@{self.fovea_column}px[µm]"].sum()
+        expected = sum(LAYER_ROWS.values()) * SPACING_Y
+
+        self.assertAlmostEqual(table[self.column].iloc[0], expected, places=6)
+        self.assertAlmostEqual(per_layer, (LAYER_ROWS[1] + LAYER_ROWS[3]) * SPACING_Y, places=6)
+        self.assertGreater(table[self.column].iloc[0], per_layer)
+
+    def test_is_the_same_for_every_row(self):
+        table = self._table(_make_segmentation())
+        self.assertEqual(table[self.column].nunique(), 1)
+
+    def test_notification_reports_the_span(self):
+        from oct_tools.metric_utils import get_etdrs_mask
+        seg = _make_segmentation()
+        seg[seg == 2] = 0
+        _, notification = get_etdrs_mask(seg, fovea_point=[0, self.fovea_column])
+        expected = round(sum(LAYER_ROWS.values()) * SPACING_Y, 2)
+        self.assertIn(str(expected), notification)
+
+
 class TestCalculateMetrics(unittest.TestCase):
     """The oct_tools.metrics CLI path must agree with the napari path.
 

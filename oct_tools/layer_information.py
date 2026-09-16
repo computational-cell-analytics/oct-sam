@@ -16,6 +16,8 @@ LAYERS = {
 
 # Number of layers matched to layer order
 LAYER_NUMBER_DICT = {
+    1: ["RPE"],
+    2: ["RFNL", "RPE"],
     3: ["RFNL", "GCIPL", "RPE"],
     4: ["RFNL", "GCIPL", "INL", "RPE"],
     5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
@@ -140,14 +142,19 @@ def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
 
     The function checks every column of the image if it contains all layers.
     If such a column is found, the order (from top to bottom) of the segmentation IDs is returned.
+    If no column contains all layers, the IDs are ordered by the median row of their pixels.
 
     Args:
         seg: Segmentation mask.
 
     Returns:
-        Ordered list of segmentation IDs from top to bottom.
+        Ordered list of segmentation IDs from top to bottom. None for an empty segmentation.
     """
-    unique_ids = np.unique(seg)[1:]
+    unique_ids = np.unique(seg)
+    unique_ids = unique_ids[unique_ids != 0]
+    if len(unique_ids) == 0:
+        return None
+
     height, width = seg.shape
     for x in range(width):
         col = seg[:, x]
@@ -155,7 +162,13 @@ def find_layer_order(seg: np.ndarray) -> Optional[List[int]]:
         col_ids = [int(c) for c in col if c != 0]
         if all([i in col_ids for i in unique_ids]):
             return col_ids
-    return None
+
+    # No column crosses every layer. This is the normal case for RP scans, where layers are
+    # interrupted. Order the IDs by the median row of their pixels instead, which keeps the
+    # anatomical top-to-bottom order as long as the layers are stacked.
+    rows = np.nonzero(seg)[0]
+    values = seg[seg != 0]
+    return [int(i) for i in sorted(unique_ids, key=lambda i: np.median(rows[values == i]))]
 
 
 def identify_layers_naively(

@@ -58,6 +58,46 @@ def _thickness_at_reference(
     return sum(seg_mask) * spacing[0]
 
 
+def _span_at_reference(
+    segmentation: np.ndarray,
+    reference_position: float,
+    spacing: Tuple[float],
+) -> float:
+    """Calculate the distance from the topmost to the bottommost labeled pixel in one column.
+
+    This is the clinical definition of the central foveal thickness: from the upper boundary of
+    the RNFL to the lower boundary of the RPE. Unlike the sum of the single layer thicknesses, it
+    includes unlabeled gaps between the layers.
+
+    Args:
+        segmentation: Segmentation with all layers.
+        reference_position: Reference position of horizontal axis.
+        spacing: Spacing between pixels.
+
+    Returns:
+        Thickness in physical values [µm].
+    """
+    rows = np.flatnonzero(segmentation[:, round(reference_position)])
+    if rows.size == 0:
+        return 0.0
+    return float(rows[-1] - rows[0] + 1) * spacing[0]
+
+
+def _check_point_inside(point: Tuple[float], segmentation: np.ndarray, name: str):
+    """Raise if a reference position lies outside the segmentation.
+
+    Args:
+        point: Point as (row, column). Only the column is used for measuring.
+        segmentation: Segmentation the point refers to.
+        name: Name of the point, for the error message.
+
+    Raises:
+        ValueError: If the point lies outside the segmentation.
+    """
+    if not all(0 <= p < size for p, size in zip(point, segmentation.shape)):
+        raise ValueError(f"{name} {point} does not lie within segmentation boundary.")
+
+
 def _get_etdrs_grid_single(
     mask: np.ndarray,
     reference_position: float,
@@ -244,7 +284,6 @@ def _compute_length(mask, pixel_spacing=(1.0, 1.0)):
 
 def get_etdrs_mask(
     segmentation: np.ndarray,
-    measurement: Optional[dict] = None,
     spacing: Optional[Tuple[float]] = None,
     fovea_point: Optional[Tuple[float]] = None,
 ) -> Tuple[Optional[np.ndarray], Optional[str]]:
@@ -253,7 +292,6 @@ def get_etdrs_mask(
 
     Args:
         segmentation: Segmentation mask.
-        measurement: Measurement dictionary obtained from run_measurement.
         spacing: Voxel size.
         fovea_point: Foveal reference point for the calculation of the ETDRS areas.
 
@@ -267,16 +305,13 @@ def get_etdrs_mask(
     if spacing is None:
         spacing = VOXEL_SIZE[1:]  # Get the pixel spacing in micrometer.
 
-    if measurement is None:
-        measurement = run_measurement(segmentation, spacing=spacing, fovea_point=fovea_point)
-
     unit = "µm"
     # calculate overlay for ETDRS area
     mask = (segmentation != 0)
     area_c, area_i, area_o, mask_c, mask_i, mask_o = _get_etdrs_grid_all(mask, fovea_point, spacing)
     etdrs_mask = mask_c + 2 * mask_i + 3 * mask_o
 
-    central_foveal_thickness = sum(measurement[f"CFT@{fovea_point[1]}px[{unit}]"])
+    central_foveal_thickness = _span_at_reference(segmentation, fovea_point[1], spacing)
     notification_str = f"The central foveal thickness is {round(central_foveal_thickness, 2)} {unit}."
     return etdrs_mask, notification_str
 
@@ -322,16 +357,21 @@ def run_measurement(
         measurement[f"stdev_thickness[{unit}]"] = []
 
     if reference_point is not None:
-        print(f"ref point {reference_point}")
-        if reference_point[0] > segmentation.shape[0] or reference_point[1] > segmentation.shape[1]:
-            raise ValueError(f"Reference point {reference_point} does not lie within segmentation boundary.")
+        _check_point_inside(reference_point, segmentation, "Reference point")
         measurement[f"thickness@{reference_point[1]}px[{unit}]"] = []
 
     if fovea_point is not None:
+        _check_point_inside(fovea_point, segmentation, "Fovea point")
         measurement[f"CFT@{fovea_point[1]}px[{unit}]"] = []
+        measurement[f"CFT_total@{fovea_point[1]}px[{unit}]"] = []
         measurement[f"central_area[{unit_area}²]"] = []
         measurement[f"inner_ring[{unit_area}²]"] = []
         measurement[f"outer_ring[{unit_area}²]"] = []
+
+    # The span across all layers does not depend on the label, so compute it once.
+    total_central_thickness = None if fovea_point is None else _span_at_reference(
+        segmentation, fovea_point[1], spacing
+    )
 
     for prop in props:
         measurement["label_id"].append(prop.label)
@@ -356,6 +396,7 @@ def run_measurement(
         if fovea_point is not None:
             central_thickness = _thickness_at_reference(mask_all, fovea_point[1], spacing)
             measurement[f"CFT@{fovea_point[1]}px[{unit}]"].append(central_thickness)
+            measurement[f"CFT_total@{fovea_point[1]}px[{unit}]"].append(total_central_thickness)
 
             area_c, area_i, area_o, _, _, _ = _get_etdrs_grid_all(mask_all, fovea_point, spacing)
             measurement[f"central_area[{unit_area}²]"].append(area_c * factor_area)
@@ -422,7 +463,7 @@ def calculate_metrics(
     if etdrs_grid is not None:
         if fovea_point is None:
             raise ValueError("You have to provide the foveal point to export an ETDRS grid.")
-        etdrs_mask, notification_str = get_etdrs_mask(seg, tab, fovea_point=fovea_point)
+        etdrs_mask, notification_str = get_etdrs_mask(seg, spacing=voxel_size, fovea_point=fovea_point)
         print(notification_str)
         imageio.imwrite(etdrs_grid, etdrs_mask)
 

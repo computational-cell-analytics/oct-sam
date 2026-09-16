@@ -4,7 +4,6 @@ from typing import Optional
 
 import numpy as np
 import napari
-from qtpy.QtWidgets import QPushButton
 from imageio.v3 import imread
 from h5py import File
 
@@ -12,7 +11,7 @@ from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
-from oct_tools.napari_widgets.utils import _measure, save_measurements
+from oct_tools.napari_widgets.utils import _measure, append_measurements
 
 
 def run_measurement_only(
@@ -31,7 +30,7 @@ def run_measurement_only(
     Args:
         image_path: Path to the image file (TIF or H5).
         segmentation_path: Path to the pre-computed segmentation (TIF or H5).
-        output_folder: Folder to save measurement results (TSV files).
+        output_folder: Folder to save the measurement workbook in.
         ref_position: Horizontal pixel coordinate for reference point (optional).
         more_info: Whether to include additional thickness metrics.
         slice_index: Index of slice to load if input is 3D (only used for TIF/H5 3D).
@@ -49,12 +48,14 @@ def run_measurement_only(
                 image = f["image"][:]
             else:
                 raise KeyError("H5 file must contain 'image' dataset.")
+        slice_index = 0  # An H5 holds a single B-scan, so slice_index does not apply.
     elif image_path.endswith(".tif"):
         image_vol = imread(image_path)
         if image_vol.ndim == 3:
             image = image_vol[slice_index]
         elif image_vol.ndim == 2:
             image = image_vol
+            slice_index = 0
         else:
             raise ValueError("Image must be 2D or 3D.")
     else:
@@ -109,8 +110,15 @@ def run_measurement_only(
         edge_width=2,
     )
 
-    # Add measurement widgets
-    measurement_widget = MeasurementTableWidget(viewer, _measure, more_info, layer_name="Segmentation")
+    # Add measurement widgets. The "Measure" button is the only thing that writes a measurement.
+    save_fn = partial(
+        append_measurements,
+        output_folder=output_folder,
+        source_name=basename,
+        slice_index=slice_index,
+    )
+    measurement_widget = MeasurementTableWidget(viewer, _measure, more_info, layer_name="Segmentation",
+                                                save_fn=save_fn)
     viewer.window.add_dock_widget(measurement_widget, name="Measurement Table", area="right")
 
     line_length_widget = LineLengthTableWidget(viewer)
@@ -118,20 +126,6 @@ def run_measurement_only(
 
     colormap_widget = ColormapWidget(viewer)
     viewer.window.add_dock_widget(colormap_widget, name="Label Color Map", area="right")
-
-    # Add a button to trigger measurement saving
-    save_func = partial(
-        save_measurements,
-        viewer=viewer,
-        reference_name=basename,
-        output_folder=output_folder,
-        segmentation_layer_name="Segmentation",
-        more_info=more_info
-    )
-
-    save_button = QPushButton("Save Measurements")
-    save_button.clicked.connect(save_func)
-    viewer.window.add_dock_widget(save_button, name="Save Measurements", area="bottom")
 
     # Run napari
     napari.run()

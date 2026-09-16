@@ -11,6 +11,8 @@ from qtpy.QtWidgets import QLabel, QVBoxLayout, QWidget, QScrollArea
 
 import napari
 
+from oct_tools.napari_widgets.utils import read_measurement_inputs
+
 
 def df_to_png_bytes(df: pd.DataFrame, *, dpi: int = 200, fontsize: int = 10) -> bytes:
     """Render a pandas dataframe as a PNG (in-memory)."""
@@ -48,15 +50,17 @@ def df_to_png_bytes(df: pd.DataFrame, *, dpi: int = 200, fontsize: int = 10) -> 
 class MeasurementTableWidget(QWidget):
     """
     A QWidget that hosts a magicgui function + an image preview below it.
-    Provide your measurement function via `measure_fn`.
+    Provide your measurement function via `measure_fn`. If `save_fn` is given, every measurement
+    is also written to disk, so that pressing "Measure" is enough to record a result.
     """
 
     def __init__(self, viewer: napari.Viewer, measure_fn, extra_measurement_information=False,
                  layer_name="committed_objects", fovea_layer="fovea reference point",
-                 ref_layer="thickness reference point"):
+                 ref_layer="thickness reference point", save_fn=None):
         super().__init__()
         self._viewer = viewer
         self._measure_fn = measure_fn
+        self._save_fn = save_fn
         self._layer_name = layer_name
         self._fovea_layer = fovea_layer
         self._ref_layer = ref_layer
@@ -75,23 +79,11 @@ class MeasurementTableWidget(QWidget):
 
         @magicgui(call_button="Measure")
         def gui():
-            labels = self._viewer.layers[self._layer_name].data
-            fovea_points = self._viewer.layers[self._fovea_layer].data
-            ref_points = self._viewer.layers[self._ref_layer].data
-
-            if len(fovea_points) == 0:
-                fovea_point = None
-            else:
-                fovea_point = list(fovea_points[0])
-                if len(fovea_points) > 1:
-                    print(f"More than one point in layer {fovea_layer}. Taking the first one.")
-
-            if len(ref_points) == 0:
-                ref_point = None
-            else:
-                ref_point = list(ref_points[0])
-                if len(ref_points) > 1:
-                    print(f"More than one point in layer {ref_layer}. Taking the first one.")
+            labels, fovea_point, ref_point = read_measurement_inputs(
+                self._viewer, self._layer_name, self._fovea_layer, self._ref_layer,
+            )
+            if labels is None:
+                return
 
             if fovea_point is None and ref_point is None:
                 extra_measurement_information = True
@@ -104,6 +96,8 @@ class MeasurementTableWidget(QWidget):
                 labels, fovea_point=fovea_point, reference_point=ref_point,
                 extra_information=extra_measurement_information,
             )
+            if self._save_fn is not None:
+                self._save_fn(df)
             df = df.round(2)
 
             # present optional ETDRS sections (central, inner ring, outer ring)

@@ -10,7 +10,6 @@ import numpy as np
 from micro_sam.sam_annotator import image_series_annotator
 from micro_sam.instance_segmentation import get_predictor_and_decoder
 from micro_sam.util import precompute_image_embeddings
-from qtpy.QtWidgets import QPushButton
 from torch_em.util.segmentation import watershed_from_center_and_boundary_distances
 from tqdm import tqdm
 
@@ -21,15 +20,15 @@ except ImportError:
 
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
-from oct_tools.postprocessing import postprocess_segmentation
+from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
 from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
-from oct_tools.napari_widgets.utils import _find_call_button, _measure, save_measurements
+from oct_tools.napari_widgets.utils import _measure, append_measurements
 
 
 def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
-                             postprocess_functions=["merge_horizontal", "filter_thin"],
+                             postprocess_functions=DEFAULT_POSTPROCESS,
                              use_prompts=True):
     """Precompute segmentation using SAM.
     """
@@ -76,7 +75,7 @@ def run_annotator(
     checkpoint_path: str,
     use_prompts: bool = True,
     precompute_segmentation: bool = True,
-    postprocess_functions: List[str] = ["merge_horizontal", "filter_thin"],
+    postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     ref_position: Optional[int] = None,
     more_info: bool = False,
     color_style: str = "default",
@@ -99,13 +98,16 @@ def run_annotator(
     basename = os.path.splitext(os.path.basename(input_path))[0]
     if ".h5" in input_path:
         images = [np.array(h5py.File(input_path, "r")["image"])]
+        image_slices = [0]
 
     else:
         image_vol = imageio.imread(input_path)
         if len(image_vol.shape) == 3:
             images = [image_vol[z] for z in slices]
+            image_slices = list(slices)
         elif len(image_vol.shape) == 2:
             images = [image_vol]
+            image_slices = [0]
         else:
             raise ValueError("Check dimensionality of input TIF. Must be either 2D or 3D.")
 
@@ -130,22 +132,14 @@ def run_annotator(
         viewer.add_labels(new_arr, visible=True, name="new_committed_objects")
         viewer.layers["new_committed_objects"].colormap = colormap
 
-    # Add a button to trigger measurement saving
-    save_func = partial(
-        save_measurements,
-        viewer=viewer,
-        reference_name=basename,
-        output_folder=output_folder,
-        segmentation_layer_name="committed_objects",
-        more_info=more_info
-    )
-    save_button = QPushButton("Save Measurements")
-    save_button.clicked.connect(save_func)
-    viewer.window.add_dock_widget(save_button, name="Save Measurements", area="bottom")
-
-    # Get the next image button and bind the measurement function to it.
-    next_image_button = _find_call_button(viewer, "Next Image [N]")
-    next_image_button.clicked.connect(save_func)
+    # Record the B-scan index with every measurement. micro-sam owns the position in the series
+    # and keeps it in a closure, so read it back from the image it put into the viewer.
+    def current_slice():
+        data = viewer.layers["image"].data
+        for i, image in enumerate(images):
+            if image is data or np.array_equal(image, data):
+                return image_slices[i]
+        return image_slices[0]
 
     # widget measuring line lengths
     viewer.add_shapes(
@@ -169,7 +163,14 @@ def run_annotator(
         ref_point = (images[0].shape[0] // 2, ref_position)
     viewer.add_points(central_point, visible=True, name="fovea reference point", face_color="white")
     viewer.add_points(ref_point, visible=True, name="thickness reference point", face_color="blue")
-    measurement_widget = MeasurementTableWidget(viewer, _measure, more_info)
+    # The "Measure" button is the only thing that writes a measurement.
+    measurement_save_fn = partial(
+        append_measurements,
+        output_folder=output_folder,
+        source_name=basename,
+        slice_index=current_slice,
+    )
+    measurement_widget = MeasurementTableWidget(viewer, _measure, more_info, save_fn=measurement_save_fn)
     viewer.window.add_dock_widget(measurement_widget, name="Measurement Table", area="right")
 
     colormap_widget = ColormapWidget(viewer)
