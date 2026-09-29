@@ -56,6 +56,9 @@ def _convert_to_nnunet_format(
             raise ValueError(f"Unsupported file format: {file_format}.")
 
         base_name = os.path.splitext(os.path.basename(ff))[0]
+        # An RGB TIF holds a single B-scan, e.g. mouse OCT exported with three identical channels.
+        if data.ndim == 3 and data.shape[-1] == 3:
+            data = np.mean(data, axis=-1)
         data = data.astype(np.uint8)
 
         if data.ndim == 3:
