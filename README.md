@@ -32,6 +32,7 @@ Heidelberg Heyex tomograms in VOL format are read by `oct_tools.heyex_vol`, whic
 ## nnU-Net
 
 Follow the instructions specified in `doc/nnunet.md`.
+For the binary segmentation of mouse OCT, see `doc/2d_mouse.md`.
 
 # Usage
 

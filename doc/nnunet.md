@@ -29,6 +29,10 @@ micromamba activate nnunet
 
 # instructions from https://pytorch.org/get-started/locally/
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install nnunetv2
+
+# nnU-Net installs its models into this directory and reads them from it
+export nnUNet_results=/path/to/nnUNet_results
 
 # install pre-trained model (download it first from: https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv)
 nnUNetv2_install_pretrained_model_from_zip /path/to/nnunet_model_001_oct-2d.zip
@@ -36,6 +40,9 @@ nnUNetv2_install_pretrained_model_from_zip /path/to/nnunet_model_001_oct-2d.zip
 #inference
 nnUNetv2_predict -i <input_dir_nifti> -o <output_dir_nifti> -d 001 -c 2d -f 0 -device cpu
 ```
+
+`nnUNetv2_install_pretrained_model_from_zip` and `nnUNetv2_predict` need the environment variable `nnUNet_results`.
+Set it permanently, for example in `~/.bashrc`, as the [nnU-Net documentation](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/set_environment_variables.md) describes.
 
 The nnU-Net model can only be applied on data which contains the spatial information, e.g. the voxel size.
 The format supported within the scripts of this repository is the NIfTI file format.
@@ -47,6 +54,12 @@ oct_tools.apply_nnunet -i <input_dir> -o <output_dir>
 ```
 where `<input_dir>` refers to a directory containing image data in TIF format and `output_dir` is the directory where the nnU-Net segmentation will be stored.
 Other arguments allow the customization of the application, e.g. change the environment manager from the default micromamba to conda using `-m conda`.
+The argument `-d` selects the installed model. The default is `001`.
+
+### Binary 2D model for mouse OCT
+
+The model `Dataset013_OCT-2d-binary` segments the retinal band as a whole, for example in OCT of mice.
+`doc/2d_mouse.md` describes the model, its download, and its application.
 
 
 ## Training data
@@ -177,7 +190,8 @@ Dataset012_OCT-2d-finetune-n001
 ```
 Their evaluation on the validation dataset `20250717` can be found under `analysis/`.
 
-The next free dataset ID is 013, e.g. `Dataset013_OCT-2d-binary` for a network that segments the retinal band as a whole.
+`Dataset013_OCT-2d-binary` segments the retinal band as a whole. See `doc/2d_mouse.md`.
+The next free dataset ID is 014.
 
 ## Running inference
 
