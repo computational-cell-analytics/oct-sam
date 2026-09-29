@@ -56,6 +56,9 @@ def _convert_to_nnunet_format(
             raise ValueError(f"Unsupported file format: {file_format}.")
 
         base_name = os.path.splitext(os.path.basename(ff))[0]
+        # An RGB TIF holds a single B-scan, e.g. mouse OCT exported with three identical channels.
+        if data.ndim == 3 and data.shape[-1] == 3:
+            data = np.mean(data, axis=-1)
         data = data.astype(np.uint8)
 
         if data.ndim == 3:
@@ -77,7 +80,8 @@ def _convert_nifti_to_tif(
 
     for ff in file_paths:
         base_name = os.path.basename(ff).split(".nii.gz")[0]
-        arr = nib.load(ff).get_fdata()
+        # get_fdata() always returns float64; dataobj keeps the stored dtype, e.g. uint8 for nnU-Net labels.
+        arr = np.asanyarray(nib.load(ff).dataobj)
         if label_data:
             arr = arr.astype(np.uint32)
         imageio.imwrite(os.path.join(output_folder, f"{base_name}.tif"), arr)
