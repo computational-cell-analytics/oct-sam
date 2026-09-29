@@ -77,7 +77,8 @@ def _convert_nifti_to_tif(
 
     for ff in file_paths:
         base_name = os.path.basename(ff).split(".nii.gz")[0]
-        arr = nib.load(ff).get_fdata()
+        # get_fdata() always returns float64; dataobj keeps the stored dtype, e.g. uint8 for nnU-Net labels.
+        arr = np.asanyarray(nib.load(ff).dataobj)
         if label_data:
             arr = arr.astype(np.uint32)
         imageio.imwrite(os.path.join(output_folder, f"{base_name}.tif"), arr)
