@@ -28,20 +28,28 @@ You need two environments:
 - `oct-sam` for this repository. It converts the data between TIF and NIfTI.
 - `nnunet` for nnU-Net. It runs the network.
 
+### 0. Install micromamba or conda
+
+You can find the steps to install micromamba in its [documentation](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+
+The commands in this guide use micromamba.
+If you use conda, replace `micromamba` with `conda` in the commands.
+Other arguments allow the customization of the commands, e.g. change the environment manager of `oct_tools.apply_nnunet` and `oct_tools.retrain_nnunet` from the default micromamba to conda using `-m conda`.
+
 ### 1. Install the repository
 
 ```bash
 git clone https://github.com/computational-cell-analytics/oct-analysis.git
 cd oct-analysis
-conda env create -f environment.yaml
-conda activate oct-sam
+micromamba env create -f environment.yaml
+micromamba activate oct-sam
 pip install -e .
 ```
 
 ### 2. Install nnU-Net
 
 ```bash
-micromamba create -n nnunet python=3.12
+micromamba create -n nnunet -c conda-forge python=3.12
 micromamba activate nnunet
 # select the correct build for your system on https://pytorch.org/get-started/locally/
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
@@ -88,7 +96,6 @@ oct_tools.apply_nnunet -i /path/to/images -o /path/to/segmentations -d 013
 ```
 
 - Add `--device cuda` if you have an NVIDIA GPU. The default is `cpu`.
-- Add `-m conda` if you installed the `nnunet` environment with conda.
 
 The command writes one segmentation `<name>.tif` for each image `<name>.tif`.
 A stack `<name>.tif` gives one segmentation `<name>_z<slice>.tif` for each B-scan.

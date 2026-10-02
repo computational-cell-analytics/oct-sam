@@ -5,7 +5,9 @@ Segmentation and measurements for retinal layers in OCT data using neural networ
 # Installation
 
 ## OCT-SAM
-OCT-SAM can be installed via `conda` (or [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)). To install it:
+OCT-SAM can be installed via [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+If you use conda, replace `micromamba` with `conda` in the commands below.
+To install it:
 
 Download the github repository:
 ```bash
@@ -17,11 +19,11 @@ cd oct-sam
 ```
 Create an environment with the required dependencies:
 ```bash
-conda env create -f environment.yaml
+micromamba env create -f environment.yaml
 ```
 Activate the environment:
 ```bash
-conda activate oct-sam
+micromamba activate oct-sam
 ```
 Install the oct_tools package:
 ```bash
