@@ -14,6 +14,7 @@ setup(
             "oct_tools.metrics = oct_tools.cli:metrics",
             "oct_tools.apply_sam = oct_tools.cli:apply_sam",
             "oct_tools.apply_nnunet = oct_tools.cli:apply_nnunet",
+            "oct_tools.retrain_nnunet = oct_tools.cli:retrain_nnunet",
             "oct_tools.eval_segmentation = oct_tools.cli:eval_segmentation",
             "oct_tools.measure = oct_tools.cli:measure",
             "oct_tools.open_labels = oct_tools.cli:open_labels",
