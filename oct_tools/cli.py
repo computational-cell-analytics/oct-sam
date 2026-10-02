@@ -11,7 +11,7 @@ from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.metric_utils import calculate_metrics
 from oct_tools.apply_oct_sam import apply_model_sam_2d
-from oct_tools.apply_nnunet import apply_model_nnunet
+from oct_tools.apply_nnunet import apply_model_nnunet, retrain_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
 from oct_tools.export_overlay import export_overlay
 from oct_tools.measure_segmentation import run_measurement_only
@@ -162,6 +162,52 @@ def apply_nnunet():
         fold=args.fold,
         device=args.device,
         trainer=args.trainer,
+    )
+
+
+def retrain_nnunet():
+    parser = argparse.ArgumentParser(
+        description="Fine-tune a trained nnU-Net model on images and corrected labels. "
+        "The new model has the labels of the pretrained model."
+    )
+    parser.add_argument("-i", "--input", type=str, required=True,
+                        help="Input directory containing images in TIF or H5 format.")
+    parser.add_argument("-l", "--labels", type=str, required=True,
+                        help="Directory containing the corrected labels in TIF or H5 format. The label IDs must be "
+                        "IDs of the pretrained model. For a binary model, every value above 0 is foreground.")
+    parser.add_argument("-p", "--pretrained_id", type=str, required=True,
+                        help="nnU-Net dataset ID of the pretrained model, e.g. 013.")
+    parser.add_argument("-d", "--dataset_id", type=str, required=True,
+                        help="nnU-Net dataset ID of the retrained model. It must not exist.")
+    parser.add_argument("-m", "--env_manager", type=str, default="micromamba",
+                        help="Environment manager, e.g. micromamba or conda. Default: micromamba")
+    parser.add_argument("-n", "--env_nnunet", type=str, default="nnunet",
+                        help="Environment name with nnU-Net installed. Default: nnunet")
+    parser.add_argument("-c", "--configuration", type=str, default="2d",
+                        help="nnU-Net configuration. Default: 2d")
+    parser.add_argument("-f", "--fold", type=int, default=0,
+                        help="Fold index of the pretrained and the retrained model. Default: 0")
+    parser.add_argument("--device", type=str, default="cuda", choices=["cpu", "cuda", "mps"],
+                        help="Compute device for nnU-Net. Default: cuda")
+    parser.add_argument("-tr", "--trainer", type=str, default="nnUNetTrainer",
+                        help="nnU-Net trainer class, e.g. nnUNetTrainer_250epochs for 250 instead of 1000 epochs. "
+                        "Default: nnUNetTrainer")
+    parser.add_argument("--label_key", type=str, default="edit_v3",
+                        help="Key of the label under 'labels/' in H5 files. Default: edit_v3")
+
+    args = parser.parse_args()
+    retrain_model_nnunet(
+        input_dir=args.input,
+        label_dir=args.labels,
+        pretrained_id=args.pretrained_id,
+        dataset_id=args.dataset_id,
+        env_manager=args.env_manager,
+        env_nnunet=args.env_nnunet,
+        configuration=args.configuration,
+        fold=args.fold,
+        device=args.device,
+        trainer=args.trainer,
+        label_key=args.label_key,
     )
 
 

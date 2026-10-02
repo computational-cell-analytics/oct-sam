@@ -61,6 +61,26 @@ The argument `-d` selects the installed model. The default is `001`.
 The model `Dataset013_OCT-2d-binary` segments the retinal band as a whole, for example in OCT of mice.
 `doc/2d_mouse.md` describes the model, its download, and its application.
 
+### Retraining on corrected labels
+
+`oct_tools.retrain_nnunet` fine-tunes an installed 2D model on images and corrected labels.
+The retrained model is a new nnU-Net model with its own dataset ID.
+It has the same labels as the pretrained model.
+For the 7-layer models, for example `004`, the labels keep the layer IDs 1–7.
+
+```bash
+oct_tools.retrain_nnunet -i <h5_dir> -l <h5_dir> -p 004 -d 014
+```
+
+- `-i` and `-l` can be the same folder of H5 files. The command reads the image from `image` and the label from `labels/<label_key>`.
+- `--label_key` selects the label version. The default is `edit_v3`.
+- TIF labels are also supported, with the same file names as the images.
+- The label IDs must be IDs of the pretrained model, as in its `dataset.json`. The command stops at an unknown ID.
+- The command does not check which layer an ID marks. Each ID must mark the same layer as in the pretrained model: 1 RNFL, 2 GCIPL, 3 INL, 4 OPL, 5 ONL, 6 EZ, 7 RPE.
+- A raw SAM segmentation has arbitrary IDs. Assign the layer IDs first with the post-processing step `assign_layer_id`.
+
+`doc/2d_mouse.md` describes the requirements, shorter training with `-tr`, the application of the retrained model, and the annotation loop.
+
 
 ## Training data
 

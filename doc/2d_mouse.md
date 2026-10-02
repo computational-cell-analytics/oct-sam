@@ -97,7 +97,7 @@ Each segmentation has the values `0` (background) and `1` (retina).
 ### 6. Correct the segmentation
 
 Correct the nnU-Net segmentations in napari.
-The corrected labels can become training data for a mouse-specific model.
+Use the corrected labels to retrain the model (see [Retraining on annotations](#retraining-on-annotations)).
 Run the script from the repository folder:
 
 ```bash
@@ -138,6 +138,91 @@ oct_tools.export_annotations -i /path/to/images/<name>.tif -s /path/to/segmentat
 ```
 
 Without `--mode rgb`, the command writes an ImageJ composite TIF, in which you can show or hide the segmentation.
+
+## Retraining on annotations
+
+Use the corrected labels of step 6 to fine-tune the model on your data.
+The retrained model is a new nnU-Net model with its own dataset ID.
+To retrain a model with several retinal layers, see [Retraining on corrected labels](nnunet.md#retraining-on-corrected-labels).
+
+### Requirements
+
+- An NVIDIA GPU. Training on a CPU is too slow.
+- At least 5 corrected B-scans. nnU-Net splits the training data into 5 folds.
+- Folders for the nnU-Net training data. Add these lines to your `~/.bashrc` next to `nnUNet_results`, then open a new terminal:
+
+```bash
+export nnUNet_raw=/path/to/nnUNet_raw
+export nnUNet_preprocessed=/path/to/nnUNet_preprocessed
+```
+
+### Retrain the model
+
+```bash
+micromamba activate oct-sam
+oct_tools.retrain_nnunet -i /path/to/images -l /path/to/corrected -p 013 -d 014
+```
+
+- `-i` is the image folder of step 5.
+- `-l` is the folder with the corrected labels of step 6.
+- `-p` is the dataset ID of the pretrained model.
+- `-d` is the dataset ID of the retrained model. Use an ID that does not exist on your system.
+  If the ID exists, or a previous run with this ID was interrupted, the command stops and shows the folders of the ID.
+  Choose another ID, or delete these folders. A folder in `$nnUNet_results` can contain a trained model.
+
+The command does these steps:
+1. It copies the B-scans that have a corrected label into the nnU-Net dataset `$nnUNet_raw/Dataset014_OCT-2d-retrain-013`. B-scans without a corrected label are not used. For a binary model such as `013`, every label value above `0` becomes retina (`1`).
+2. It prepares the dataset with the network configuration of the pretrained model.
+3. It trains fold 0 and starts with the weights of the pretrained model. Fold 0 uses 80 % of the B-scans for training and 20 % for validation.
+
+The retrained model is in `$nnUNet_results/Dataset014_OCT-2d-retrain-013/nnUNetTrainer__nnUNetPlans__2d`.
+The files `fold_0/progress.png` and `fold_0/training_log_*.txt` show the progress of the training.
+If the training stops, continue it in the `nnunet` environment:
+
+```bash
+micromamba activate nnunet
+nnUNetv2_train 014 2d 0 --c
+```
+
+### Shorter training
+
+nnU-Net trains for 1000 epochs. This takes several hours on a GPU.
+Select a trainer with fewer epochs with `-tr`:
+
+```bash
+oct_tools.retrain_nnunet -i /path/to/images -l /path/to/corrected -p 013 -d 014 -tr nnUNetTrainer_250epochs
+```
+
+nnU-Net has trainers for 1, 5, 10, 20, 50, 100, 250, 500 and 750 epochs, for example `nnUNetTrainer_100epochs`.
+The trainer name is part of the model folder, for example `nnUNetTrainer_250epochs__nnUNetPlans__2d`.
+Thus, add the same `-tr` value when you apply the model or continue its training (`nnUNetv2_train 014 2d 0 -tr nnUNetTrainer_250epochs --c`).
+A retraining with `-p 014` finds the trainer of model 014 automatically.
+
+### Apply the retrained model
+
+```bash
+micromamba activate oct-sam
+oct_tools.apply_nnunet -i /path/to/images -o /path/to/segmentations_014 -d 014 --device cuda
+```
+
+Add the `-tr` value of the retraining, if you used one.
+
+### Continue the annotation loop
+
+Each loop adds corrected labels and gives a better model:
+
+1. Apply the newest model to all B-scans, as shown above.
+2. Correct the new segmentations. Use the same output folder `-o` as before. napari opens only the B-scans that have no corrected label.
+   ```bash
+   python scripts/mouse/annotate.py -i /path/to/images -l /path/to/segmentations_014 -o /path/to/corrected
+   ```
+3. Retrain on all corrected labels. Use the newest model for `-p` and a new ID for `-d`.
+   ```bash
+   oct_tools.retrain_nnunet -i /path/to/images -l /path/to/corrected -p 014 -d 015
+   ```
+4. Repeat the loop until the segmentations need only few corrections.
+
+You can add new B-scans to the image folder at any time. Step 1 segments them.
 
 ## Export the model
 
