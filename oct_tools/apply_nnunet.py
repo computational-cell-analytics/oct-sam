@@ -230,12 +230,11 @@ def retrain_model_nnunet(
     prefix = f"Dataset{int(dataset_id):03d}_"
     existing = [path for root in (raw, preprocessed, results) for path in glob(os.path.join(root, prefix + "*"))]
     if existing:
-        print(
+        raise ValueError(
             f"Warning: The dataset ID {dataset_id} is in use, or a previous run with this ID was interrupted.\n"
             "Choose another ID, or delete these folders to use the ID again. "
             "A folder in nnUNet_results can contain a trained model.\n  " + "\n  ".join(existing)
         )
-        return
 
     # The trainer of the pretrained model can differ from the new trainer.
     pretrained = glob(os.path.join(
