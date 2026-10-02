@@ -96,6 +96,7 @@ def apply_model_nnunet(
     configuration: str = "2d",
     fold: Union[int, str] = 0,
     device: str = "cpu",
+    trainer: str = "nnUNetTrainer",
 ) -> None:
     """Apply nnU-Net on all images in input_dir and write TIF segmentations to output_dir.
 
@@ -110,6 +111,7 @@ def apply_model_nnunet(
         configuration: nnU-Net configuration (e.g. "2d", "3d_fullres").
         fold: Fold index for prediction.
         device: Compute device ("cpu", "cuda", "mps").
+        trainer: nnU-Net trainer class of the model, e.g. "nnUNetTrainer_250epochs".
     """
     with tempfile.TemporaryDirectory() as workdir:
         nifti_images = os.path.join(workdir, "images")
@@ -128,6 +130,7 @@ def apply_model_nnunet(
                 "-d", dataset_id,
                 "-c", configuration,
                 "-f", str(fold),
+                "-tr", trainer,
                 "-device", device,
             ],
             check=True,

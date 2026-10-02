@@ -147,6 +147,9 @@ def apply_nnunet():
                         help="Fold index for nnU-Net prediction. Default: 0")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda", "mps"],
                         help="Compute device for nnU-Net. Default: cpu")
+    parser.add_argument("-tr", "--trainer", type=str, default="nnUNetTrainer",
+                        help="nnU-Net trainer class of the model, e.g. nnUNetTrainer_250epochs. "
+                        "Default: nnUNetTrainer")
 
     args = parser.parse_args()
     apply_model_nnunet(
@@ -158,6 +161,7 @@ def apply_nnunet():
         configuration=args.configuration,
         fold=args.fold,
         device=args.device,
+        trainer=args.trainer,
     )
 
 
