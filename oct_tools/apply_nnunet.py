@@ -205,7 +205,7 @@ def retrain_model_nnunet(
     preprocesses it with the plans of the pretrained model, and runs nnUNetv2_train with the
     pretrained weights. The new model has the labels of the pretrained model. nnU-Net reads and
     writes the folders in the environment variables nnUNet_raw, nnUNet_preprocessed and nnUNet_results.
-    If a folder of `dataset_id` exists, the function prints a warning with the folders and returns.
+    If a folder of `dataset_id` exists, the function raises a ValueError that lists the folders. It writes no data.
 
     Args:
         input_dir: Directory containing input images in TIF or H5 format.
@@ -231,7 +231,7 @@ def retrain_model_nnunet(
     existing = [path for root in (raw, preprocessed, results) for path in glob(os.path.join(root, prefix + "*"))]
     if existing:
         raise ValueError(
-            f"Warning: The dataset ID {dataset_id} is in use, or a previous run with this ID was interrupted.\n"
+            f"The dataset ID {dataset_id} is in use, or a previous run with this ID was interrupted.\n"
             "Choose another ID, or delete these folders to use the ID again. "
             "A folder in nnUNet_results can contain a trained model.\n  " + "\n  ".join(existing)
         )
