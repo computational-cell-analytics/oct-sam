@@ -4,14 +4,19 @@ The tests pin the spacing convention: the first spacing value is the vertical pi
 retinal layers, and the second is the horizontal pitch, along them. A swapped axis order changes
 every thickness and every ETDRS area, so these tests fail loudly if the order is reversed again.
 """
+import contextlib
+import io
 import os
 import tempfile
 import unittest
 
 import imageio.v3 as imageio
 import numpy as np
+import pandas as pd
 
-from oct_tools.metric_utils import VOXEL_SIZE, calculate_metrics, run_measurement
+from oct_tools.metric_utils import (
+    VOXEL_SIZE, binary_thickness, calculate_metrics, measure_binary_thickness, run_measurement,
+)
 
 # Default pixel spacing of the UMG-RP data, in micrometer.
 SPACING_Y = 3.87166976  # Vertical, across the retinal layers.
@@ -169,7 +174,6 @@ class TestCalculateMetrics(unittest.TestCase):
         self.tmp_dir.cleanup()
 
     def _run_cli(self, voxel_size, **kwargs):
-        import pandas as pd
         calculate_metrics(self.input_path, self.output_path, voxel_size, **kwargs)
         return pd.read_csv(self.output_path, sep="\t")
 
@@ -210,6 +214,105 @@ class TestCalculateMetrics(unittest.TestCase):
         etdrs_path = os.path.join(self.tmp_dir.name, "etdrs.tif")
         with self.assertRaises(ValueError):
             self._run_cli([SPACING_Y, SPACING_X], etdrs_grid=etdrs_path)
+
+
+def _make_binary_segmentation() -> np.ndarray:
+    """Build a B-scan with an empty column and columns of 2, 4 and 6 retina pixels."""
+    seg = np.zeros((8, 4), dtype=np.uint32)
+    seg[2:4, 1] = 1
+    seg[2:6, 2] = 2
+    seg[1:4, 3] = 1
+    seg[4:7, 3] = 2
+    return seg
+
+
+class TestBinaryThickness(unittest.TestCase):
+    """Every label ID above 0 is retina, and columns without retina are not used."""
+
+    def test_statistics(self):
+        thickness = binary_thickness(_make_binary_segmentation(), SPACING_Y)
+        expected = {
+            "mean_thickness[µm]": 4 * SPACING_Y,
+            "stdev_thickness[µm]": np.sqrt(8 / 3) * SPACING_Y,
+            "median_thickness[µm]": 4 * SPACING_Y,
+            "min_thickness[µm]": 2 * SPACING_Y,
+            "max_thickness[µm]": 6 * SPACING_Y,
+        }
+        self.assertEqual(thickness.keys(), expected.keys())
+        for column, value in expected.items():
+            self.assertAlmostEqual(thickness[column], value, places=6, msg=column)
+
+    def test_no_retina(self):
+        self.assertEqual(binary_thickness(np.zeros((8, 4), dtype=np.uint32)), {})
+
+
+class TestMeasureBinaryThickness(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.image_dir, self.label_dir = (os.path.join(self.tmp_dir.name, d) for d in ("images", "labels"))
+        os.makedirs(self.image_dir)
+        os.makedirs(self.label_dir)
+        self.output_path = os.path.join(self.tmp_dir.name, "thickness.xlsx")
+
+        bscan = np.zeros((8, 4), dtype=np.uint8)
+        imageio.imwrite(os.path.join(self.image_dir, "a.tif"), np.stack([bscan] * 3, axis=-1))
+        imageio.imwrite(os.path.join(self.image_dir, "b.tif"), bscan)
+        imageio.imwrite(os.path.join(self.image_dir, "c.tif"), bscan)
+        imageio.imwrite(os.path.join(self.label_dir, "a.tif"), _make_binary_segmentation())
+        label_b = np.zeros((8, 4), dtype=np.uint32)
+        label_b[2:5] = 1
+        imageio.imwrite(os.path.join(self.label_dir, "b.tif"), label_b)
+
+    def tearDown(self):
+        self.tmp_dir.cleanup()
+
+    def test_directories_update_the_workbook(self):
+        old = pd.DataFrame({"file": ["z.tif", "a.tif"], "mean_thickness[µm]": [1.0, 999.0]})
+        old.to_excel(self.output_path, index=False)
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            measure_binary_thickness(self.image_dir, self.label_dir, self.output_path, SPACING_Y)
+        self.assertIn("['a.tif']", output.getvalue())
+
+        table = pd.read_excel(self.output_path).set_index("file")
+        self.assertEqual(list(table.index), ["a.tif", "b.tif", "z.tif"])
+        self.assertAlmostEqual(table.loc["a.tif", "mean_thickness[µm]"], 4 * SPACING_Y, places=6)
+        self.assertAlmostEqual(table.loc["b.tif", "max_thickness[µm]"], 3 * SPACING_Y, places=6)
+        self.assertEqual(table.loc["z.tif", "mean_thickness[µm]"], 1.0)
+
+    def test_single_files_create_the_workbook(self):
+        measure_binary_thickness(
+            os.path.join(self.image_dir, "b.tif"), os.path.join(self.label_dir, "a.tif"), self.output_path,
+        )
+        table = pd.read_excel(self.output_path)
+        self.assertEqual(list(table["file"]), ["b.tif"])
+        self.assertAlmostEqual(table["min_thickness[µm]"][0], 2 * VOXEL_SIZE[1], places=6)
+
+    def test_invalid_input_raises(self):
+        image = os.path.join(self.image_dir, "b.tif")
+        wide_image = os.path.join(self.tmp_dir.name, "wide.tif")
+        imageio.imwrite(wide_image, np.zeros((8, 5), dtype=np.uint8))
+        label = os.path.join(self.label_dir, "a.tif")
+        cases = {
+            "file and directory": (image, self.label_dir, self.output_path),
+            "shape mismatch": (wide_image, label, self.output_path),
+            "no xlsx": (image, label, os.path.join(self.tmp_dir.name, "thickness.xls")),
+        }
+        for name, args in cases.items():
+            with self.subTest(name), self.assertRaises(ValueError):
+                measure_binary_thickness(*args)
+
+        imageio.imwrite(os.path.join(self.label_dir, "d.tif"), _make_binary_segmentation())
+        with self.subTest("label without image"), self.assertRaisesRegex(ValueError, "without an image"):
+            measure_binary_thickness(self.image_dir, self.label_dir, self.output_path)
+
+        os.remove(os.path.join(self.label_dir, "d.tif"))
+        imageio.imwrite(os.path.join(self.image_dir, "s.tif"), np.zeros((3, 8, 4), dtype=np.uint8))
+        imageio.imwrite(os.path.join(self.label_dir, "s_z000.tif"), _make_binary_segmentation())
+        with self.subTest("stack"), self.assertRaisesRegex(ValueError, "stacks"):
+            measure_binary_thickness(self.image_dir, self.label_dir, self.output_path)
 
 
 if __name__ == "__main__":
