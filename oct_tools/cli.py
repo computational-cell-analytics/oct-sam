@@ -9,7 +9,7 @@ from h5py import File
 
 from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.layer_information import get_layer_colormap
-from oct_tools.metric_utils import calculate_metrics
+from oct_tools.metric_utils import VOXEL_SIZE, calculate_metrics, measure_binary_thickness
 from oct_tools.apply_oct_sam import apply_model_sam_2d
 from oct_tools.apply_nnunet import apply_model_nnunet, retrain_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
@@ -299,6 +299,33 @@ def measure():
         more_info=args.more_info,
         slice_index=args.slice,
         color_style=args.color_style,
+    )
+
+
+def measure_binary():
+    parser = argparse.ArgumentParser(
+        description="Measure the retina thickness of binary segmentations of 2D B-scans. "
+        "Writes the mean, standard deviation, median, minimum and maximum thickness of each B-scan "
+        "as one row of an Excel workbook."
+    )
+    parser.add_argument("-i", "--img", required=True,
+                        help="Image TIF file, or directory of image TIF files.")
+    parser.add_argument("-s", "--seg", required=True,
+                        help="Segmentation TIF file, or directory of segmentation TIF files with the file names "
+                        "of the images. Every value above 0 is retina.")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output Excel file (.xlsx). If the file exists, the rows of the measured images are "
+                        "replaced and all other rows stay.")
+    parser.add_argument("-a", "--axial_size", type=float, default=VOXEL_SIZE[1],
+                        help=f"Axial pixel size in micrometer, across the retina. Default: {VOXEL_SIZE[1]}")
+
+    args = parser.parse_args()
+
+    measure_binary_thickness(
+        image_path=args.img,
+        label_path=args.seg,
+        output_path=args.output,
+        axial_size=args.axial_size,
     )
 
 
