@@ -1,3 +1,5 @@
+import os
+import re
 from typing import List, Optional, Tuple
 
 import h5py
@@ -474,3 +476,106 @@ def calculate_metrics(
             tab.to_csv(output_path, sep="\t", index=False)
         elif ".xlsx" in output_path:
             tab.to_excel(output_path, index=False)
+
+
+def binary_thickness(segmentation: np.ndarray, axial_size: float = VOXEL_SIZE[1]) -> dict:
+    """Calculate the thickness statistics of a binary retina segmentation.
+
+    The thickness of a column is its number of retina pixels times the axial pixel size.
+    Columns without retina lie outside the retina and are not used.
+
+    Args:
+        segmentation: 2D segmentation. Every value above 0 is retina.
+        axial_size: Axial pixel size in µm.
+
+    Returns:
+        Mean, standard deviation, median, minimum and maximum thickness in µm.
+        An empty dictionary if the segmentation has no retina.
+    """
+    thickness = np.count_nonzero(segmentation, axis=0) * axial_size
+    thickness = thickness[thickness > 0]
+    if thickness.size == 0:
+        return {}
+    return {
+        "mean_thickness[µm]": thickness.mean(),
+        "stdev_thickness[µm]": thickness.std(),
+        "median_thickness[µm]": np.median(thickness),
+        "min_thickness[µm]": thickness.min(),
+        "max_thickness[µm]": thickness.max(),
+    }
+
+
+def _pair_files(image_path: str, label_path: str) -> List[Tuple[str, str]]:
+    if os.path.isfile(image_path) and os.path.isfile(label_path):
+        return [(image_path, label_path)]
+    if not (os.path.isdir(image_path) and os.path.isdir(label_path)):
+        raise ValueError(
+            f"Give an image file and a label file, or an image directory and a label directory: "
+            f"{image_path}, {label_path}"
+        )
+
+    def tif_files(folder):
+        return {
+            os.path.splitext(f)[0]: os.path.join(folder, f)
+            for f in os.listdir(folder) if f.lower().endswith((".tif", ".tiff"))
+        }
+
+    images, labels = tif_files(image_path), tif_files(label_path)
+    orphans = labels.keys() - images.keys()
+    stacks = sorted(name for name in orphans if re.sub(r"_z\d+$", "", name) in images)
+    if stacks:
+        raise ValueError(f"Only 2D B-scans are supported. These labels belong to stacks in {image_path}: {stacks}")
+    if orphans:
+        raise ValueError(f"Labels without an image in {image_path}: {sorted(orphans)}")
+    if not labels:
+        raise ValueError(f"No TIF labels in {label_path}.")
+    unlabeled = images.keys() - labels.keys()
+    if unlabeled:
+        print(f"Skipping {len(unlabeled)} images without a label: {sorted(unlabeled)}")
+    return [(images[name], labels[name]) for name in sorted(labels)]
+
+
+def measure_binary_thickness(
+    image_path: str,
+    label_path: str,
+    output_path: str,
+    axial_size: float = VOXEL_SIZE[1],
+):
+    """Measure the retina thickness of 2D B-scans and write one row per B-scan to an Excel workbook.
+
+    An existing workbook is updated: the row of a measured image replaces the row with the same
+    file name. All other rows and columns stay.
+
+    Args:
+        image_path: Image TIF, or directory of image TIFs.
+        label_path: Binary label TIF, or directory of label TIFs with the file names of the images.
+        output_path: Excel workbook (.xlsx).
+        axial_size: Axial pixel size in µm.
+    """
+    if not output_path.endswith(".xlsx"):
+        raise ValueError(f"The output must be an .xlsx file: {output_path}")
+
+    rows = []
+    for image_file, label_file in _pair_files(image_path, label_path):
+        label = imageio.imread(label_file)
+        image_shape = imageio.imread(image_file).shape
+        # An RGB B-scan has the shape (height, width, 3).
+        if label.ndim != 2 or image_shape[:2] != label.shape:
+            raise ValueError(
+                f"Only 2D B-scans are supported. {label_file} has the shape {label.shape}, "
+                f"{image_file} has the shape {image_shape}."
+            )
+        thickness = binary_thickness(label, axial_size)
+        if not thickness:
+            print(f"Warning: {label_file} has no retina.")
+        rows.append({"file": os.path.basename(image_file), **thickness})
+
+    table = pd.DataFrame(rows)
+    if os.path.exists(output_path):
+        old_table = pd.read_excel(output_path)
+        updated = sorted(set(old_table["file"]) & set(table["file"]))
+        if updated:
+            print(f"Note: Replacing {len(updated)} rows in {output_path}: {updated}")
+        table = pd.concat([old_table, table]).drop_duplicates("file", keep="last")
+    table.sort_values("file").to_excel(output_path, index=False)
+    print(f"Measurements of {len(rows)} B-scans saved to {output_path}")

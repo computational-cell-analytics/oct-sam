@@ -146,6 +146,39 @@ oct_tools.export_annotations -i /path/to/images/<name>.tif -s /path/to/segmentat
 
 Without `--mode rgb`, the command writes an ImageJ composite TIF, in which you can show or hide the segmentation.
 
+### 8. Measure the retinal thickness
+
+Measure the thickness of the retina in each B-scan and write the values to an Excel file:
+
+```bash
+oct_tools.measure_binary -i /path/to/images -s /path/to/corrected -o thickness.xlsx
+```
+
+- `-i` is the image folder of step 5, or one image file.
+- `-s` is the folder with the segmentations of step 5 or the corrected labels of step 6, or one label file.
+  Give two folders or two files.
+  In a folder, the label of `<name>.tif` must have the name `<name>.tif`.
+  The command stops if a label has no image. It skips images without a label.
+- `-o` is the Excel file (`.xlsx`). If the file exists, the command replaces the rows of the measured B-scans and keeps all other rows.
+  The file name of the image identifies the row. The command prints the names of the replaced rows.
+- `-a` is the axial pixel size in µm. The default is `3.87166976`. Use the axial pixel size of your OCT device.
+
+Each row of the Excel file is one B-scan:
+
+| Column | Value |
+|---|---|
+| `file` | File name of the image |
+| `mean_thickness[µm]` | Mean thickness |
+| `stdev_thickness[µm]` | Standard deviation of the thickness |
+| `median_thickness[µm]` | Median thickness |
+| `min_thickness[µm]` | Minimum thickness |
+| `max_thickness[µm]` | Maximum thickness |
+
+The thickness of an A-scan column is its number of retina pixels times the axial pixel size.
+Every label value above `0` counts as retina.
+Columns without retina are not used, for example at the edges of the B-scan.
+The command measures only 2D B-scans. It stops for a stack.
+
 ## Retraining on annotations
 
 Use the corrected labels of step 6 to fine-tune the model on your data.

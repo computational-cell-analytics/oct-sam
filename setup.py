@@ -17,6 +17,7 @@ setup(
             "oct_tools.retrain_nnunet = oct_tools.cli:retrain_nnunet",
             "oct_tools.eval_segmentation = oct_tools.cli:eval_segmentation",
             "oct_tools.measure = oct_tools.cli:measure",
+            "oct_tools.measure_binary = oct_tools.cli:measure_binary",
             "oct_tools.open_labels = oct_tools.cli:open_labels",
             "oct_tools.export_annotations = oct_tools.cli:export_annotations",
         ]

@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import os
 import tempfile
@@ -126,19 +124,18 @@ class TestCreateDataset(unittest.TestCase):
 
 
 class TestRetrainExistingDataset(unittest.TestCase):
-    def test_warning(self):
+    def test_existing_id_raises(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             env_vars = ("nnUNet_raw", "nnUNet_preprocessed", "nnUNet_results")
             env = {name: os.path.join(tmp_dir, name) for name in env_vars}
             existing = os.path.join(env["nnUNet_raw"], "Dataset014_OCT-2d-retrain-013")
             os.makedirs(existing)
-            output = io.StringIO()
             with mock.patch.dict(os.environ, env), mock.patch("subprocess.run") as run, \
-                    contextlib.redirect_stdout(output):
+                    self.assertRaises(ValueError) as error:
                 retrain_model_nnunet(tmp_dir, tmp_dir, pretrained_id="013", dataset_id="014")
             run.assert_not_called()
-            self.assertIn("Warning", output.getvalue())
-            self.assertIn(existing, output.getvalue())
+            self.assertIn(existing, str(error.exception))
+            self.assertEqual(os.listdir(env["nnUNet_raw"]), [os.path.basename(existing)])
 
 
 if __name__ == "__main__":
