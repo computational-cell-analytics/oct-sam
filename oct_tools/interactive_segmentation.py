@@ -27,7 +27,7 @@ from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
 from oct_tools.napari_widgets.utils import _measure, append_measurements
 
 
-def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=True,
+def _precompute_segmentation(images, names, sam_model_path, output_folder, postprocess=True,
                              postprocess_functions=DEFAULT_POSTPROCESS,
                              use_prompts=True):
     """Precompute segmentation using SAM.
@@ -40,13 +40,13 @@ def _precompute_segmentation(images, sam_model_path, output_folder, postprocess=
 
     # Precompute the embeddings.
     embedding_folder = os.path.join(output_folder, "embeddings")
-    for i, image in tqdm(enumerate(images), desc="Precompute segmentation", total=len(images)):
-        output_path = os.path.join(output_folder, f"seg_{i:05}.tif")
+    for image, name in tqdm(zip(images, names), desc="Precompute segmentation", total=len(images)):
+        output_path = os.path.join(output_folder, f"{name}.tif")
         if os.path.exists(output_path):
             continue
 
         # Init the segmenter for this image.
-        embedding_path = os.path.join(embedding_folder, f"embedding_{i:05}.zarr")
+        embedding_path = os.path.join(embedding_folder, f"{name}.zarr")
         image_embeddings = precompute_image_embeddings(predictor, image, embedding_path, verbose=False)
         segmenter.initialize(image, verbose=False, image_embeddings=image_embeddings)
 
@@ -111,9 +111,18 @@ def run_annotator(
         else:
             raise ValueError("Check dimensionality of input TIF. Must be either 2D or 3D.")
 
+    # micro-sam names the saved segmentation and the embedding after the input file. A B-scan given as an
+    # array gets only its list position, so every B-scan is written to its own file.
+    names = [f"{basename}_{z}" for z in image_slices]
+    bscan_folder = os.path.join(output_folder, "bscans")
+    os.makedirs(bscan_folder, exist_ok=True)
+    image_paths = [os.path.join(bscan_folder, f"{name}.tif") for name in names]
+    for image, image_path in zip(images, image_paths):
+        imageio.imwrite(image_path, image)
+
     if precompute_segmentation:
         embedding_path = _precompute_segmentation(
-            images, checkpoint_path, output_folder,
+            images, names, checkpoint_path, output_folder,
             postprocess_functions=postprocess_functions, use_prompts=use_prompts,
         )
     else:
@@ -121,7 +130,7 @@ def run_annotator(
 
     # TODO use option for loading precomputed segmentations from another folder once this is in micro-sam master.
     viewer = image_series_annotator(
-        images, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
+        image_paths, output_folder, model_type="vit_b", checkpoint_path=checkpoint_path,
         skip_segmented=False, return_viewer=True, embedding_path=embedding_path,
     )
     colormap = get_layer_colormap(color_style)

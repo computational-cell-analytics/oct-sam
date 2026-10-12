@@ -61,6 +61,13 @@ class TestExportOverlay(unittest.TestCase):
         np.testing.assert_array_equal(stack[0], self.image[1])
         np.testing.assert_array_equal(stack[1], self.seg[1].astype(np.uint8))
 
+    def test_single_bscan_segmentation_matches_the_selected_slice(self):
+        imageio.imwrite(self.seg_path, self.seg[1])
+        stack = tifffile.imread(self._export("one.tif", mode="composite", slices=[1]))
+        self.assertEqual(stack.shape, (2, HEIGHT, WIDTH))
+        np.testing.assert_array_equal(stack[0], self.image[1])
+        np.testing.assert_array_equal(stack[1], self.seg[1].astype(np.uint8))
+
     def test_png_needs_a_single_slice(self):
         with self.assertRaises(ValueError):
             self._export("overlay.png", mode="rgb")

@@ -20,6 +20,9 @@ To apply an OCT-SAM model and measure the thicknesses of retinal layers at the s
 oct_tools.interactive --model /path/to/oct-sam-model.pt --precompute_segmentation --output /path/to/output_folder/ --input /path/to/input_image.h5
 ```
 
+The segmentation of each B-scan is saved in the output folder as `<image name>_<z>.tif`. For example, `-i HH-01.tif -z 31 30` gives `HH-01_31.tif` and `HH-01_30.tif`.
+The subfolder `bscans` holds the B-scans with the same names, and the subfolder `embeddings` holds the image embeddings.
+
 ## Run a retrospective measurement
 It is also possible to measure retinal layers after the segmentation is completed by using the `oct_tools.measure` function:
 ```bash
@@ -64,7 +67,8 @@ Reviewers without napari can look at the annotation with the `oct_tools.export_a
 oct_tools.export_annotations -i /path/to/input_image.tif -s /path/to/input_segmentation.tif -o /path/to/overlay.tif
 
 # Flat color overlay for any image viewer. A PNG holds a single B-scan, a TIF a whole stack.
-oct_tools.export_annotations -i /path/to/input_image.tif -s /path/to/input_segmentation.tif -o /path/to/overlay.png --mode rgb -z 8
+# A segmentation of one B-scan from oct_tools.interactive needs the matching B-scan of the image stack.
+oct_tools.export_annotations -i /path/to/HH-01.tif -s /path/to/output_folder/HH-01_31.tif -o /path/to/overlay.png --mode rgb -z 31
 ```
 
 # Manually measure thicknesses

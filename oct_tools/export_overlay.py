@@ -92,13 +92,18 @@ def export_overlay(
 
     image = _load_volume(image_path, ("image",), rgb_to_gray=True)
     segmentation = _load_volume(segmentation_path, ("segmentation", "seg"))
+    if slices is not None:
+        # oct_tools.interactive writes one file per B-scan, so a segmentation can hold one B-scan only.
+        if len(segmentation) == len(image):
+            segmentation = segmentation[slices]
+        image = image[slices]
     if image.shape != segmentation.shape:
-        raise ValueError(f"Image shape {image.shape} does not match segmentation shape {segmentation.shape}.")
+        raise ValueError(
+            f"Image shape {image.shape} does not match segmentation shape {segmentation.shape}. "
+            "For a segmentation of one B-scan, select the matching B-scan with -z."
+        )
     if segmentation.max() > 255:
         raise ValueError(f"Label ID {segmentation.max()} exceeds 255 and cannot be exported. Post-process first.")
-
-    if slices is not None:
-        image, segmentation = image[slices], segmentation[slices]
 
     output_folder = os.path.dirname(output_path)
     if output_folder:
