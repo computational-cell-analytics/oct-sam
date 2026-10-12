@@ -10,6 +10,10 @@ from oct_tools.refine_annotations import assign_layer_id as _assign_layer_id
 # the spatial order of the segments, so merging and filtering have to run first.
 DEFAULT_POSTPROCESS = ["merge_horizontal", "filter_thin", "filter_fragments", "assign_layer_id"]
 
+# Pieces of one layer never share a column. An ID that shares more than this fraction of its columns
+# with a merge group belongs to another layer. The tolerance allows staggered ends at a layer break.
+_MAX_MERGE_OVERLAP = 0.1
+
 
 def get_instance_stats(
     mask: np.ndarray,
@@ -309,6 +313,7 @@ def combine_grouped_ids(
 ) -> Tuple[np.ndarray, List[List[int]]]:
     """Combine grouped IDs to have the same segmentation ID.
     The segmentation ID of the largest component is kept.
+    IDs that share columns are different layers and stay separate.
 
     Args:
         seg: Segmentation.
@@ -321,11 +326,20 @@ def combine_grouped_ids(
     """
     for num, gr in enumerate(group_ids):
         if len(gr) > 1:
-            areas = [stats[sid]["area"] for sid in gr]
-            new_id = gr[areas.index(max(areas))]
-            for idx in gr:
-                seg[seg == idx] = new_id
-            group_ids[num] = [new_id]
+            bins = []
+            for sid in sorted(gr, key=lambda sid: stats[sid]["area"], reverse=True):
+                cols = set(stats[sid]["coords"][:, 1].tolist())
+                for ids, bin_cols in bins:
+                    if len(cols & bin_cols) <= _MAX_MERGE_OVERLAP * len(cols):
+                        ids.append(sid)
+                        bin_cols |= cols
+                        break
+                else:
+                    bins.append(([sid], cols))
+            for ids, _ in bins:
+                for idx in ids[1:]:
+                    seg[seg == idx] = ids[0]
+            group_ids[num] = [ids[0] for ids, _ in bins]
     return seg, group_ids
 
 
