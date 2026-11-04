@@ -10,7 +10,7 @@ import nibabel as nib
 import numpy as np
 
 from oct_tools.apply_nnunet import (
-    _convert_nifti_to_tif, _convert_to_nnunet_format, _create_dataset, retrain_model_nnunet,
+    _convert_nifti_to_tif, _convert_to_nnunet_format, _create_dataset, apply_model_nnunet, retrain_model_nnunet,
 )
 
 
@@ -136,6 +136,39 @@ class TestRetrainExistingDataset(unittest.TestCase):
             run.assert_not_called()
             self.assertIn(existing, str(error.exception))
             self.assertEqual(os.listdir(env["nnUNet_raw"]), [os.path.basename(existing)])
+
+
+def _fake_predict(args, check):
+    """Write one label NIfTI for each nnU-Net input image, as nnUNetv2_predict does."""
+    input_dir, output_dir = args[args.index("-i") + 1], args[args.index("-o") + 1]
+    for name in os.listdir(input_dir):
+        image = np.asanyarray(nib.load(os.path.join(input_dir, name)).dataobj)
+        label = (image > 0).astype(np.uint8)
+        nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(output_dir, name.replace("_0000.nii.gz", ".nii.gz")))
+
+
+class TestApplySingleFile(unittest.TestCase):
+    def test_file_name_and_stack(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            image = np.zeros((8, 16), dtype=np.uint8)
+            image[2:5] = 200
+            for data in (image, np.stack([image] * 3)):
+                input_path = os.path.join(tmp_dir, "my scan.v1_0000.TIFF")
+                output_path = os.path.join(tmp_dir, "out", "sub", "seg.tif")
+                imageio.imwrite(input_path, data)
+                with mock.patch("subprocess.run", side_effect=_fake_predict):
+                    apply_model_nnunet(input_path, output_path)
+                seg = imageio.imread(output_path)
+                self.assertEqual(seg.dtype, np.uint32)
+                np.testing.assert_array_equal(seg, data > 0)
+
+    def test_output_must_be_tif(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_path = os.path.join(tmp_dir, "a.tif")
+            imageio.imwrite(input_path, np.zeros((8, 16), dtype=np.uint8))
+            with mock.patch("subprocess.run") as run, self.assertRaises(ValueError):
+                apply_model_nnunet(input_path, os.path.join(tmp_dir, "out"))
+            run.assert_not_called()
 
 
 if __name__ == "__main__":
