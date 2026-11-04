@@ -338,6 +338,10 @@ def open_labels():
         help="Segmentation files in TIF or H5 format.",
     )
     parser.add_argument(
+        "-i", "--image", type=str, default=None,
+        help="Image TIF file, shown under the segmentations.",
+    )
+    parser.add_argument(
         "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
         help="Initial label color scheme: 'default', 'custom', or 'random'.",
     )
@@ -350,6 +354,13 @@ def open_labels():
     colormap = get_layer_colormap(args.color_style)
 
     viewer = napari.Viewer()
+
+    if args.image is not None:
+        image = imageio.imread(args.image)
+        # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
+        if image.ndim == 3 and image.shape[-1] != 3:
+            image = image[args.slice]
+        viewer.add_image(image, name=args.image)
 
     for filepath in args.files:
         if filepath.endswith(".h5"):
