@@ -103,8 +103,8 @@ def _convert_nifti_to_tif(
 
 
 def apply_model_nnunet(
-    input_dir: str,
-    output_dir: str,
+    input_path: str,
+    output_path: str,
     env_manager: str = "micromamba",
     env_nnunet: str = "nnunet",
     dataset_id: str = "001",
@@ -113,26 +113,43 @@ def apply_model_nnunet(
     device: str = "cpu",
     trainer: str = "nnUNetTrainer",
 ) -> None:
-    """Apply nnU-Net on all images in input_dir and write TIF segmentations to output_dir.
+    """Apply nnU-Net on an image file or on all images in a directory and write TIF segmentations.
 
     Converts input images to NIfTI (nnU-Net format), runs nnUNetv2_predict via
     micromamba in the nnunet environment, then converts predictions back to TIF.
 
     Args:
-        input_dir: Directory containing input images in TIF or H5 format.
-        output_dir: Directory for TIF segmentation outputs.
-        env_nnunet: micromamba environment name with nnU-Net installed.
+        input_path: Image file, or directory of images, in TIF or H5 format.
+        output_path: Segmentation TIF file for a file input. Output directory for a directory input.
+            The TIF of a stack holds one segmentation for each B-scan.
+        env_manager: Environment manager, e.g. "micromamba" or "conda".
+        env_nnunet: Environment name with nnU-Net installed.
         dataset_id: nnU-Net dataset ID, zero-padded (e.g. "001").
         configuration: nnU-Net configuration (e.g. "2d", "3d_fullres").
         fold: Fold index for prediction.
         device: Compute device ("cpu", "cuda", "mps").
         trainer: nnU-Net trainer class of the model, e.g. "nnUNetTrainer_250epochs".
     """
+    single_file = os.path.isfile(input_path)
+    if single_file:
+        extension = os.path.splitext(input_path)[1].lower()
+        if extension not in (".tif", ".tiff", ".h5"):
+            raise ValueError(f"Unsupported input file {input_path}. Use a TIF or H5 file.")
+        if not output_path.lower().endswith((".tif", ".tiff")):
+            raise ValueError(f"The output for the input file {input_path} must be a TIF file, not {output_path}.")
+
     with tempfile.TemporaryDirectory() as workdir:
         nifti_images = os.path.join(workdir, "images")
         nifti_segmentations = os.path.join(workdir, "segmentations")
         os.makedirs(nifti_images)
         os.makedirs(nifti_segmentations)
+
+        input_dir = input_path
+        if single_file:
+            # A fixed name makes the nnU-Net case name independent of the input file name.
+            input_dir = os.path.join(workdir, "input")
+            os.makedirs(input_dir)
+            shutil.copy(input_path, os.path.join(input_dir, "bscan.h5" if extension == ".h5" else "bscan.tif"))
 
         _convert_to_nnunet_format(input_dir, nifti_images)
 
@@ -151,9 +168,19 @@ def apply_model_nnunet(
             check=True,
         )
 
-        _convert_nifti_to_tif(nifti_segmentations, output_dir)
+        if single_file:
+            # A stack gives one prediction for each B-scan, sorted by the zero-padded z index.
+            predictions = [
+                np.asanyarray(nib.load(path).dataobj)
+                for path in sorted(glob(os.path.join(nifti_segmentations, "*.nii.gz")))
+            ]
+            segmentation = predictions[0] if len(predictions) == 1 else np.stack(predictions)
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            imageio.imwrite(output_path, segmentation.astype(np.uint32))
+        else:
+            _convert_nifti_to_tif(nifti_segmentations, output_path)
 
-    print("Output folder:", output_dir)
+    print("Output:", output_path)
 
 
 def _create_dataset(image_dir: str, label_dir: str, dataset_dir: str, pretrained_json: dict, label_key: str) -> int:

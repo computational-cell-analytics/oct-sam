@@ -1,235 +1,137 @@
-# nnU-Net v2
+# Segment OCT B-scans with nnU-Net
 
-nnU-Net v2 was chosen as the baseline method for comparison ([GitHub repository](https://github.com/MIC-DKFZ/nnUNet/tree/master)).
+This guide installs nnU-Net and the pre-trained model.
+Then it segments one B-scan into the 7 retinal layers and shows the result in napari.
 
-It was trained for these conditions:
-* First, only based on two public datasets:
-    * Duke_DME(110 B-scans, 7–8 layers + fluids), [publication](https://doi.org/10.1117/12.2654210), [data](https://people.duke.edu/~sf59/software.html)
-    * HCMS (35 vols, 8 layers each B-scan), [publication](https://www.sciencedirect.com/science/article/pii/S2352340918316135), [data](https://medic.rad.jhmi.edu/index.php?title=OCT_Data)
-* Secondly, with the addition of custom training data of the project (7 layers, 224 B-scans)
-* Lastly, based on the pre-trained network, several networks were trained with an iteratively increasing number of samples to test the influence of an increase in the number of local datasets. The networks were trained with 1, 5, 10, 25, 50, and 100 additional images, which are subsets from the custom training data. The same set of 10 validation images was used for validation during training. The train splits can be found under `doc/train_splits`.
+You need:
+- Linux, macOS or Windows (WSL) with a terminal.
+- About 10 GB of free disk space for the two environments and the model.
+- A B-scan in TIF format. See [Input data](../README.md#input-data).
 
-The performance of nnU-Net on the test data has been superior to OCT-SAM, so we chose to also focus on the application of the nnU-Net model.
+You can run each step again. A step skips the parts that are already complete.
 
-## Evaluation using nnU-Net
+Two environments are necessary:
+- `oct-sam` for this repository. It converts the data and opens napari.
+- `nnunet` for nnU-Net. It runs the network.
 
-To apply nnU-Net v2 it can be installed in a python environment. We suggest using [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+The commands use micromamba.
+If you use conda, replace `micromamba` with `conda` in all commands, and add `-m conda` to `oct_tools.apply_nnunet`.
 
-### Installation of nnU-Net v2
-Follow the explanations on the [nnU-Net Github](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/getting-started/installation-and-setup.md).
+## 1. Install micromamba
 
-The pre-trained nnU-Net model for 2D segmentation of OCT data can be downloaded from [ownCloud](https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv).
+Follow the [micromamba installation guide](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
 
-Example:
-```bash
-# create nnunet environment
-micromamba create -n nnunet python=3.12
+**Result:** `micromamba --version` shows the version.
 
-micromamba activate nnunet
-
-# instructions from https://pytorch.org/get-started/locally/
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-pip install nnunetv2
-
-# nnU-Net installs its models into this directory and reads them from it
-export nnUNet_results=/path/to/nnUNet_results
-
-# install pre-trained model (download it first from: https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv)
-nnUNetv2_install_pretrained_model_from_zip /path/to/nnunet_model_001_oct-2d.zip
-
-#inference
-nnUNetv2_predict -i <input_dir_nifti> -o <output_dir_nifti> -d 001 -c 2d -f 0 -device cpu
-```
-
-`nnUNetv2_install_pretrained_model_from_zip` and `nnUNetv2_predict` need the environment variable `nnUNet_results`.
-Set it permanently, for example in `~/.bashrc`, as the [nnU-Net documentation](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/set_environment_variables.md) describes.
-
-The nnU-Net model can only be applied on data which contains the spatial information, e.g. the voxel size.
-The format supported within the scripts of this repository is the NIfTI file format.
-The conversion between TIF and NIfTI can be performed using `scripts/process_nnunet_data/convert_to_inference_data.py` and vice versa with `scripts/process_nnunet_data/convert_nifti_to_tif.py`.
-For convenience, the CLI function `oct_tools.apply_nnunet` combines the data conversion, which has to be performed in the `oct-sam` environment, and the nnU-Net application, which is performed within the `nnunet` environment.
-It is executed using:
-```bash
-oct_tools.apply_nnunet -i <input_dir> -o <output_dir>
-```
-where `<input_dir>` refers to a directory containing image data in TIF format and `output_dir` is the directory where the nnU-Net segmentation will be stored.
-Other arguments allow the customization of the application, e.g. change the environment manager from the default micromamba to conda using `-m conda`.
-The argument `-d` selects the installed model. The default is `001`.
-
-### Binary 2D model for mouse OCT
-
-The model `Dataset013_OCT-2d-binary` segments the retinal band as a whole, for example in OCT of mice.
-`doc/2d_mouse.md` describes the model, its download, and its application.
-
-### Retraining on corrected labels
-
-`oct_tools.retrain_nnunet` fine-tunes an installed 2D model on images and corrected labels.
-The retrained model is a new nnU-Net model with its own dataset ID.
-It has the same labels as the pretrained model.
-For the 7-layer models, for example `004`, the labels keep the layer IDs 1–7.
+## 2. Install the `oct-sam` environment
 
 ```bash
-oct_tools.retrain_nnunet -i <h5_dir> -l <h5_dir> -p 004 -d 014
+[ -d oct-sam ] || git clone https://github.com/computational-cell-analytics/oct-sam.git
+cd oct-sam
+if ! micromamba run -n oct-sam pip show oct-sam >/dev/null 2>&1; then
+    micromamba env create -y -f environment.yaml
+    micromamba run -n oct-sam pip install -e .
+fi
+micromamba activate oct-sam
 ```
 
-- `-i` and `-l` can be the same folder of H5 files. The command reads the image from `image` and the label from `labels/<label_key>`.
-- `--label_key` selects the label version. The default is `edit_v3`.
-- TIF labels are also supported, with the same file names as the images.
-- The label IDs must be IDs of the pretrained model, as in its `dataset.json`. The command stops at an unknown ID.
-- The command does not check which layer an ID marks. Each ID must mark the same layer as in the pretrained model: 1 RNFL, 2 GCIPL, 3 INL, 4 OPL, 5 ONL, 6 EZ, 7 RPE.
-- A raw SAM segmentation has arbitrary IDs. Assign the layer IDs first with the post-processing step `assign_layer_id`.
+**Result:** The prompt starts with `(oct-sam)`. Run all further commands in this terminal, in the folder `oct-sam`.
 
-`doc/2d_mouse.md` describes the requirements, shorter training with `-tr`, the application of the retrained model, and the annotation loop.
-
-
-## Training data
-
-### Layers
-The segmentation of the custom project data was limited to the 7 layers:
-* RNFL: Retina nerve fiber layer
-* GCL+IPL: Ganglion cell layer and inner plexiform layer
-* INL: Inner nuclear layer
-* OPL: Outer plexiform layer
-* ONL: Outer nuclear layer
-* EZ: Ellipsoid zone (Inner photoreceptor segments and Outer photoreceptor segments)
-* RPE: Retinal pigment epithelium
-
-For HCMS, the inner and outer photoreceptor segments were combined to the ellipsoid zone.
-
-### Voxel size
-The data was exported in NIfTI format with the voxel sizes:
-* HCMS: (3.87, 5.8, 123.6) µm
-* DUKE_DME: (3.87, 11.33) µm
-* custom data: (3.87, 5.88) µm
-
-### Export into nnU-Net data format
-Both external and internal data has to be transformed into a format, which is compatible with nnU-Net and features spatial information in form of the voxel size.
-A good choice for this is the NIfTI file format.
-The conversion process creates two directories, `imagesTr` and `labelsTr` inside the output directory, which can be used for the training of the nnU-Net.
-
-#### Public datasets
-The public datasets can be downloaded with the links referenced above.
-The conversion into this file format can be performed like this:
-```bash
-# HCMS dataset
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms
-# DUKE DME
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme
-```
-
-#### Internal data
-The internal data is stored in H5 files.
-They contain different versions of the labels, e.g. the original annotations are stored under `["labels"]["orig"]`.
-The annotations can be further refined by removing stray pixels, restricting the labels to the image, and synchronizing the label IDs, so that the same label ID always corresponds to the same semantic layer.
-```bash
-python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3
-```
-
-#### Binary retinal band
-
-Both pre-processing scripts accept `--binary`.
-This option merges all retinal layers into a single label.
-The output label has the value 0 for the background and the value 1 for the retinal layers.
-Use it to train a network that segments the retinal band as a whole.
-This is necessary for data where the signal-to-noise ratio is too low to separate the individual layers, for example OCT of mice.
+## 3. Install the `nnunet` environment
 
 ```bash
-# HCMS dataset
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms --binary
-# DUKE DME
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme --binary
-# internal data
-python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3 --binary
+if ! micromamba run -n nnunet pip show nnunetv2 >/dev/null 2>&1; then
+    micromamba create -y -n nnunet -c conda-forge python=3.12
+    micromamba run -n nnunet pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    micromamba run -n nnunet pip install nnunetv2
+fi
 ```
 
-For HCMS, `--binary` replaces the combination of the inner and outer photoreceptor segments, because that step has no effect on a binary label.
+These commands install PyTorch for the CPU.
+For an NVIDIA GPU, select the correct PyTorch build on [pytorch.org](https://pytorch.org/get-started/locally/).
 
-The scripts do not create a `dataset.json`.
-Write it manually with two classes:
-```json
-{
-    "channel_names": {"0": "OCT"},
-    "labels": {"background": 0, "retina": 1},
-    "numTraining": <NUMBER_OF_FILES_IN_LABELSTR>,
-    "file_ending": ".nii.gz"
-}
-```
+**Result:** `micromamba env list` shows `nnunet`.
 
-## Analysis
-There is a clear difference in the performance of the nnU-Net when it is only trained on public datasets, compared to when it is also trained on internal data.
-While the public datasets always include every layer, the internal data features cases, where the lower layers of EZ, ONL, and OPL are degenerated and missing.
-Having data wich features this degeneration in the training datasets greatly improves the performance of the network.
-nnU-Net has been trained for 5 folds, which could be used for inference using cross-validation
-```
-nnUNetv2_predict -d Dataset004_OCT-2d-all -i 20250717_input -o 20250717_seg_004-2d_all -f  0 1 2 3 4 -tr nnUNetTrainer -c 2d -p nnUNetPlans
-```
-To have a consistent evaluation metric, only the first fold of every nnU-Net network was used to evaluate the performance of the network.
+## 4. Set the nnU-Net model folder
 
-To test the influence of manually annotated data on network training performance, we used a setup in which the nnU-Net was pretrained on public datasets and then finetuned using various sample sizes of the UMG-RP dataset.
-First, we used the entire UMG-RP dataset (`n_train=179`, `n_val=45`).
-Next, we used subsets of varying sizes for the training data and a fixed subset of ten samples for the validation dataset:
-* n_train=100, n_val=10
-* n_train=50, n_val=10
-* n_train=25, n_val=10
-* n_train=10, n_val=10
-* n_train=5, n_val=10
-* n_train=1, n_val=10
-
-JSON dictionaries documenting the train/val splits are located at `doc/train_splits` and were created using the following function:
-```python
-from oct_tools.train_utils import create_train_val_splits_for_finetuning
-
-input_json = "/path/to/oct-repo/doc/train_splits/train_splits_all.json"
-out_dir = "/path/to/oct-repo/doc/train_splits"
-create_train_val_splits_for_finetuning(out_dir, input_json)
-```
-They have the format `train_splits_n<n_train>.json` and can be used to copy a subset of training data to a new directory:
-```bash
-python /path/to/oct-repo/scripts/process_nnunet_data/create_retrain_data.py --input_dir Dataset006_OCT-2d-finetune-all --output_dir Dataset007_OCT-2d-finetune-n100 --json /path/to/oct-repo/doc/train_splits_n100.json
-```
-
-After planning and pre-processing the new dataset, e.g. with
-```bash
-nnUNetv2_plan_and_preprocess -d 007 --verify_dataset_integrity
-```
-the JSON dictionary can be copied to `"$nnUNet_preprocessed"/<Dataset>` as `splits_final.json`.
-They will then be used as a reference for the train and validation split during training for fold 0.
-
-### Networks
-The following networks were trained:
-```
-Dataset004_OCT-2d-all
-Dataset005_OCT-2d-public-pretrain
-Dataset006_OCT-2d-finetune-all
-Dataset007_OCT-2d-finetune-n100
-Dataset008_OCT-2d-finetune-n050
-Dataset009_OCT-2d-finetune-n025
-Dataset010_OCT-2d-finetune-n010
-Dataset011_OCT-2d-finetune-n005
-Dataset012_OCT-2d-finetune-n001
-```
-Their evaluation on the validation dataset `20250717` can be found under `analysis/`.
-
-`Dataset013_OCT-2d-binary` segments the retinal band as a whole. See `doc/2d_mouse.md`.
-The next free dataset ID is 014.
-
-## Running inference
-
-If all five folds of a network were trained, the best configuration can be automatically determined by the nnU-Net module using:
-```bash
-nnUNetv2_find_best_configuration DATASET_NAME_OR_ID -c 2d
-```
-
-The command identifies the post-processing for the bes model/ensemble and returns a command for the prediction using this configuration.
-
-If only a single fold has been trained, it can be applied using:
-Individual application of a single fold:
-```bash
-nnUNetv2_predict -d DATASET_NAME_OR_ID -i INPUT_DIR -o OUTPUT_DIR -f 0 -c 2d
-```
-
-## Eval nnU-Net segmentation in comparison to manually determined layer thicknesses
+nnU-Net installs its models into the folder in the environment variable `nnUNet_results`.
 
 ```bash
-python /path/to/oct-analysis/scripts/compare_seg_to_thickness_measurement.py --measurement /path/to/oct-analysis/analysis/thickness_measurement_manual_v2.json --nnunet_dir /path/to/nnunet_inference/val_seg_004-2d_f0/ -o /path/to/oct-analysis/analysis/thickness_measurement_nnunet_004-2d_f0.json
+if [ -z "$nnUNet_results" ]; then
+    echo 'export nnUNet_results="$HOME/nnUNet_results"' >> ~/.bashrc
+    export nnUNet_results="$HOME/nnUNet_results"
+fi
+echo "$nnUNet_results"
 ```
+
+**Result:** The terminal shows the model folder.
+The line in `~/.bashrc` sets the variable in each new terminal.
+
+## 5. Download and install the model
+
+```bash
+mkdir -p checkpoints
+[ -f checkpoints/nnunet_model_001_oct-2d.zip ] || curl -L -o checkpoints/nnunet_model_001_oct-2d.zip https://owncloud.gwdg.de/index.php/s/ffZ4MvFWt8E5jpv/download
+[ -d "$nnUNet_results/Dataset001_OCT-2d" ] || micromamba run -n nnunet nnUNetv2_install_pretrained_model_from_zip checkpoints/nnunet_model_001_oct-2d.zip
+ls "$nnUNet_results"
+```
+
+The download is 345 MB.
+If the download stops, delete `checkpoints/nnunet_model_001_oct-2d.zip` and run the step again.
+
+**Result:** The folder list shows `Dataset001_OCT-2d`.
+
+## 6. Segment a B-scan
+
+Copy your B-scan into the folder `data`:
+
+```bash
+mkdir -p data
+cp /path/to/your_bscan.tif data/bscan.tif
+```
+
+Segment it:
+
+```bash
+oct_tools.apply_nnunet -i data/bscan.tif -o data/bscan_nnunet.tif
+```
+
+- Add `--device cuda` if you have an NVIDIA GPU. The default is `cpu`.
+- nnU-Net shows warnings about `nnUNet_raw` and `nnUNet_preprocessed`. The segmentation does not use these folders.
+- A TIF stack gives a stack of segmentations, one for each B-scan.
+
+**Result:** The terminal shows `Output: data/bscan_nnunet.tif`.
+
+## 7. Show the result in napari
+
+```bash
+oct_tools.open_labels -i data/bscan.tif data/bscan_nnunet.tif
+```
+
+- For a stack, add `--slice <z>` to show B-scan `z`.
+
+**Result:** napari opens.
+- The layer list on the left shows the B-scan `data/bscan.tif` and the segmentation `data/bscan_nnunet.tif` on top of it.
+- Each retinal layer has its own color:
+
+| ID | Layer | Name |
+|---|---|---|
+| 1 | RNFL | Retinal nerve fiber layer |
+| 2 | GCIPL | Ganglion cell layer and inner plexiform layer |
+| 3 | INL | Inner nuclear layer |
+| 4 | OPL | Outer plexiform layer |
+| 5 | ONL | Outer nuclear layer |
+| 6 | EZ | Ellipsoid zone |
+| 7 | RPE | Retinal pigment epithelium |
+
+- Move the mouse over a pixel. The status bar at the bottom shows its label ID.
+- Use the `opacity` slider in the **layer controls** to see the B-scan under the segmentation.
+- The **Label Color Map** widget on the right changes the colors. The style `check` shows the IDs 1-7 in green and all other IDs in red.
+
+## Next steps
+
+- Segment all TIF files of a folder: `oct_tools.apply_nnunet -i data/images -o data/segmentations`.
+  The command writes one segmentation `<name>.tif` for each image `<name>.tif`, and `<name>_z<slice>.tif` for each B-scan of a stack.
+- Measure the layer thicknesses: [measurement.md](measurement.md).
+- Segment mouse OCT: [2d_mouse.md](2d_mouse.md).
+- Retrain the model and details of the training: [nnunet_training.md](nnunet_training.md).

@@ -5,7 +5,7 @@ import numpy as np
 
 # From top to bottom
 LAYERS = {
-    "RFNL": "Retinal Nerve Fiber Layer",
+    "RNFL": "Retinal Nerve Fiber Layer",
     "GCIPL": "Ganglion Cell/Inner Plexiform Layer",
     "INL": "Inner Nuclear Layer",
     "OPL": "Outer Plexiform Layer",
@@ -17,17 +17,17 @@ LAYERS = {
 # Number of layers matched to layer order
 LAYER_NUMBER_DICT = {
     1: ["RPE"],
-    2: ["RFNL", "RPE"],
-    3: ["RFNL", "GCIPL", "RPE"],
-    4: ["RFNL", "GCIPL", "INL", "RPE"],
-    5: ["RFNL", "GCIPL", "INL", "OPL", "RPE"],
-    6: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
-    7: ["RFNL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
+    2: ["RNFL", "RPE"],
+    3: ["RNFL", "GCIPL", "RPE"],
+    4: ["RNFL", "GCIPL", "INL", "RPE"],
+    5: ["RNFL", "GCIPL", "INL", "OPL", "RPE"],
+    6: ["RNFL", "GCIPL", "INL", "OPL", "ONL", "RPE"],
+    7: ["RNFL", "GCIPL", "INL", "OPL", "ONL", "EZ", "RPE"],
 }
 
 # Matching of layer and label ID
 LAYER_LABEL_DICT = {
-    "RFNL": 1,
+    "RNFL": 1,
     "GCIPL": 2,
     "INL": 3,
     "OPL": 4,

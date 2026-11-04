@@ -129,12 +129,12 @@ def apply_sam():
 
 def apply_nnunet():
     parser = argparse.ArgumentParser(
-        description="Apply nnU-Net on all images in a folder. Outputs segmentations in TIF format."
+        description="Apply nnU-Net on an image file or on all images in a folder. Outputs segmentations in TIF format."
     )
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Input directory containing images in TIF or H5 format.")
+                        help="Image file, or directory of images, in TIF or H5 format.")
     parser.add_argument("-o", "--output", type=str, required=True,
-                        help="Output directory for TIF segmentations.")
+                        help="Segmentation TIF file for a file input. Output directory for a directory input.")
     parser.add_argument("-m", "--env_manager", type=str, default="micromamba",
                         help="Environment manager, e.g. micromamba or conda. Default: micromamba")
     parser.add_argument("-n", "--env_nnunet", type=str, default="nnunet",
@@ -153,8 +153,8 @@ def apply_nnunet():
 
     args = parser.parse_args()
     apply_model_nnunet(
-        input_dir=args.input,
-        output_dir=args.output,
+        input_path=args.input,
+        output_path=args.output,
         env_manager=args.env_manager,
         env_nnunet=args.env_nnunet,
         dataset_id=args.dataset_id,
@@ -338,6 +338,10 @@ def open_labels():
         help="Segmentation files in TIF or H5 format.",
     )
     parser.add_argument(
+        "-i", "--image", type=str, default=None,
+        help="Image TIF file, shown under the segmentations.",
+    )
+    parser.add_argument(
         "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
         help="Initial label color scheme: 'default', 'custom', or 'random'.",
     )
@@ -350,6 +354,13 @@ def open_labels():
     colormap = get_layer_colormap(args.color_style)
 
     viewer = napari.Viewer()
+
+    if args.image is not None:
+        image = imageio.imread(args.image)
+        # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
+        if image.ndim == 3 and image.shape[-1] != 3:
+            image = image[args.slice]
+        viewer.add_image(image, name=args.image)
 
     for filepath in args.files:
         if filepath.endswith(".h5"):
