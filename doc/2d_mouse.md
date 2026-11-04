@@ -16,10 +16,10 @@ Thus, a binary nnU-Net model segments the retinal band as a whole.
 | Download | `nnunet_model_013_oct-2d-binary.zip` from [GWDG OwnCloud](https://owncloud.gwdg.de/index.php/s/ogQJT7n8rSRFbhr). |
 
 The training data contains only human OCT.
-The labels were merged into a single retinal band with the `--binary` option (see [Binary retinal band](nnunet.md#binary-retinal-band)).
+The labels were merged into a single retinal band with the `--binary` option (see [Binary retinal band](nnunet_training.md#binary-retinal-band)).
 A test on 8 mouse B-scans gave a mean Dice of 0.66 against manual annotations.
 The Dice was 0.68–0.93 for the 6 B-scans with low background noise, and 0.16–0.27 for the 2 noisy B-scans.
-Check each segmentation visually (see step 6).
+Check each segmentation visually (see step 5).
 
 ## Apply the model to your data
 
@@ -28,56 +28,30 @@ You need two environments:
 - `oct-sam` for this repository. It converts the data between TIF and NIfTI.
 - `nnunet` for nnU-Net. It runs the network.
 
-### 0. Install micromamba or conda
+### 1. Install the environments
 
-You can find the steps to install micromamba in its [documentation](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+Do steps 1 to 4 of [nnunet.md](nnunet.md).
+They install micromamba, the `oct-sam` environment and the `nnunet` environment, and set `nnUNet_results`.
 
-The commands in this guide use micromamba.
-If you use conda, replace `micromamba` with `conda` in the commands.
-Other arguments allow the customization of the commands, e.g. change the environment manager of `oct_tools.apply_nnunet` and `oct_tools.retrain_nnunet` from the default micromamba to conda using `-m conda`.
+The commands use micromamba.
+If you use conda, replace `micromamba` with `conda` in all commands, and add `-m conda` to `oct_tools.apply_nnunet` and `oct_tools.retrain_nnunet`.
 
-### 1. Install the repository
+Run all further commands in the folder `oct-sam`.
 
-```bash
-git clone https://github.com/computational-cell-analytics/oct-analysis.git
-cd oct-analysis
-micromamba env create -f environment.yaml
-micromamba activate oct-sam
-pip install -e .
-```
-
-### 2. Install nnU-Net
+### 2. Download and install the model
 
 ```bash
-micromamba create -n nnunet -c conda-forge python=3.12
-micromamba activate nnunet
-# select the correct build for your system on https://pytorch.org/get-started/locally/
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-pip install nnunetv2
+mkdir -p checkpoints
+[ -f checkpoints/nnunet_model_013_oct-2d-binary.zip ] || curl -L -o checkpoints/nnunet_model_013_oct-2d-binary.zip https://owncloud.gwdg.de/index.php/s/ogQJT7n8rSRFbhr/download
+[ -d "$nnUNet_results/Dataset013_OCT-2d-binary" ] || micromamba run -n nnunet nnUNetv2_install_pretrained_model_from_zip checkpoints/nnunet_model_013_oct-2d-binary.zip
+ls "$nnUNet_results"
 ```
 
-nnU-Net reads its models from the directory in the environment variable `nnUNet_results`.
-Add this line to your `~/.bashrc`, then open a new terminal:
+If the download stops, delete `checkpoints/nnunet_model_013_oct-2d-binary.zip` and run the step again.
 
-```bash
-export nnUNet_results=/path/to/nnUNet_results
-```
+**Result:** The folder list shows `Dataset013_OCT-2d-binary`.
 
-The [nnU-Net documentation](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/set_environment_variables.md) describes this for other systems.
-
-### 3. Install the model
-
-Download `nnunet_model_013_oct-2d-binary.zip` from [GWDG OwnCloud](https://owncloud.gwdg.de/index.php/s/ogQJT7n8rSRFbhr).
-Then install it:
-
-```bash
-micromamba activate nnunet
-nnUNetv2_install_pretrained_model_from_zip /path/to/nnunet_model_013_oct-2d-binary.zip
-```
-
-The model is now in `$nnUNet_results/Dataset013_OCT-2d-binary`.
-
-### 4. Prepare the data
+### 3. Prepare the data
 
 Put all B-scans into one input folder.
 - Use one TIF file for each 2D B-scan, or one TIF file for each stack of B-scans.
@@ -88,7 +62,7 @@ The conversion writes a pixel size of (3.87, 5.88) µm (axial, lateral) into eac
 The mouse test data was processed with the same values.
 Do not scale the B-scans before the segmentation.
 
-### 5. Segment the data
+### 4. Segment the data
 
 ```bash
 micromamba activate oct-sam
@@ -101,7 +75,7 @@ The command writes one segmentation `<name>.tif` for each image `<name>.tif`.
 A stack `<name>.tif` gives one segmentation `<name>_z<slice>.tif` for each B-scan.
 Each segmentation has the values `0` (background) and `1` (retina).
 
-### 6. Correct the segmentation
+### 5. Correct the segmentation
 
 Correct the nnU-Net segmentations in napari.
 Use the corrected labels to retrain the model (see [Retraining on annotations](#retraining-on-annotations)).
@@ -112,8 +86,8 @@ micromamba activate oct-sam
 python scripts/mouse/annotate.py -i /path/to/images -l /path/to/segmentations -o /path/to/corrected
 ```
 
-- `-i` is the image folder of step 5. The script reads 2D B-scans and stacks.
-- `-l` is the segmentation folder of step 5. The script stops if a segmentation is missing.
+- `-i` is the image folder of step 4. The script reads 2D B-scans and stacks.
+- `-l` is the segmentation folder of step 4. The script stops if a segmentation is missing.
 - `-o` is the output folder for the corrected labels.
 
 napari opens the first B-scan that has no corrected label.
@@ -136,7 +110,7 @@ Every label value above `0` counts as retina.
 The first start downloads the SAM model.
 SAM computes the embedding of each B-scan when the B-scan opens. This takes a few seconds on a CPU.
 
-### 7. Check the result
+### 6. Check the result
 
 Export an overlay of the image and the segmentation:
 
@@ -146,7 +120,7 @@ oct_tools.export_annotations -i /path/to/images/<name>.tif -s /path/to/segmentat
 
 Without `--mode rgb`, the command writes an ImageJ composite TIF, in which you can show or hide the segmentation.
 
-### 8. Measure the retinal thickness
+### 7. Measure the retinal thickness
 
 Measure the thickness of the retina in each B-scan and write the values to an Excel file:
 
@@ -154,8 +128,8 @@ Measure the thickness of the retina in each B-scan and write the values to an Ex
 oct_tools.measure_binary -i /path/to/images -s /path/to/corrected -o thickness.xlsx
 ```
 
-- `-i` is the image folder of step 5, or one image file.
-- `-s` is the folder with the segmentations of step 5 or the corrected labels of step 6, or one label file.
+- `-i` is the image folder of step 4, or one image file.
+- `-s` is the folder with the segmentations of step 4 or the corrected labels of step 5, or one label file.
   Give two folders or two files.
   In a folder, the label of `<name>.tif` must have the name `<name>.tif`.
   The command stops if a label has no image. It skips images without a label.
@@ -181,9 +155,9 @@ The command measures only 2D B-scans. It stops for a stack.
 
 ## Retraining on annotations
 
-Use the corrected labels of step 6 to fine-tune the model on your data.
+Use the corrected labels of step 5 to fine-tune the model on your data.
 The retrained model is a new nnU-Net model with its own dataset ID.
-To retrain a model with several retinal layers, see [Retraining on corrected labels](nnunet.md#retraining-on-corrected-labels).
+To retrain a model with several retinal layers, see [Retraining on corrected labels](nnunet_training.md#retraining-on-corrected-labels).
 
 ### Requirements
 
@@ -203,8 +177,8 @@ micromamba activate oct-sam
 oct_tools.retrain_nnunet -i /path/to/images -l /path/to/corrected -p 013 -d 014
 ```
 
-- `-i` is the image folder of step 5.
-- `-l` is the folder with the corrected labels of step 6.
+- `-i` is the image folder of step 4.
+- `-l` is the folder with the corrected labels of step 5.
 - `-p` is the dataset ID of the pretrained model.
 - `-d` is the dataset ID of the retrained model. Use an ID that does not exist on your system.
   If the ID exists, or a previous run with this ID was interrupted, the command stops and shows the folders of the ID.
