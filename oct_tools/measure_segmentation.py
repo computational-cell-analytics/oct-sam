@@ -72,6 +72,8 @@ def run_measurement_only(
                 raise KeyError("H5 file must contain 'segmentation' or 'seg' dataset.")
     elif segmentation_path.endswith(".tif"):
         segmentation = imread(segmentation_path)
+        if segmentation.ndim == 3:
+            segmentation = segmentation[slice_index]
     else:
         raise ValueError("Unsupported segmentation format. Use .tif or .h5.")
 
