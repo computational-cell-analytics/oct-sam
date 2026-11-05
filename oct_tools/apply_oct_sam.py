@@ -154,6 +154,9 @@ def apply_model_sam_2d(
         # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
         if image.ndim == 3 and image.shape[-1] != 3:
             z_ids = range(image.shape[0]) if slices is None else slices
+            invalid = [z for z in z_ids if not 0 <= z < image.shape[0]]
+            if invalid:
+                raise ValueError(f"{file_path} has {image.shape[0]} B-scans. Invalid slices: {invalid}.")
             bscans = [(image[z], f"{basename}_{z}") for z in z_ids]
         else:
             bscans = [(image, basename)]

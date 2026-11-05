@@ -43,6 +43,12 @@ class TestApplyModelSam2d(unittest.TestCase):
         calls = self._run(np.zeros((3, 8, 10), dtype=np.uint8))
         self.assertEqual([name for _, name in calls], ["scan_0.tif", "scan_1.tif", "scan_2.tif"])
 
+    def test_invalid_slices_raise(self):
+        for slices in ([3], [-1]):
+            with self.subTest(slices=slices), self.assertRaises(ValueError):
+                self._run(np.zeros((3, 8, 10), dtype=np.uint8), slices=slices)
+        self.segment.assert_not_called()
+
     def test_rgb_bscan_is_one_image(self):
         calls = self._run(np.zeros((8, 10, 3), dtype=np.uint8), slices=[1])
         self.assertEqual([name for _, name in calls], ["scan.tif"])
