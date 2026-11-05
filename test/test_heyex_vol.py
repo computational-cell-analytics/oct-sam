@@ -9,9 +9,10 @@ import struct
 import tempfile
 import unittest
 
+import imageio.v3 as imageio
 import numpy as np
 
-from oct_tools.heyex_vol import read_heyex_vol, read_vol_header, vol_intensity_transform
+from oct_tools.heyex_vol import convert_vol_to_tif, read_heyex_vol, read_vol_header, vol_intensity_transform
 
 FILE_HEADER_SIZE = 2048
 
@@ -145,6 +146,53 @@ class TestReadHeyexVol(unittest.TestCase):
         _write_vol(path, bscans)
         volume = read_heyex_vol(path)
         self.assertTrue(volume[0].max() < volume[1].max() < volume[2].max())
+
+
+class TestConvertVolToTif(unittest.TestCase):
+    def setUp(self):
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.vol_dir = os.path.join(self.tmp_dir.name, "vol")
+        os.makedirs(self.vol_dir)
+        rng = np.random.default_rng(1)
+        for name in ("a.vol", "b.VOL"):
+            _write_vol(os.path.join(self.vol_dir, name), rng.random((3, 5, 7), dtype=np.float32))
+        with open(os.path.join(self.vol_dir, "notes.txt"), "w") as f:
+            f.write("not a volume")
+
+    def tearDown(self):
+        self.tmp_dir.cleanup()
+
+    def test_file_into_new_folder(self):
+        vol_path = os.path.join(self.vol_dir, "a.vol")
+        tif_path = os.path.join(self.tmp_dir.name, "out", "nested", "a.tif")
+        convert_vol_to_tif(vol_path, tif_path)
+        np.testing.assert_array_equal(imageio.imread(tif_path), read_heyex_vol(vol_path))
+
+    def test_folder(self):
+        out_dir = os.path.join(self.tmp_dir.name, "tif")
+        convert_vol_to_tif(self.vol_dir, out_dir)
+        self.assertEqual(sorted(os.listdir(out_dir)), ["a.tif", "b.tif"])
+        np.testing.assert_array_equal(
+            imageio.imread(os.path.join(out_dir, "b.tif")), read_heyex_vol(os.path.join(self.vol_dir, "b.VOL"))
+        )
+
+    def test_file_into_folder(self):
+        out_dir = os.path.join(self.tmp_dir.name, "tif")
+        convert_vol_to_tif(os.path.join(self.vol_dir, "b.VOL"), out_dir)
+        self.assertEqual(os.listdir(out_dir), ["b.tif"])
+
+    def test_non_vol_file_raises_before_writing(self):
+        path = os.path.join(self.vol_dir, "fake.vol")
+        with open(path, "wb") as f:
+            f.write(b"\x00" * 4096)
+        out_dir = os.path.join(self.tmp_dir.name, "out")
+        with self.assertRaises(ValueError):
+            convert_vol_to_tif(path, os.path.join(out_dir, "fake.tif"))
+        self.assertFalse(os.path.exists(out_dir))
+
+    def test_folder_without_vol_files_raises(self):
+        with self.assertRaises(ValueError):
+            convert_vol_to_tif(self.tmp_dir.name, os.path.join(self.tmp_dir.name, "tif"))
 
 
 @unittest.skipUnless(

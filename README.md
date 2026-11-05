@@ -51,9 +51,13 @@ For a device with a different pixel size, the thicknesses and areas of the napar
 
 Convert a Heidelberg Heyex tomogram in VOL format into a TIF stack:
 ```bash
-python scripts/tomogram/extract_tomogram.py -i /path/to/tomogram.vol -o data/tomogram.tif
+oct_tools.convert_vol -i /path/to/tomogram.vol -o data/tomogram.tif
 ```
+For a folder of VOL files, give an input folder and an output folder: `oct_tools.convert_vol -i /path/to/vol_folder -o data/tif_folder`.
+The command prints the pixel size of each tomogram. If it is not the Spectralis pixel size above, give it to `oct_tools.metrics -v`.
+
 `oct_tools.apply_nnunet` segments each B-scan of the stack.
+`oct_tools.apply_sam` also segments each B-scan of the stack. Its `-z` selects B-scans.
 The napari commands select one B-scan: `-z` for `oct_tools.interactive` and `oct_tools.measure`, `--slice` for `oct_tools.open_labels`.
 
 # Commands
@@ -71,6 +75,7 @@ The installation adds these commands. Each command shows its options with `--hel
 | `oct_tools.metrics` | Measure a segmentation without napari. Write a TSV or XLSX file. | [measurement.md](doc/measurement.md#calculate-metrics-without-napari) |
 | `oct_tools.measure_binary` | Measure the retina thickness of binary segmentations. Write an XLSX file. | [2d_mouse.md](doc/2d_mouse.md#7-measure-the-retinal-thickness) |
 | `oct_tools.export_annotations` | Export a B-scan and its segmentation as an ImageJ TIF or an RGB overlay. | [measurement.md](doc/measurement.md#share-annotations-without-napari) |
+| `oct_tools.convert_vol` | Convert Heidelberg Heyex VOL files into TIF stacks. | [Input data](#input-data) |
 | `oct_tools.eval_segmentation` | Compare segmentations with labels: precision, recall, F1 score, Dice. | [measurement.md](doc/measurement.md#compare-segmentations-with-labels) |
 
 # Models
