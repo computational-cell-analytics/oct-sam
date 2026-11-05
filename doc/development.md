@@ -36,6 +36,7 @@ oct_tools/
 ```
 
 `oct_tools/analysis/` and `oct_tools/napari_widgets/` have no `__init__.py`. Python imports them as namespace packages.
+`setup.py` uses `find_namespace_packages`, so a non-editable install includes them.
 
 Each command of `setup.py` has one function in `oct_tools/cli.py`.
 The function makes an argparse parser and calls the implementation module.

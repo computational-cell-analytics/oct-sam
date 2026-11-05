@@ -1,10 +1,10 @@
 import runpy
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 version = runpy.run_path("oct_tools/version.py")["__version__"]
 setup(
     name="oct-sam",
-    packages=find_packages(exclude=["test"]),
+    packages=find_namespace_packages(include=["oct_tools*"]),
     version=version,
     author="Constantin Pape; Martin Schilling",
     license="MIT",
