@@ -41,6 +41,8 @@ def read_vol_header(path: str) -> dict:
         header = f.read(_FILE_HEADER_SIZE)
     if len(header) < _FILE_HEADER_SIZE:
         raise ValueError(f"{path} is too small to be a VOL volume.")
+    if not header.startswith(b"HSF-OCT"):
+        raise ValueError(f"{path} is not a Heyex VOL volume.")
 
     size_x, num_bscans, size_z = struct.unpack_from("<iii", header, _OFFSET_SIZES)
     scale_x, distance, scale_z = struct.unpack_from("<ddd", header, _OFFSET_SCALES)
@@ -120,8 +122,8 @@ def convert_vol_to_tif(input_path: str, output_path: str) -> None:
 
     Args:
         input_path: A VOL file, or a folder of VOL files.
-        output_path: The TIF file for a VOL file input. The output folder for a folder input,
-            which gets one TIF file with the name of each VOL file.
+        output_path: A TIF file (.tif or .tiff) for a VOL file input. Any other path is an output
+            folder, which gets one TIF file with the name of each VOL file.
     """
     if os.path.isdir(input_path):
         vol_names = sorted(name for name in os.listdir(input_path) if name.lower().endswith(".vol"))
@@ -132,8 +134,15 @@ def convert_vol_to_tif(input_path: str, output_path: str) -> None:
             for name in vol_names
         ]
     else:
-        pairs = [(input_path, output_path)]
+        tif_path = output_path
+        if not output_path.lower().endswith((".tif", ".tiff")):
+            tif_path = os.path.join(output_path, f"{os.path.splitext(os.path.basename(input_path))[0]}.tif")
+        pairs = [(input_path, tif_path)]
 
     for vol_path, tif_path in pairs:
+        volume = read_heyex_vol(vol_path)
+        header = read_vol_header(vol_path)
         os.makedirs(os.path.dirname(tif_path) or ".", exist_ok=True)
-        imageio.imwrite(tif_path, read_heyex_vol(vol_path))
+        imageio.imwrite(tif_path, volume)
+        print(f"{tif_path}: pixel size (vertical, horizontal) = "
+              f"({header['scale_z'] * 1000:.4g}, {header['scale_x'] * 1000:.4g}) micrometer")

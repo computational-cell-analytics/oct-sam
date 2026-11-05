@@ -176,6 +176,20 @@ class TestConvertVolToTif(unittest.TestCase):
             imageio.imread(os.path.join(out_dir, "b.tif")), read_heyex_vol(os.path.join(self.vol_dir, "b.VOL"))
         )
 
+    def test_file_into_folder(self):
+        out_dir = os.path.join(self.tmp_dir.name, "tif")
+        convert_vol_to_tif(os.path.join(self.vol_dir, "b.VOL"), out_dir)
+        self.assertEqual(os.listdir(out_dir), ["b.tif"])
+
+    def test_non_vol_file_raises_before_writing(self):
+        path = os.path.join(self.vol_dir, "fake.vol")
+        with open(path, "wb") as f:
+            f.write(b"\x00" * 4096)
+        out_dir = os.path.join(self.tmp_dir.name, "out")
+        with self.assertRaises(ValueError):
+            convert_vol_to_tif(path, os.path.join(out_dir, "fake.tif"))
+        self.assertFalse(os.path.exists(out_dir))
+
     def test_folder_without_vol_files_raises(self):
         with self.assertRaises(ValueError):
             convert_vol_to_tif(self.tmp_dir.name, os.path.join(self.tmp_dir.name, "tif"))

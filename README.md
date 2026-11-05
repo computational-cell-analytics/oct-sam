@@ -53,7 +53,8 @@ Convert a Heidelberg Heyex tomogram in VOL format into a TIF stack:
 ```bash
 oct_tools.convert_vol -i /path/to/tomogram.vol -o data/tomogram.tif
 ```
-For a folder of VOL files, give the folders: `oct_tools.convert_vol -i /path/to/vol_folder -o data/tif_folder`.
+For a folder of VOL files, give an input folder and an output folder: `oct_tools.convert_vol -i /path/to/vol_folder -o data/tif_folder`.
+The command prints the pixel size of each tomogram. If it is not the Spectralis pixel size above, give it to `oct_tools.metrics -v`.
 
 `oct_tools.apply_nnunet` segments each B-scan of the stack.
 `oct_tools.apply_sam` also segments each B-scan of the stack. Its `-z` selects B-scans.

@@ -400,7 +400,7 @@ def convert_vol():
     )
     parser.add_argument("-i", "--input", required=True, help="VOL file, or directory of VOL files.")
     parser.add_argument("-o", "--output", required=True,
-                        help="Output TIF file for a VOL file. Output directory for a directory of VOL files.")
+                        help="Output TIF file (.tif or .tiff) for a VOL file. Any other path is an output directory.")
 
     args = parser.parse_args()
 
