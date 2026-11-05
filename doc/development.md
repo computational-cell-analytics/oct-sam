@@ -13,7 +13,6 @@ flake8 .
 - Use `discover`. The standard library also has a package `test`, so `python -m unittest test.test_x` imports the wrong package.
 - The tests make small synthetic B-scans in memory. They do not need data from the cluster, and they run without a display.
 - There is no CI. For behavior that the tests do not cover, run the command on real data and check the result in napari.
-- `scripts/segmentation_tool/test_measure.py` and `test_seg.py` are manual napari scripts with fixed data paths. They are not tests.
 
 ## Package layout
 
@@ -28,12 +27,10 @@ oct_tools/
 ├── apply_nnunet.py             # TIF/H5 <-> NIfTI, nnUNetv2_predict and nnUNetv2_train subprocesses
 ├── postprocessing.py           # Post-processing steps of a segmentation
 ├── refine_annotations.py       # Clean-up of manual annotations, layer IDs, binarization
-├── segmentation_utils.py       # U-Net prediction, normalization, region merging, volume I/O
-├── heyex_vol.py                # Heidelberg Heyex VOL reader
+├── heyex_vol.py                # Heidelberg Heyex VOL reader, VOL -> TIF (oct_tools.convert_vol)
 ├── metric_utils.py             # Thickness, length, area and ETDRS-like metrics
 ├── eval_segmentation.py        # Precision, recall, F1 score and symmetric best Dice
 ├── train_utils.py              # OCT-SAM training, model export, split generation
-├── unet.py                     # 2D/3D U-Net
 ├── analysis/                   # Evaluation of experiments
 └── napari_widgets/             # Widgets of both napari apps
 ```
@@ -48,7 +45,7 @@ nnU-Net is not a Python dependency. `oct_tools/apply_nnunet.py` runs the nnU-Net
 
 ## Data flow
 
-1. Heyex VOL tomogram -> `scripts/tomogram/extract_tomogram.py` -> TIF.
+1. Heyex VOL tomogram -> `oct_tools.convert_vol` -> TIF.
 2. Manual annotation in napari -> `scripts/process_train_data/training_data_cycles.py` -> H5 with `image` and `labels/original`.
 3. `scripts/process_train_data/edit_annotations.py` -> `labels/edit_v1`, `edit_v2`, `edit_v3`. `edit_v3` is the training label.
 4. Conversion for each model:
@@ -65,25 +62,12 @@ nnU-Net is not a Python dependency. `oct_tools/apply_nnunet.py` runs the nnU-Net
 
 | Path | Content |
 |---|---|
-| `scripts/tomogram/extract_tomogram.py` | Converts a Heyex VOL file into a TIF or MRC file. |
-| `scripts/tomogram/display_tomogram.py` | Shows a TIF tomogram in napari with a fixed scale. |
 | `scripts/process_train_data/` | Makes and checks the H5 training data. See [training_data.md](training_data.md). |
-| `scripts/process_nnunet_data/` | Converts the data for nnU-Net and copies split subsets. See [nnunet_training.md](nnunet_training.md). `convert_to_inference_data.py`, `convert_nifti_to_tif.py` and `rename_inference.py` convert data for `nnUNetv2_predict`. `oct_tools.apply_nnunet` does these steps automatically. |
+| `scripts/process_nnunet_data/` | Converts the data for nnU-Net and copies split subsets. See [nnunet_training.md](nnunet_training.md). |
 | `scripts/training/` | Trains OCT-SAM. See [oct-sam_training.md](oct-sam_training.md). |
 | `scripts/oct-sam/` | Evaluates OCT-SAM: `eval_sam.py` for a folder of B-scans, `eval_iterative_prompting.py` for prompt-based correction. |
 | `scripts/mouse/annotate.py` | Corrects mouse segmentations in napari. See [2d_mouse.md](2d_mouse.md). |
 | `scripts/compare_seg_to_thickness_measurement.py` | Compares nnU-Net thicknesses with manual measurements. |
-
-These scripts are older. Use the replacement or do not use them:
-
-| Path | Status |
-|---|---|
-| `run_segmentation_interactive.py` | Older start script of the napari annotator. The default model is `oct-sam-v4.pt`. Use `oct_tools.interactive`. |
-| `scripts/run_segmentation.py` | Older SAM segmentation of B-scans. The default model is `oct-sam-v3.pt`. Use `oct_tools.apply_sam`. |
-| `scripts/tomogram/export_tomogram.py` | Older version of `extract_tomogram.py`. It does not run (`parser.add_arument`). |
-| `scripts/prediction/` | U-Net prediction of TIF volumes and a VOL conversion with a fixed cluster path. |
-| `scripts/segmentation_tool/` | Older U-Net segmentation tool with its own `environment.yaml`. `segmentation_tool_v2.py` does not run, because `oct_tools.segmentation_utils` has no `run_measurement`. |
-| `scripts/check_images.py` | Shows `*_croppedb.tif` images and masks from `./data` in napari. |
 
 ## Results
 

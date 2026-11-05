@@ -140,6 +140,8 @@ oct_tools.apply_sam -i data/bscan.tif -m checkpoints/oct-sam-V1.pt -o data/oct-s
 ```
 
 The command writes one segmentation `<name>.tif` for each image.
+For a TIF stack `(z, y, x)`, it writes one segmentation `<name>_<z>.tif` for each B-scan.
+`-z` selects B-scans, for example `-z 0 24`. Without `-z`, the command segments all B-scans.
 Add `--output_extension h5` to write H5 files. Add `-f` to replace existing segmentations.
 
 The segmentation has two phases:

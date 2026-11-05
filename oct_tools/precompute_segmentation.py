@@ -10,9 +10,6 @@ from micro_sam.inference import batched_inference
 from skimage.measure import label, regionprops
 from skimage.segmentation import relabel_sequential
 from torchvision.ops.boxes import batched_nms
-from torch_em.model.unet import UNet2d
-
-from oct_tools.segmentation_utils import normalize_sliding_max_2d
 
 #
 # TODO: refactor to micro-sam.
@@ -72,10 +69,6 @@ def calculate_ious_between_pred_masks(masks, boxes, diagonal_value=1):
     m = m + m.T
     m.fill_diagonal_(diagonal_value)
     return m
-
-
-def calculate_scores(iou_preds, stability_score):
-    return iou_preds * stability_score
 
 
 def batched_mask_nms(rles, boxes, scores, nms_thresh):
@@ -175,6 +168,41 @@ def mask_data_to_segmentation(masks, min_object_size):
     return segmentation
 
 
+def _sliding_max_1d(a: np.ndarray, window: int) -> np.ndarray:
+    if window < 1 or window % 2 == 0:
+        raise ValueError("window must be a positive odd integer")
+    r = window // 2
+    b = np.pad(a, (r, r), mode="edge")
+    q = deque()
+    out = np.empty_like(a)
+    for i, val in enumerate(b):
+        while q and q[-1][0] <= val:
+            q.pop()
+        q.append((val, i))
+        if i >= window - 1:
+            start = i - (window - 1)
+            while q[0][1] < start:
+                q.popleft()
+            out[start] = q[0][0]
+    return out
+
+
+def normalize_sliding_max_2d(img: np.ndarray, window_y: int, window_x: int, eps: float = 1e-12) -> np.ndarray:
+    if img.ndim != 2:
+        raise ValueError("img must be a 2D array")
+    if window_y < 1 or window_y % 2 == 0 or window_x < 1 or window_x % 2 == 0:
+        raise ValueError("window_y and window_x must be positive odd integers")
+    H, W = img.shape
+    tmp = np.empty_like(img)
+    for y in range(H):
+        tmp[y, :] = _sliding_max_1d(img[y, :], window_x)
+    maxf = np.empty_like(img)
+    for x in range(W):
+        maxf[:, x] = _sliding_max_1d(tmp[:, x], window_y)
+    denom = np.maximum(maxf.astype(np.float64), eps)
+    return img.astype(np.float64) / denom
+
+
 def _derive_prompts_sam(foreground, boundary_distances, seed_threshold=0.6):
     # Find the largest foregorund piece, we only keep the prompts in there.
     mask = label(foreground > 0.5)
@@ -205,10 +233,3 @@ def _segment_from_prompts(predictor, image, prompts, min_size, embedding_path=No
     )
     segmentation = apply_nms(predictions, image.shape, min_size=min_size, perform_box_nms=False)
     return segmentation
-
-
-def _load_model(model_path):
-    model_state = torch.load(model_path, weights_only=True, map_location="cpu")
-    model = UNet2d(in_channels=1, out_channels=4, initial_features=32, final_activation="Sigmoid")
-    model.load_state_dict(model_state)
-    return model

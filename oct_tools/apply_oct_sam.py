@@ -106,17 +106,20 @@ def apply_model_sam_2d(
     force_overwrite: bool = False,
     use_prompts: bool = True,
     postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
+    slices: Optional[List[int]] = None,
 ):
     """Apply OCT-SAM on 2D data.
 
     Args:
         input_path: Input path to data. Either a directory containing TIF and/or H5 files or a specific file path.
+            A TIF stack (z, y, x) gets one segmentation `<name>_<z>` for each B-scan.
         checkpoint_path: Path to the checkpoint from which to load the model.
         save_folder: Output folder for segmentation.
         output_extension: File extension for segmentation.
         force_overwrite: Forcefully overwrite output.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
         postprocess_functions: List of sequential postprocessing functions.
+        slices: The B-scans to segment in a TIF stack. Default: all B-scans.
     """
     if os.path.isdir(input_path):
         # gather viable files in input directory
@@ -148,10 +151,18 @@ def apply_model_sam_2d(
             image = imageio.imread(file_path)
 
         basename = os.path.splitext(os.path.basename(file_path))[0]
-        save_path = os.path.join(save_folder, f"{basename}.{output_extension}")
-        if os.path.isfile(save_path) and not force_overwrite:
-            print(f"Skipping {basename}. Segmentation already exists.")
-            continue
-        _, _ = _segment_image(
-            predictor, segmenter, image, save_path, postprocess_functions, use_prompts=use_prompts,
-        )
+        # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
+        if image.ndim == 3 and image.shape[-1] != 3:
+            z_ids = range(image.shape[0]) if slices is None else slices
+            bscans = [(image[z], f"{basename}_{z}") for z in z_ids]
+        else:
+            bscans = [(image, basename)]
+
+        for bscan, name in bscans:
+            save_path = os.path.join(save_folder, f"{name}.{output_extension}")
+            if os.path.isfile(save_path) and not force_overwrite:
+                print(f"Skipping {name}. Segmentation already exists.")
+                continue
+            _, _ = _segment_image(
+                predictor, segmenter, bscan, save_path, postprocess_functions, use_prompts=use_prompts,
+            )

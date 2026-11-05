@@ -8,8 +8,10 @@ header instead of the file size.
 ``read_heyex_vol`` replaces ``eyepy.import_heyex_vol(path).data``. It applies the same intensity
 transform as ``eyepy.core.utils.from_vol_intensity``, so the result is identical.
 """
+import os
 import struct
 
+import imageio.v3 as imageio
 import numpy as np
 from skimage.util import img_as_ubyte
 
@@ -111,3 +113,27 @@ def read_heyex_vol(path: str) -> np.ndarray:
         bscans.append(bscan)
 
     return vol_intensity_transform(np.stack(bscans, axis=0).astype(np.float32))
+
+
+def convert_vol_to_tif(input_path: str, output_path: str) -> None:
+    """Convert Heyex VOL volumes into TIF stacks of shape (num_bscans, size_z, size_x).
+
+    Args:
+        input_path: A VOL file, or a folder of VOL files.
+        output_path: The TIF file for a VOL file input. The output folder for a folder input,
+            which gets one TIF file with the name of each VOL file.
+    """
+    if os.path.isdir(input_path):
+        vol_names = sorted(name for name in os.listdir(input_path) if name.lower().endswith(".vol"))
+        if not vol_names:
+            raise ValueError(f"{input_path} contains no VOL files.")
+        pairs = [
+            (os.path.join(input_path, name), os.path.join(output_path, f"{os.path.splitext(name)[0]}.tif"))
+            for name in vol_names
+        ]
+    else:
+        pairs = [(input_path, output_path)]
+
+    for vol_path, tif_path in pairs:
+        os.makedirs(os.path.dirname(tif_path) or ".", exist_ok=True)
+        imageio.imwrite(tif_path, read_heyex_vol(vol_path))

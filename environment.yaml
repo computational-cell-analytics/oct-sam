@@ -7,7 +7,6 @@ dependencies:
   - micro_sam
   - napari
   - nibabel
-  - nifty
   - openpyxl
   - pip
   - pyqt

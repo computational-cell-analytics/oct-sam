@@ -11,8 +11,8 @@ import pandas as pd
 from skimage.measure import regionprops
 from skimage.morphology import skeletonize
 
-# This is the information about the voxel / pixel size extracted from one
-# tomogram in eyepy. The unit is micrometer. This has to be double checked!
+# This is the information about the voxel / pixel size extracted from the VOL header of one
+# tomogram (see oct_tools.heyex_vol.read_vol_header). The unit is micrometer. This has to be double checked!
 VOXEL_SIZE = (121.41720950603485, 3.87166976, 5.8814)
 
 
@@ -151,33 +151,6 @@ def _get_etdrs_grid_single(
     # Apply the boolean mask to the original binary mask
     filtered_mask = mask * bool_mask
     return np.count_nonzero(filtered_mask) * spacing[0] * spacing[1], filtered_mask
-
-
-def get_columns(
-    mask: np.ndarray,
-    reference_position: float,
-    spacing: Tuple[float],
-    min_dist: int = 0,
-    max_dist: int = 1,
-):
-    """Get list of columns based on distance to reference point.
-    """
-    central_y = round(reference_position)
-    lower_limit = 0
-    upper_limit = mask.shape[1] - 1
-
-    start_o = max([central_y - round(max_dist / spacing[1]), lower_limit])
-    end_o = min([central_y + round(max_dist / spacing[1]), upper_limit])
-
-    if min_dist != 0:
-        start_i = max([central_y - round(min_dist / spacing[1]), lower_limit])
-        end_i = min([central_y + round(min_dist / spacing[1]), upper_limit])
-        col = [o for o in range(start_o, end_o + 1) if o not in [i for i in range(start_i, end_i + 1)]]
-
-    else:
-        col = [o for o in range(start_o, end_o + 1)]
-
-    return col
 
 
 def _get_etdrs_grid_all(mask, reference_point, spacing):

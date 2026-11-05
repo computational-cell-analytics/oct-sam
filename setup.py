@@ -20,6 +20,7 @@ setup(
             "oct_tools.measure_binary = oct_tools.cli:measure_binary",
             "oct_tools.open_labels = oct_tools.cli:open_labels",
             "oct_tools.export_annotations = oct_tools.cli:export_annotations",
+            "oct_tools.convert_vol = oct_tools.cli:convert_vol",
         ]
     }
 )

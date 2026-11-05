@@ -14,6 +14,7 @@ from oct_tools.apply_oct_sam import apply_model_sam_2d
 from oct_tools.apply_nnunet import apply_model_nnunet, retrain_model_nnunet
 from oct_tools.eval_segmentation import eval_segmentation_2d
 from oct_tools.export_overlay import export_overlay
+from oct_tools.heyex_vol import convert_vol_to_tif
 from oct_tools.measure_segmentation import run_measurement_only
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.postprocessing import DEFAULT_POSTPROCESS
@@ -99,6 +100,8 @@ def apply_sam():
     )
     parser.add_argument("-i", "--input", type=str, required=True,
                         help="Input directory, which contains files in H5 or TIF format, or a specific file path.")
+    parser.add_argument("-z", "--slices", nargs="+", type=int, default=None,
+                        help="B-scans to segment in a TIF stack. Default: all B-scans.")
     parser.add_argument("-m", "--model", type=str, required=True,
                         help="The path to the segmentation model.")
     parser.add_argument("-o", "--output", type=str, required=True,
@@ -124,6 +127,7 @@ def apply_sam():
         force_overwrite=args.force,
         use_prompts=not args.no_prompts,
         postprocess_functions=args.postprocess_functions,
+        slices=args.slices,
     )
 
 
@@ -388,3 +392,16 @@ def open_labels():
     viewer.window.add_dock_widget(widget, name="Label Color Map", area="right")
 
     napari.run()
+
+
+def convert_vol():
+    parser = argparse.ArgumentParser(
+        description="Convert a Heidelberg Heyex VOL file, or all VOL files in a folder, into TIF stacks (z, y, x)."
+    )
+    parser.add_argument("-i", "--input", required=True, help="VOL file, or directory of VOL files.")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output TIF file for a VOL file. Output directory for a directory of VOL files.")
+
+    args = parser.parse_args()
+
+    convert_vol_to_tif(input_path=args.input, output_path=args.output)
