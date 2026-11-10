@@ -159,6 +159,15 @@ oct_tools.export_annotations -i data/bscan.tif -s data/bscan_nnunet.tif -o data/
 oct_tools.export_annotations -i /path/to/HH-01.tif -s /path/to/output_folder/HH-01_31.tif -o /path/to/overlay.png --mode rgb -z 31
 ```
 
+**Layer colors:**
+- A segmentation file contains only the label IDs, not the colors. Plain napari, Fiji and other viewers use their own colors.
+- Only `oct_tools.interactive`, `oct_tools.measure`, `oct_tools.open_labels` and `--mode rgb` show the layer colors.
+  Their default color style is `custom`. Select a different style with `--color_style`.
+- The composite TIF contains the label IDs in the second channel, without the layer colors.
+  To share a whole stack with the layer colors, use `--mode rgb` with a TIF output.
+- IDs 8 and higher are not valid layers. They get vivid warning colors.
+  A layer that you commit in `oct_tools.interactive` can get such an ID.
+
 ## Compare segmentations with labels
 
 `oct_tools.eval_segmentation` compares segmentations with manual labels:
