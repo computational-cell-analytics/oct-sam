@@ -184,6 +184,17 @@ class TestApplySingleFile(unittest.TestCase):
                 apply_model_nnunet(input_path, os.path.join(tmp_dir, "out"))
             run.assert_not_called()
 
+    def test_output_must_not_be_input(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            image = np.full((8, 16), 7, dtype=np.uint8)
+            input_path = os.path.join(tmp_dir, "a.tif")
+            imageio.imwrite(input_path, image)
+            for path in (input_path, tmp_dir, tmp_dir + "/"):
+                with self.subTest(path=path), mock.patch("subprocess.run") as run, self.assertRaises(ValueError):
+                    apply_model_nnunet(path, path)
+                run.assert_not_called()
+            np.testing.assert_array_equal(imageio.imread(input_path), image)
+
 
 if __name__ == "__main__":
     unittest.main()

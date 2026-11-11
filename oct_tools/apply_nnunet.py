@@ -113,6 +113,8 @@ def apply_model_nnunet(
         device: Compute device ("cpu", "cuda", "mps").
         trainer: nnU-Net trainer class of the model, e.g. "nnUNetTrainer_250epochs".
     """
+    if os.path.realpath(output_path) == os.path.realpath(input_path):
+        raise ValueError(f"The output {output_path} is the input. Choose another output path.")
     single_file = os.path.isfile(input_path)
     if single_file:
         extension = os.path.splitext(input_path)[1].lower()

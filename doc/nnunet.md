@@ -132,6 +132,7 @@ oct_tools.open_labels -i data/bscan.tif data/bscan_nnunet.tif
 
 - Segment all TIF files of a folder: `oct_tools.apply_nnunet -i data/images -o data/segmentations`.
   The command writes one segmentation `<name>.tif` for each image `<name>.tif`, and `<name>_z<slice>.tif` for each B-scan of a stack.
+  The output folder must not be the input folder.
 - Measure the layer thicknesses: [measurement.md](measurement.md).
 - Segment mouse OCT: [2d_mouse.md](2d_mouse.md).
 - Retrain the model and details of the training: [nnunet_training.md](nnunet_training.md).
