@@ -89,8 +89,8 @@ def main():
         label_tmp = os.path.join(args.label_dir, str(label))
         output_folder = os.path.join(output_main, str(label))
 
-        image_paths = [entry.path for entry in os.scandir(image_tmp) if ".tif" in entry.name]
-        gt_paths = [entry.path for entry in os.scandir(label_tmp) if ".tif" in entry.name]
+        image_paths = [entry.path for entry in os.scandir(image_tmp) if entry.name.lower().endswith(".tif")]
+        gt_paths = [entry.path for entry in os.scandir(label_tmp) if entry.name.lower().endswith(".tif")]
         image_paths.sort()
         gt_paths.sort()
 

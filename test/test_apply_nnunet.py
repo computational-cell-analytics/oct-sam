@@ -49,6 +49,20 @@ class TestConvertToNnunetFormat(unittest.TestCase):
             self.assertEqual(rgb.get_data_dtype(), np.uint8)
             np.testing.assert_array_equal(rgb.get_fdata(), gray)
 
+    def test_ignores_other_extensions(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = os.path.join(tmp_dir, "input")
+            output_dir = os.path.join(tmp_dir, "output")
+            os.makedirs(input_dir)
+            for name in ("a.tif", "b.tif"):
+                imageio.imwrite(os.path.join(input_dir, name), np.zeros((8, 16), dtype=np.uint8))
+            with open(os.path.join(input_dir, "notes.tif.txt"), "w") as f:
+                f.write("not an image")
+
+            _convert_to_nnunet_format(input_dir, output_dir)
+
+            self.assertEqual(sorted(os.listdir(output_dir)), ["a_0000.nii.gz", "b_0000.nii.gz"])
+
 
 class TestCreateDataset(unittest.TestCase):
     BINARY = {"channel_names": {"0": "OCT"}, "labels": {"background": 0, "retina": 1}}

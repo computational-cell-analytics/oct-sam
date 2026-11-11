@@ -24,7 +24,7 @@ def create_individual_tif_data(
         image_key: Input key in H5 file for image data.
         label_key: Input key in H5 file for label data.
     """
-    h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
+    h5_paths = [entry.path for entry in os.scandir(input_dir) if entry.name.lower().endswith(".h5")]
     h5_paths.sort()
     for h5_path in h5_paths:
         image = read_bscan(h5_path, keys=(image_key,))
@@ -50,7 +50,7 @@ def create_individual_tif_data(
 def read_results_single(output_folder, iterations=[0, 1, 3]):
     result_dict = {}
     results_dir = os.path.join(output_folder, "results", "iterative_prompting_without_mask")
-    csv_files = [entry.path for entry in os.scandir(results_dir) if ".csv" in entry.name]
+    csv_files = [entry.path for entry in os.scandir(results_dir) if entry.name.lower().endswith(".csv")]
     csv_files.sort()
     for file_path in csv_files:
         dict_type = os.path.basename(file_path).split("_")[-1].split(".")[0]
