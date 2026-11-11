@@ -98,7 +98,7 @@ oct_tools.apply_nnunet -i data/bscan.tif -o data/bscan_nnunet.tif
 
 - Add `--device cuda` if you have an NVIDIA GPU. The default is `cpu`.
 - nnU-Net shows warnings about `nnUNet_raw` and `nnUNet_preprocessed`. The segmentation does not use these folders.
-- A TIF stack gives a stack of segmentations, one for each B-scan.
+- A stack (TIF, H5 or VOL) gives a stack of segmentations, one for each B-scan.
 
 **Result:** The terminal shows `Output: data/bscan_nnunet.tif`.
 

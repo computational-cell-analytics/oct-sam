@@ -21,7 +21,7 @@ oct_tools.measure -i data/bscan.tif -s data/bscan_nnunet.tif -o data/measurement
 ```
 
 - For the OCT-SAM segmentation, use `-i data/oct-sam/bscans/bscan_0.tif -s data/oct-sam/bscan_0.tif`.
-- For a TIF stack, add `-z <slice>` to select the B-scan. The default is the first B-scan.
+- For a stack (TIF, H5 or VOL), add `-z <slice>` to select the B-scan. The default is the first B-scan.
 - Add `--more_info` to also show the length and the thickness statistics of each layer.
 - Add `--ref_position <x>` to set the start position of the thickness reference point.
 
@@ -138,7 +138,8 @@ The positions are not in the column names, for example `CFT[µm]` instead of `CF
 oct_tools.metrics -i data/bscan_nnunet.tif -o data/bscan_nnunet_metrics.xlsx
 ```
 
-- `-i` is a 2D segmentation in TIF format, or an H5 file. For an H5 file, the command reads `labels/edit_v3`, or `labels/original` if `edit_v3` does not exist.
+- `-i` is a segmentation in TIF or H5 format. In an H5 file, the command reads the first dataset that exists: `segmentation`, `seg`, `labels/edit_v3`, `labels/original`. It prints the name of the dataset if it is not `segmentation`.
+- `-z` selects the B-scan in a stack. A file with a single B-scan needs no `-z`.
 - `-o` is the output file. The extension `.tsv` or `.xlsx` selects the format.
 - `-v` is the pixel size in µm, as `<axial> <lateral>`. The default is `3.87166976 5.8814`. A single value is used for both axes.
 - `--fovea` is the column of the fovea in pixels. It adds the CFT and ETDRS-like columns.
