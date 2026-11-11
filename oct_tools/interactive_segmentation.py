@@ -27,7 +27,7 @@ from oct_tools.napari_widgets.linelength_widget import LineLengthTableWidget
 from oct_tools.napari_widgets.utils import _measure, append_measurements
 
 
-def _precompute_segmentation(images, names, sam_model_path, output_folder, postprocess=True,
+def _precompute_segmentation(images, names, sam_model_path, output_folder,
                              postprocess_functions=DEFAULT_POSTPROCESS,
                              use_prompts=True):
     """Precompute segmentation using SAM.
@@ -60,8 +60,7 @@ def _precompute_segmentation(images, names, sam_model_path, output_folder, postp
         else:
             seg = watershed_from_center_and_boundary_distances(center_distances, boundary_distances, foreground)
 
-        if postprocess:
-            seg = postprocess_segmentation(seg, image, verbose=False, postprocess_functions=postprocess_functions)
+        seg = postprocess_segmentation(seg, image, verbose=False, postprocess_functions=postprocess_functions)
 
         imageio.imwrite(output_path, seg)
 
