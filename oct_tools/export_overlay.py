@@ -1,32 +1,14 @@
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 import tifffile
-from h5py import File
-from imageio.v3 import imread, imwrite
+from imageio.v3 import imwrite
 
+from oct_tools.data_reader import SEGMENTATION_KEYS, read_volume
 from oct_tools.layer_information import _WARNING_COLORS_BRIGHT, LAYER_COLORS, LAYER_COLORS_CUSTOM
 
 OVERLAY_ALPHA = 0.4
-
-
-def _load_volume(path: str, keys: Tuple[str, ...], rgb_to_gray: bool = False) -> np.ndarray:
-    if path.endswith(".h5"):
-        with File(path, "r") as f:
-            key = next((k for k in keys if k in f), None)
-            if key is None:
-                raise KeyError(f"H5 file {path} must contain one of the datasets {keys}.")
-            data = f[key][:]
-    else:
-        data = imread(path)
-    if data.ndim == 3 and data.shape[-1] == 3 and rgb_to_gray:
-        data = data.mean(axis=-1).astype(data.dtype)
-    if data.ndim == 2:
-        data = data[np.newaxis]
-    elif data.ndim != 3:
-        raise ValueError(f"{path} must hold a 2D or a 3D array, got {data.ndim} dimensions.")
-    return data
 
 
 def _color_lookup(color_style: str) -> np.ndarray:
@@ -77,7 +59,7 @@ def export_overlay(
     """Export B-scans and their annotation as a single file, for review outside napari.
 
     Args:
-        image_path: Path to the image (TIF or H5).
+        image_path: Path to the image (TIF, H5 or VOL).
         segmentation_path: Path to the segmentation (TIF or H5).
         output_path: Output file. A TIF holds a whole stack, a PNG only a single B-scan.
         mode: Either "composite" for a two-channel ImageJ TIF, in which the annotation can be
@@ -90,8 +72,8 @@ def export_overlay(
     if mode == "composite" and not output_path.endswith((".tif", ".tiff")):
         raise ValueError(f"Mode 'composite' writes a TIF, but the output path is {output_path}.")
 
-    image = _load_volume(image_path, ("image",), rgb_to_gray=True)
-    segmentation = _load_volume(segmentation_path, ("segmentation", "seg"))
+    image = read_volume(image_path)
+    segmentation = read_volume(segmentation_path, SEGMENTATION_KEYS)
     if slices is not None:
         # oct_tools.interactive writes one file per B-scan, so a segmentation can hold one B-scan only.
         if len(segmentation) == len(image):

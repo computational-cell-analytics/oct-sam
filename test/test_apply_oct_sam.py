@@ -52,7 +52,7 @@ class TestApplyModelSam2d(unittest.TestCase):
     def test_rgb_bscan_is_one_image(self):
         calls = self._run(np.zeros((8, 10, 3), dtype=np.uint8), slices=[1])
         self.assertEqual([name for _, name in calls], ["scan.tif"])
-        self.assertEqual(calls[0][0].shape, (8, 10, 3))
+        self.assertEqual(calls[0][0].shape, (8, 10))
 
     def test_existing_output_is_skipped(self):
         os.makedirs(self.out_dir)

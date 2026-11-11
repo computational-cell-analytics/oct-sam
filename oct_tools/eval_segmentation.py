@@ -2,13 +2,13 @@ import json
 import os
 from typing import Optional
 
-import h5py
-import imageio.v3 as imageio
 import nibabel as nib
 import numpy as np
 
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
+
+from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan
 
 
 def eval_segmentation_2d(
@@ -33,7 +33,7 @@ def eval_segmentation_2d(
     """
     data_paths = [entry.path for entry in os.scandir(data_dir) if ".h5" in entry.name]
     data_paths.sort()
-    labels = [np.array(h5py.File(p, "r")["labels"][label_key]) for p in data_paths]
+    labels = [read_bscan(p, keys=(f"labels/{label_key}",)) for p in data_paths]
     data_names = [os.path.splitext(os.path.basename(data_path))[0] for data_path in data_paths]
 
     segmentations = []
@@ -51,7 +51,7 @@ def eval_segmentation_2d(
     else:
         for basename in data_names:
             seg_path = os.path.join(seg_dir, f"{basename}.{output_extension}")
-            seg = imageio.imread(seg_path)
+            seg = read_bscan(seg_path, keys=SEGMENTATION_KEYS)
             segmentations.append(seg)
 
     precisions = []

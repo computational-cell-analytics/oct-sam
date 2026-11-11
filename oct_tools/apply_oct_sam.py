@@ -17,6 +17,7 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
+from oct_tools.data_reader import read_volume
 from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
 from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
@@ -111,22 +112,21 @@ def apply_model_sam_2d(
     """Apply OCT-SAM on 2D data.
 
     Args:
-        input_path: Input path to data. Either a directory containing TIF and/or H5 files or a specific file path.
-            A TIF stack (z, y, x) gets one segmentation `<name>_<z>` for each B-scan.
+        input_path: Input path to data. Either a directory containing TIF, H5 or VOL files or a specific file path.
+            A stack (z, y, x) gets one segmentation `<name>_<z>` for each B-scan.
         checkpoint_path: Path to the checkpoint from which to load the model.
         save_folder: Output folder for segmentation.
         output_extension: File extension for segmentation.
         force_overwrite: Forcefully overwrite output.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
         postprocess_functions: List of sequential postprocessing functions.
-        slices: The B-scans to segment in a TIF stack. Default: all B-scans.
+        slices: The B-scans to segment in a stack. Default: all B-scans.
     """
     if os.path.isdir(input_path):
-        # gather viable files in input directory
-        viable_extensions = ["h5", "tif"]
-        file_paths = [entry.path for entry in os.scandir(input_path) if
-                      any([ext in entry.name for ext in viable_extensions])]
-        file_paths.sort()
+        file_paths = sorted(
+            entry.path for entry in os.scandir(input_path)
+            if entry.name.lower().endswith((".h5", ".tif", ".tiff", ".vol"))
+        )
     elif os.path.isfile(input_path):
         file_paths = [os.path.realpath(input_path)]
     else:
@@ -144,22 +144,16 @@ def apply_model_sam_2d(
         print("Evaluating images using single prediction.")
 
     for file_path in tqdm(file_paths, total=len(file_paths), desc="Segment images"):
-        # read in data dependent on file extension
-        if ".h5" in file_path:
-            image = np.array(h5py.File(file_path, "r")["image"])
-        elif ".tif" in file_path:
-            image = imageio.imread(file_path)
-
+        image = read_volume(file_path)
         basename = os.path.splitext(os.path.basename(file_path))[0]
-        # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
-        if image.ndim == 3 and image.shape[-1] != 3:
-            z_ids = range(image.shape[0]) if slices is None else slices
-            invalid = [z for z in z_ids if not 0 <= z < image.shape[0]]
+        if len(image) > 1:
+            z_ids = range(len(image)) if slices is None else slices
+            invalid = [z for z in z_ids if not 0 <= z < len(image)]
             if invalid:
-                raise ValueError(f"{file_path} has {image.shape[0]} B-scans. Invalid slices: {invalid}.")
+                raise ValueError(f"{file_path} has {len(image)} B-scans. Invalid slices: {invalid}.")
             bscans = [(image[z], f"{basename}_{z}") for z in z_ids]
         else:
-            bscans = [(image, basename)]
+            bscans = [(image[0], basename)]
 
         for bscan, name in bscans:
             save_path = os.path.join(save_folder, f"{name}.{output_extension}")
