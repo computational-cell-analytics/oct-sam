@@ -37,9 +37,9 @@ def edit_annotations(
     else:
         os.makedirs(output_dir, exist_ok=True)
 
-    h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
+    h5_paths = [entry.path for entry in os.scandir(input_dir) if entry.name.lower().endswith(".h5")]
     h5_paths.sort()
-    h5_names = [entry.name for entry in os.scandir(input_dir) if ".h5" in entry.name]
+    h5_names = [entry.name for entry in os.scandir(input_dir) if entry.name.lower().endswith(".h5")]
     h5_names.sort()
     images = [np.array(h5py.File(p, "r")["image"]) for p in h5_paths]
     labels = [np.array(h5py.File(p, "r")["labels"]["original"]) for p in h5_paths]

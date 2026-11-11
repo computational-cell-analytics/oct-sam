@@ -31,7 +31,7 @@ def eval_segmentation_2d(
         label_key: Key for H5 format for reference label data.
         json_file: File path to JSON dictionary storing the evaluated performance.
     """
-    data_paths = [entry.path for entry in os.scandir(data_dir) if ".h5" in entry.name]
+    data_paths = [entry.path for entry in os.scandir(data_dir) if entry.name.lower().endswith(".h5")]
     data_paths.sort()
     labels = [read_bscan(p, keys=(f"labels/{label_key}",)) for p in data_paths]
     data_names = [os.path.splitext(os.path.basename(data_path))[0] for data_path in data_paths]

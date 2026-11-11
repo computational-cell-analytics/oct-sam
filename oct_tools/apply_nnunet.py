@@ -35,7 +35,7 @@ def _convert_to_nnunet_format(
         file_format = Counter(file_formats).most_common(1)[0][0]
         print(f"Automatically determined file format: {file_format}")
 
-    file_paths = sorted(e.path for e in os.scandir(input_folder) if f".{file_format}" in e.name)
+    file_paths = sorted(e.path for e in os.scandir(input_folder) if e.name.endswith(f".{file_format}"))
 
     affine = np.eye(4)
     affine[0, 0] = pixel_spacing[0]
@@ -73,7 +73,7 @@ def _convert_nifti_to_tif(
     output_folder: str,
     label_data: bool = True,
 ) -> None:
-    file_paths = sorted(e.path for e in os.scandir(input_folder) if ".nii.gz" in e.name)
+    file_paths = sorted(e.path for e in os.scandir(input_folder) if e.name.endswith(".nii.gz"))
     os.makedirs(output_folder, exist_ok=True)
 
     for ff in file_paths:
@@ -113,6 +113,8 @@ def apply_model_nnunet(
         device: Compute device ("cpu", "cuda", "mps").
         trainer: nnU-Net trainer class of the model, e.g. "nnUNetTrainer_250epochs".
     """
+    if os.path.realpath(output_path) == os.path.realpath(input_path):
+        raise ValueError(f"The output {output_path} is the input. Choose another output path.")
     single_file = os.path.isfile(input_path)
     if single_file:
         extension = os.path.splitext(input_path)[1].lower()
