@@ -108,7 +108,7 @@ def apply_sam():
                         help="The path to the segmentation model.")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory.")
-    parser.add_argument("--output_extension", type=str, default="tif",
+    parser.add_argument("--output_extension", type=str, default="tif", choices=["tif", "h5"],
                         help="File extension for output. Either 'tif' or 'h5'. Default: tif")
     parser.add_argument("-f", "--force", action="store_true", help="Forcefully overwrite output.")
     parser.add_argument("--no_prompts", action="store_true",

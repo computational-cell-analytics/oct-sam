@@ -144,6 +144,9 @@ For a stack `(z, y, x)` in TIF, H5 or VOL format, it writes one segmentation `<n
 `-z` selects B-scans, for example `-z 0 24`. Without `-z`, the command segments all B-scans.
 For a folder, `-z` applies to each stack.
 Add `--output_extension h5` to write H5 files. Add `-f` to replace existing segmentations.
+An H5 file holds the datasets `segmentation` and `prompts`. With `--no_prompts`, it holds only `segmentation`.
+With `--output_extension h5`, `-o` can be the input folder. Then the command adds the segmentation to each H5 input with one B-scan.
+The command stops with an error if a segmentation would replace an input file.
 
 The segmentation has two phases:
 1. The network segments the B-scan. The command derives point prompts from this segmentation.

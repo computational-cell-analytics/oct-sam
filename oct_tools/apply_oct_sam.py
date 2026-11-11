@@ -30,10 +30,6 @@ def _segment_image(
     postprocess_functions: List[str] = DEFAULT_POSTPROCESS,
     use_prompts: bool = True,
 ):
-    if save_path is not None and os.path.exists(save_path) and ".h5" in save_path:
-        with h5py.File(save_path, "r") as f:
-            return f["segmentation"][:], f["prompts"][:]
-
     segmenter.initialize(image, verbose=False)
     foreground = segmenter._foreground
     boundary_distances = segmenter._boundary_distances
@@ -50,14 +46,29 @@ def _segment_image(
     seg = postprocess_segmentation(seg, image, postprocess_functions)
 
     if save_path is not None:
-        if ".h5" in save_path:
+        if save_path.endswith(".h5"):
+            # Mode "a" keeps other datasets, e.g. "image" if the output is the input file.
             with h5py.File(save_path, "a") as f:
+                for key in ("segmentation", "prompts"):
+                    if key in f:
+                        del f[key]
                 f.create_dataset("segmentation", data=seg, compression="gzip")
-                f.create_dataset("prompts", data=prompts, compression="gzip")
+                if prompts is not None:
+                    f.create_dataset("prompts", data=prompts, compression="gzip")
         else:
             imageio.imwrite(save_path, seg)
 
     return seg, prompts
+
+
+def _output_exists(save_path: str) -> bool:
+    if not os.path.isfile(save_path):
+        return False
+    if save_path.endswith(".h5"):
+        # The output H5 can be the input file, which exists before the segmentation.
+        with h5py.File(save_path, "r") as f:
+            return "segmentation" in f
+    return True
 
 
 def calc_accuracy(
@@ -115,7 +126,9 @@ def apply_model_sam_2d(
         input_path: Input path to data. Either a directory containing TIF, H5 or VOL files or a specific file path.
             A stack (z, y, x) gets one segmentation `<name>_<z>` for each B-scan.
         checkpoint_path: Path to the checkpoint from which to load the model.
-        save_folder: Output folder for segmentation.
+        save_folder: Output folder for segmentation. With output_extension "h5", it can be the input folder.
+            Then a TIF, VOL or stack input gets a new H5 file that holds only the segmentation. A later run reads
+            this file as an input and stops with an error, because the file has no image.
         output_extension: File extension for segmentation.
         force_overwrite: Forcefully overwrite output.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
@@ -143,6 +156,7 @@ def apply_model_sam_2d(
     else:
         print("Evaluating images using single prediction.")
 
+    input_paths = {os.path.realpath(path) for path in file_paths}
     for file_path in tqdm(file_paths, total=len(file_paths), desc="Segment images"):
         image = read_volume(file_path)
         basename = os.path.splitext(os.path.basename(file_path))[0]
@@ -157,7 +171,11 @@ def apply_model_sam_2d(
 
         for bscan, name in bscans:
             save_path = os.path.join(save_folder, f"{name}.{output_extension}")
-            if os.path.isfile(save_path) and not force_overwrite:
+            target = os.path.realpath(save_path)
+            # Only an H5 output may go into its own input file, because it keeps the image.
+            if target in input_paths and (output_extension != "h5" or target != os.path.realpath(file_path)):
+                raise ValueError(f"The output {save_path} would replace an input file. Choose another output folder.")
+            if _output_exists(save_path) and not force_overwrite:
                 print(f"Skipping {name}. Segmentation already exists.")
                 continue
             _, _ = _segment_image(
