@@ -396,14 +396,16 @@ def calculate_metrics(
     fovea_position: Optional[float] = None,
     reference_position: Optional[float] = None,
     etdrs_grid: Optional[str] = None,
+    slice_index: Optional[int] = None,
 ):
     """Calculate metrics for semgentation/label data.
 
     Args:
         input_path: File path to a segmentation in TIF or H5 format.
         output_path: File path to save metrics as table in TSV format.
+        slice_index: Index of the B-scan in a stack. A file with a single B-scan ignores it.
     """
-    seg = read_bscan(input_path, keys=SEGMENTATION_KEYS)
+    seg = read_bscan(input_path, slice_index, SEGMENTATION_KEYS)
 
     if len(voxel_size) == 1:
         voxel_size = voxel_size * 2

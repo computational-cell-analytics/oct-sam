@@ -69,6 +69,8 @@ def metrics():
         "An ETDRS grid can be created for a given fovea position."
     )
     parser.add_argument("-i", "--input", type=str, required=True, help="Input segmentation in TIF or H5 format.")
+    parser.add_argument("-z", "--slice", type=int, default=None,
+                        help="B-scan to measure in a stack. A file with a single B-scan needs no index.")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output path. Supports 'tsv' and 'xlsx' as file extensions.")
     parser.add_argument("-v", "--voxel_size", type=float, nargs="+",
@@ -90,6 +92,7 @@ def metrics():
         fovea_position=args.fovea,
         reference_position=args.ref_position,
         etdrs_grid=args.etdrs_grid,
+        slice_index=args.slice,
     )
 
 
