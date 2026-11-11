@@ -194,6 +194,13 @@ class TestCalculateMetrics(unittest.TestCase):
         for label_id, rows in LAYER_ROWS.items():
             self.assertAlmostEqual(cli_table.loc[label_id, "max_thickness[µm]"], rows * SPACING_Y, places=6)
 
+    def test_stack_needs_a_slice_index(self):
+        expected = self._run_cli([SPACING_Y, SPACING_X])
+        imageio.imwrite(self.input_path, np.stack([np.zeros_like(self.seg), self.seg]))
+        with self.assertRaises(ValueError):
+            self._run_cli([SPACING_Y, SPACING_X])
+        pd.testing.assert_frame_equal(self._run_cli([SPACING_Y, SPACING_X], slice_index=1), expected)
+
     def test_single_voxel_size_is_used_for_both_axes(self):
         cli_table = self._run_cli([SPACING_Y]).set_index("label_id")
         for label_id, rows in LAYER_ROWS.items():

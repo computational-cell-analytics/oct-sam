@@ -5,29 +5,21 @@ import subprocess
 import tempfile
 from collections import Counter
 from glob import glob
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
-import h5py
 import imageio.v3 as imageio
 import nibabel as nib
 import numpy as np
 import torch
 from tqdm import tqdm
 
-
-def _load_h5_data(file_path: str, image_key: Union[str, List[str]]) -> np.ndarray:
-    if isinstance(image_key, list):
-        data = h5py.File(file_path, "r")[image_key[0]]
-        for k in image_key[1:]:
-            data = data[k]
-        return np.array(data)
-    return np.array(h5py.File(file_path, "r")[image_key])
+from oct_tools.data_reader import IMAGE_KEYS, read_volume
 
 
 def _convert_to_nnunet_format(
     input_folder: str,
     output_folder: str,
-    image_key: Union[str, List[str]] = "image",
+    keys: Sequence[str] = IMAGE_KEYS,
     pixel_spacing: Tuple[float, float] = (3.87, 5.88),
     file_format: Optional[str] = None,
     label_ids: Optional[List[int]] = None,
@@ -53,17 +45,8 @@ def _convert_to_nnunet_format(
     print(f"Converting {len(file_paths)} files from {file_format} to NIfTI.")
 
     for ff in tqdm(file_paths, desc="Process files"):
-        if file_format in ("h5", "H5"):
-            data = _load_h5_data(ff, image_key=image_key)
-        elif file_format.lower() in ("tif", "tiff"):
-            data = imageio.imread(ff)
-        else:
-            raise ValueError(f"Unsupported file format: {file_format}.")
-
+        data = read_volume(ff, keys)
         base_name = os.path.splitext(os.path.basename(ff))[0]
-        # An RGB TIF holds a single B-scan, e.g. mouse OCT exported with three identical channels.
-        if data.ndim == 3 and data.shape[-1] == 3:
-            data = np.mean(data, axis=-1)
         # label_ids marks label data. It holds the label IDs of the model.
         if label_ids is not None:
             # A binary model takes every ID above 0 as foreground, e.g. a committed SAM object in annotate.py.
@@ -76,13 +59,13 @@ def _convert_to_nnunet_format(
 
         # nnU-Net needs the channel suffix on images and forbids it on labels.
         suffix = "_0000" if label_ids is None else ""
-        if data.ndim == 3:
-            for slice_id in range(data.shape[0]):
+        if len(data) > 1:
+            for slice_id in range(len(data)):
                 out_path = os.path.join(output_folder, f"{base_name}_z{str(slice_id).zfill(3)}{suffix}.nii.gz")
                 nib.save(nib.Nifti1Image(data[slice_id], affine), out_path)
         else:
             out_path = os.path.join(output_folder, f"{base_name}{suffix}.nii.gz")
-            nib.save(nib.Nifti1Image(data, affine), out_path)
+            nib.save(nib.Nifti1Image(data[0], affine), out_path)
 
 
 def _convert_nifti_to_tif(
@@ -119,7 +102,7 @@ def apply_model_nnunet(
     micromamba in the nnunet environment, then converts predictions back to TIF.
 
     Args:
-        input_path: Image file, or directory of images, in TIF or H5 format.
+        input_path: Image file, or directory of images, in TIF, H5 or VOL format.
         output_path: Segmentation TIF file for a file input. Output directory for a directory input.
             The TIF of a stack holds one segmentation for each B-scan.
         env_manager: Environment manager, e.g. "micromamba" or "conda".
@@ -133,8 +116,8 @@ def apply_model_nnunet(
     single_file = os.path.isfile(input_path)
     if single_file:
         extension = os.path.splitext(input_path)[1].lower()
-        if extension not in (".tif", ".tiff", ".h5"):
-            raise ValueError(f"Unsupported input file {input_path}. Use a TIF or H5 file.")
+        if extension not in (".tif", ".tiff", ".h5", ".vol"):
+            raise ValueError(f"Unsupported input file {input_path}. Use a TIF, H5 or VOL file.")
         if not output_path.lower().endswith((".tif", ".tiff")):
             raise ValueError(f"The output for the input file {input_path} must be a TIF file, not {output_path}.")
 
@@ -149,7 +132,7 @@ def apply_model_nnunet(
             # A fixed name makes the nnU-Net case name independent of the input file name.
             input_dir = os.path.join(workdir, "input")
             os.makedirs(input_dir)
-            shutil.copy(input_path, os.path.join(input_dir, "bscan.h5" if extension == ".h5" else "bscan.tif"))
+            shutil.copy(input_path, os.path.join(input_dir, f"bscan{extension}"))
 
         _convert_to_nnunet_format(input_dir, nifti_images)
 
@@ -189,7 +172,7 @@ def _create_dataset(image_dir: str, label_dir: str, dataset_dir: str, pretrained
     _convert_to_nnunet_format(image_dir, images_tr)
     _convert_to_nnunet_format(
         label_dir, labels_tr,
-        image_key=["labels", label_key],
+        keys=(f"labels/{label_key}",),
         label_ids=sorted(pretrained_json["labels"].values()),
     )
 
@@ -235,7 +218,7 @@ def retrain_model_nnunet(
     If a folder of `dataset_id` exists, the function raises a ValueError that lists the folders. It writes no data.
 
     Args:
-        input_dir: Directory containing input images in TIF or H5 format.
+        input_dir: Directory containing input images in TIF, H5 or VOL format.
         label_dir: Directory containing labels in TIF or H5 format. The label IDs must be IDs of
             the pretrained model. For a binary model, every value above 0 is foreground.
         pretrained_id: nnU-Net dataset ID of the pretrained model (e.g. "013").

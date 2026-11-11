@@ -1,10 +1,11 @@
 import os
 
-import h5py
 import imageio.v3 as imageio
 import numpy as np
 
 import pandas as pd
+
+from oct_tools.data_reader import read_bscan
 
 
 def create_individual_tif_data(
@@ -26,8 +27,8 @@ def create_individual_tif_data(
     h5_paths = [entry.path for entry in os.scandir(input_dir) if ".h5" in entry.name]
     h5_paths.sort()
     for h5_path in h5_paths:
-        image = np.array(h5py.File(h5_path, "r")[image_key])
-        label = np.array(h5py.File(h5_path, "r")[label_key])
+        image = read_bscan(h5_path, keys=(image_key,))
+        label = read_bscan(h5_path, keys=(label_key,))
         base_name = os.path.basename(h5_path).split(".")[0]
 
         unique_ids = np.unique(label)[1:]

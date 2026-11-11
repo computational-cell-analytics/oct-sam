@@ -2,11 +2,10 @@
 """
 import argparse
 
-import imageio.v3 as imageio
 import napari
 import numpy as np
-from h5py import File
 
+from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan
 from oct_tools.interactive_segmentation import run_annotator
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.metric_utils import VOXEL_SIZE, calculate_metrics, measure_binary_thickness
@@ -69,7 +68,9 @@ def metrics():
         "The specific layer thickness can be calculated at a reference position on the horizontal axis. "
         "An ETDRS grid can be created for a given fovea position."
     )
-    parser.add_argument("-i", "--input", type=str, required=True, help="Input segmentation.")
+    parser.add_argument("-i", "--input", type=str, required=True, help="Input segmentation in TIF or H5 format.")
+    parser.add_argument("-z", "--slice", type=int, default=None,
+                        help="B-scan to measure in a stack. A file with a single B-scan needs no index.")
     parser.add_argument("-o", "--output", type=str, default=None,
                         help="Output path. Supports 'tsv' and 'xlsx' as file extensions.")
     parser.add_argument("-v", "--voxel_size", type=float, nargs="+",
@@ -91,17 +92,18 @@ def metrics():
         fovea_position=args.fovea,
         reference_position=args.ref_position,
         etdrs_grid=args.etdrs_grid,
+        slice_index=args.slice,
     )
 
 
 def apply_sam():
     parser = argparse.ArgumentParser(
-        description="Evaluate SAM model on all images in a folder. Evaluates data in H5 format."
+        description="Segment a TIF, H5 or VOL file, or all of these files in a folder, with OCT-SAM."
     )
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Input directory, which contains files in H5 or TIF format, or a specific file path.")
+                        help="Input directory, which contains files in TIF, H5 or VOL format, or a specific file path.")
     parser.add_argument("-z", "--slices", nargs="+", type=int, default=None,
-                        help="B-scans to segment in a TIF stack. Default: all B-scans.")
+                        help="B-scans to segment in a stack. Default: all B-scans.")
     parser.add_argument("-m", "--model", type=str, required=True,
                         help="The path to the segmentation model.")
     parser.add_argument("-o", "--output", type=str, required=True,
@@ -136,7 +138,7 @@ def apply_nnunet():
         description="Apply nnU-Net on an image file or on all images in a folder. Outputs segmentations in TIF format."
     )
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Image file, or directory of images, in TIF or H5 format.")
+                        help="Image file, or directory of images, in TIF, H5 or VOL format.")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Segmentation TIF file for a file input. Output directory for a directory input.")
     parser.add_argument("-m", "--env_manager", type=str, default="micromamba",
@@ -175,7 +177,7 @@ def retrain_nnunet():
         "The new model has the labels of the pretrained model."
     )
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Input directory containing images in TIF or H5 format.")
+                        help="Input directory containing images in TIF, H5 or VOL format.")
     parser.add_argument("-l", "--labels", type=str, required=True,
                         help="Directory containing the corrected labels in TIF or H5 format. The label IDs must be "
                         "IDs of the pretrained model. For a binary model, every value above 0 is foreground.")
@@ -343,7 +345,7 @@ def open_labels():
     )
     parser.add_argument(
         "-i", "--image", type=str, default=None,
-        help="Image TIF file, shown under the segmentations.",
+        help="Image file in TIF, H5 or VOL format, shown under the segmentations.",
     )
     parser.add_argument(
         "--color_style", type=str, default="custom", choices=["default", "custom", "random", "check"],
@@ -351,7 +353,7 @@ def open_labels():
     )
     parser.add_argument(
         "--slice", type=int, default=0,
-        help="Slice index for 3D TIF files (default: 0).",
+        help="Slice index for stacks (default: 0).",
     )
 
     args = parser.parse_args()
@@ -360,27 +362,10 @@ def open_labels():
     viewer = napari.Viewer()
 
     if args.image is not None:
-        image = imageio.imread(args.image)
-        # A 3D array with 3 channels in the last axis is one RGB B-scan, not a stack.
-        if image.ndim == 3 and image.shape[-1] != 3:
-            image = image[args.slice]
-        viewer.add_image(image, name=args.image)
+        viewer.add_image(read_bscan(args.image, args.slice), name=args.image)
 
     for filepath in args.files:
-        if filepath.endswith(".h5"):
-            with File(filepath, "r") as f:
-                for key in ("segmentation", "seg"):
-                    if key in f:
-                        data = f[key][:]
-                        break
-                else:
-                    raise KeyError(f"{filepath}: no 'segmentation' or 'seg' dataset found.")
-        elif filepath.endswith(".tif"):
-            vol = imageio.imread(filepath)
-            data = vol[args.slice] if vol.ndim == 3 else vol
-        else:
-            raise ValueError(f"Unsupported format for {filepath}. Use .tif or .h5.")
-
+        data = read_bscan(filepath, args.slice, SEGMENTATION_KEYS)
         if not np.issubdtype(data.dtype, np.integer):
             data = data.astype(np.uint32)
 

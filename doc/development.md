@@ -27,6 +27,7 @@ oct_tools/
 ├── apply_nnunet.py             # TIF/H5 <-> NIfTI, nnUNetv2_predict and nnUNetv2_train subprocesses
 ├── postprocessing.py           # Post-processing steps of a segmentation
 ├── refine_annotations.py       # Clean-up of manual annotations, layer IDs, binarization
+├── data_reader.py              # Reader for all TIF, H5 and VOL input
 ├── heyex_vol.py                # Heidelberg Heyex VOL reader, VOL -> TIF (oct_tools.convert_vol)
 ├── metric_utils.py             # Thickness, length, area and ETDRS-like metrics
 ├── eval_segmentation.py        # Precision, recall, F1 score and symmetric best Dice
@@ -87,7 +88,7 @@ The file names use internal model names. See [oct-sam_training.md](oct-sam_train
 ### Axis order
 
 - A 2D B-scan or segmentation is `(y, x)`: axial (depth) and lateral. Each column is one A-scan.
-- A 3D TIF volume is `(z, y, x)`. `z` is the B-scan index.
+- A stack is `(z, y, x)`. `z` is the B-scan index.
 - napari points use the same order. A fovea position or reference position on the command line is an `x` value (a column).
 
 ### Voxel size
@@ -118,6 +119,8 @@ The file names use internal model names. See [oct-sam_training.md](oct-sam_train
 | Heyex `.vol` | Raw Spectralis tomograms |
 | TSV, XLSX | Measurement tables |
 | JSON | Evaluation results and splits |
+
+- Read every TIF, H5 or VOL input with `oct_tools.data_reader`. `read_volume` returns `(z, y, x)`.
 
 - UMG-RP H5 files: `RP<id>_<year>_<eye>_z<slice>.h5`.
 - nnU-Net case names have a dataset prefix: `11` and `12` for HCMS, `20` for Duke DME, `30` for UMG-RP. `RP012_2023_OD_z08.h5` becomes `oct_30012_2023_OD_008`.

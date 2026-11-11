@@ -4,9 +4,8 @@ from typing import Optional
 
 import numpy as np
 import napari
-from imageio.v3 import imread
-from h5py import File
 
+from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan, read_volume
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget
@@ -28,12 +27,12 @@ def run_measurement_only(
     as in the original annotator.
 
     Args:
-        image_path: Path to the image file (TIF or H5).
+        image_path: Path to the image file (TIF, H5 or VOL).
         segmentation_path: Path to the pre-computed segmentation (TIF or H5).
         output_folder: Folder to save the measurement workbook in.
         ref_position: Horizontal pixel coordinate for reference point (optional).
         more_info: Whether to include additional thickness metrics.
-        slice_index: Index of slice to load if input is 3D (only used for TIF/H5 3D).
+        slice_index: Index of the B-scan in a stack. A file with a single B-scan ignores it.
         color_style: Color style for the visualization in napari.
     """
     # Ensure output folder exists
@@ -41,41 +40,11 @@ def run_measurement_only(
 
     basename = os.path.splitext(os.path.basename(image_path))[0]
 
-    # Load image
-    if image_path.endswith(".h5"):
-        with File(image_path, "r") as f:
-            if "image" in f:
-                image = f["image"][:]
-            else:
-                raise KeyError("H5 file must contain 'image' dataset.")
-        slice_index = 0  # An H5 holds a single B-scan, so slice_index does not apply.
-    elif image_path.endswith(".tif"):
-        image_vol = imread(image_path)
-        if image_vol.ndim == 3:
-            image = image_vol[slice_index]
-        elif image_vol.ndim == 2:
-            image = image_vol
-            slice_index = 0
-        else:
-            raise ValueError("Image must be 2D or 3D.")
-    else:
-        raise ValueError("Unsupported image format. Use .tif or .h5.")
-
-    # Load segmentation
-    if segmentation_path.endswith(".h5"):
-        with File(segmentation_path, "r") as f:
-            if "segmentation" in f:
-                segmentation = f["segmentation"][:]
-            elif "seg" in f:
-                segmentation = f["seg"][:]
-            else:
-                raise KeyError("H5 file must contain 'segmentation' or 'seg' dataset.")
-    elif segmentation_path.endswith(".tif"):
-        segmentation = imread(segmentation_path)
-        if segmentation.ndim == 3:
-            segmentation = segmentation[slice_index]
-    else:
-        raise ValueError("Unsupported segmentation format. Use .tif or .h5.")
+    image_vol = read_volume(image_path)
+    if len(image_vol) == 1:
+        slice_index = 0  # A single B-scan has no slice index.
+    image = image_vol[slice_index]
+    segmentation = read_bscan(segmentation_path, slice_index, SEGMENTATION_KEYS)
 
     # Ensure segmentation is integer type
     if segmentation.dtype != np.uint32 and segmentation.dtype != np.int32:

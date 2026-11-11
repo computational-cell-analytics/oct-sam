@@ -2,7 +2,6 @@ import os
 import re
 from typing import List, Optional, Tuple
 
-import h5py
 import imageio.v3 as imageio
 import networkx as nx
 import numpy as np
@@ -10,6 +9,8 @@ import pandas as pd
 
 from skimage.measure import regionprops
 from skimage.morphology import skeletonize
+
+from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan
 
 # This is the information about the voxel / pixel size extracted from the VOL header of one
 # tomogram (see oct_tools.heyex_vol.read_vol_header). The unit is micrometer. This has to be double checked!
@@ -395,26 +396,16 @@ def calculate_metrics(
     fovea_position: Optional[float] = None,
     reference_position: Optional[float] = None,
     etdrs_grid: Optional[str] = None,
+    slice_index: Optional[int] = None,
 ):
     """Calculate metrics for semgentation/label data.
-    The input is either label data in H5 format.
 
     Args:
-        input_path: File path to 2D segmentation of OCT data.
+        input_path: File path to a segmentation in TIF or H5 format.
         output_path: File path to save metrics as table in TSV format.
+        slice_index: Index of the B-scan in a stack. A file with a single B-scan ignores it.
     """
-    if ".h5" in input_path:
-        h5_obj = h5py.File(input_path, "r")["labels"]
-        # look for refined annotations
-        if "edit_v3" in h5_obj.keys():
-            print("Loading refined annotation edit_v3.")
-            seg = np.array(h5_obj["edit_v3"])
-        # use original annotations
-        else:
-            print("Loading original annotation.")
-            seg = np.array(h5_obj["original"])
-    else:
-        seg = imageio.imread(input_path)
+    seg = read_bscan(input_path, slice_index, SEGMENTATION_KEYS)
 
     if len(voxel_size) == 1:
         voxel_size = voxel_size * 2

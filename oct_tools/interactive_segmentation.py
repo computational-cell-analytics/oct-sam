@@ -2,7 +2,6 @@ import os
 from functools import partial
 from typing import List, Optional
 
-import h5py
 import imageio.v3 as imageio
 import napari
 import numpy as np
@@ -18,6 +17,7 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
+from oct_tools.data_reader import read_volume
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
@@ -84,9 +84,9 @@ def run_annotator(
     A pre-computed segmentation can be used as an initial starting point.
 
     Args:
-        input_path: Image data in TIF or H5 format.
+        input_path: Image data in TIF, H5 or VOL format.
         output_folder: Output folder for pre-computed segmentation.
-        slices: Single or multiple slices of TIF data.
+        slices: Single or multiple slices of a stack.
         checkpoint_path: File path to OCT-SAM model.
         use_prompts: Use two-phase prediction with prompts derived from first prediction.
         precompute_segmentation: Pre-compute SAM segmentation using SAM prompts.
@@ -96,20 +96,9 @@ def run_annotator(
         color_style: Color style for the visualization in napari.
     """
     basename = os.path.splitext(os.path.basename(input_path))[0]
-    if ".h5" in input_path:
-        images = [np.array(h5py.File(input_path, "r")["image"])]
-        image_slices = [0]
-
-    else:
-        image_vol = imageio.imread(input_path)
-        if len(image_vol.shape) == 3:
-            images = [image_vol[z] for z in slices]
-            image_slices = list(slices)
-        elif len(image_vol.shape) == 2:
-            images = [image_vol]
-            image_slices = [0]
-        else:
-            raise ValueError("Check dimensionality of input TIF. Must be either 2D or 3D.")
+    image_vol = read_volume(input_path)
+    image_slices = [0] if len(image_vol) == 1 else list(slices)
+    images = [image_vol[z] for z in image_slices]
 
     # micro-sam names the saved segmentation and the embedding after the input file. A B-scan given as an
     # array gets only its list position, so every B-scan is written to its own file.

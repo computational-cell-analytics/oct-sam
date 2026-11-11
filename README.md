@@ -66,10 +66,10 @@ The installation adds these commands. Each command shows its options with `--hel
 
 | Command | Purpose | Guide |
 |---|---|---|
-| `oct_tools.apply_nnunet` | Segment a TIF file or a folder of TIF files with nnU-Net. | [nnunet.md](doc/nnunet.md) |
+| `oct_tools.apply_nnunet` | Segment a TIF, H5 or VOL file, or a folder of these files, with nnU-Net. | [nnunet.md](doc/nnunet.md) |
 | `oct_tools.retrain_nnunet` | Fine-tune an nnU-Net model on corrected labels. | [2d_mouse.md](doc/2d_mouse.md#retraining-on-annotations) |
 | `oct_tools.interactive` | Segment a B-scan with OCT-SAM, correct it and measure it in napari. | [oct-sam.md](doc/oct-sam.md) |
-| `oct_tools.apply_sam` | Segment H5 or TIF files with OCT-SAM without napari. | [oct-sam.md](doc/oct-sam.md#batch-segmentation) |
+| `oct_tools.apply_sam` | Segment TIF, H5 or VOL files with OCT-SAM without napari. | [oct-sam.md](doc/oct-sam.md#batch-segmentation) |
 | `oct_tools.open_labels` | Show segmentations in napari with the layer colors. | [nnunet.md](doc/nnunet.md#7-show-the-result-in-napari) |
 | `oct_tools.measure` | Measure a B-scan and its segmentation in napari. | [measurement.md](doc/measurement.md) |
 | `oct_tools.metrics` | Measure a segmentation without napari. Write a TSV or XLSX file. | [measurement.md](doc/measurement.md#calculate-metrics-without-napari) |
