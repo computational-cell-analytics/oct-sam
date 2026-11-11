@@ -2,13 +2,10 @@ import argparse
 import os
 from typing import List
 
-import h5py
-import imageio.v3 as imageio
-import numpy as np
-
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
 from oct_tools.apply_oct_sam import apply_model_sam_2d, calc_accuracy
+from oct_tools.data_reader import read_bscan
 
 
 def eval_model_sam(
@@ -29,46 +26,45 @@ def eval_model_sam(
     3) Optional: Visualize results with Napari.
     """
     # 1 - Apply OCT-SAM model on 2D slice data
-    apply_model_sam_2d(input_path, checkpoint_path=checkpoint_path, save_folder=save_folder, postprocess=postprocess,
-                       output_extension=output_extension, postprocess_functions=postprocess_functions,
+    apply_model_sam_2d(input_path, checkpoint_path=checkpoint_path, save_folder=save_folder,
+                       output_extension=output_extension,
+                       postprocess_functions=postprocess_functions if postprocess else ["none"],
                        force_overwrite=force_overwrite,
                        use_prompts=use_prompts)
 
     # gather segmentation results
     if os.path.isdir(input_path):
-        h5_paths = [entry.path for entry in os.scandir(input_path) if ".h5" in entry.name]
-        h5_paths.sort()
-    elif ".h5" in input_path:
+        h5_paths = sorted(entry.path for entry in os.scandir(input_path) if entry.name.lower().endswith(".h5"))
+    elif input_path.lower().endswith(".h5"):
         h5_paths = [input_path]
     else:
         h5_paths = []
+    if not h5_paths:
+        print("Evaluation needs labels from H5 input files. No H5 input found.")
+        return
 
     names = [os.path.splitext(os.path.basename(h5_path))[0] for h5_path in h5_paths]
-    names.sort()
     seg_paths = [os.path.join(save_folder, f"{name}.{output_extension}") for name in names]
-    segmentations = [imageio.imread(seg_path) for seg_path in seg_paths]
-    labels = [None for _ in seg_paths]
+    segmentations = [read_bscan(seg_path, keys=("segmentation",)) for seg_path in seg_paths]
 
     # 2 - Evaluate segmentation accuracy
-    if len(h5_paths) != 0:
-        images = [np.array(h5py.File(p, "r")["image"]) for p in h5_paths]
-        labels = [np.array(h5py.File(p, "r")["labels"][label_key]) for p in h5_paths]
-        calc_accuracy(labels, segmentations, names)
+    images = [read_bscan(p) for p in h5_paths]
+    labels = [read_bscan(p, keys=(f"labels/{label_key}",)) for p in h5_paths]
+    calc_accuracy(labels, segmentations, names)
 
     # 3 - Visualize results with Napari
     if view:
         import napari
         for (image, label, seg, name) in zip(images, labels, segmentations, names):
             v = napari.Viewer()
-            if label is not None:
-                metrics = matching(seg, label)
-                symm_dice = symmetric_best_dice_score(seg, label)
+            metrics = matching(seg, label)
+            symm_dice = symmetric_best_dice_score(seg, label)
 
-                msg = f"Image {name}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1']:.3f}"
-                msg += f", DICE={symm_dice:.3f}"
-                v.add_labels(label)
-                v.title = msg
+            msg = f"Image {name}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1']:.3f}"
+            msg += f", DICE={symm_dice:.3f}"
+            v.title = msg
             v.add_image(image)
+            v.add_labels(label)
             v.add_labels(seg)
             napari.run()
 
