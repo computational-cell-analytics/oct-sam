@@ -41,26 +41,31 @@ python scripts/compare_seg_to_thickness_measurement.py --measurement results/cli
 ## Convert the data
 
 nnU-Net needs NIfTI files that contain the voxel size.
-The conversion scripts write the folders `imagesTr` and `labelsTr` into the output folder.
+`scripts/process_data/prepare_data.py` writes the folders `imagesTr` and `labelsTr` into the output folder.
 Use the output folder as a dataset folder in `$nnUNet_raw`.
 
 Public datasets (see [training_data.md](training_data.md) for the downloads):
 ```bash
 # HCMS
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms
+python scripts/process_data/prepare_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms
 # Duke DME
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme
+python scripts/process_data/prepare_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme
 ```
 
 UMG-RP data in H5 format:
 ```bash
-python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3
+python scripts/process_data/prepare_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> --dataset umg_rp -l edit_v3
 ```
 `-l` selects the label version in the H5 file. See [UMG-RP](training_data.md#umg-rp).
 
+The case names are the standard names, for example `hcms_hc_01_z00`.
+With `--legacy_names`, the case names are the legacy nnU-Net names of the split files in `doc/train_splits`, for example `oct_11001_000`.
+Use this option to make the datasets of the published networks again.
+See [B-scan names](training_data.md#b-scan-names).
+
 ### Binary retinal band
 
-Both conversion scripts accept `--binary`.
+The conversion accepts `--binary`.
 This option merges all retinal layers into a single label.
 The output label has the value 0 for the background and the value 1 for the retinal layers.
 Use it to train a network that segments the retinal band as a whole.
@@ -68,16 +73,14 @@ This is necessary for data where the signal-to-noise ratio is too low to separat
 
 ```bash
 # HCMS
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms --binary
+python scripts/process_data/prepare_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR> --dataset hcms --binary
 # Duke DME
-python scripts/process_nnunet_data/nnunet_preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme --binary
+python scripts/process_data/prepare_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR> --dataset duke_dme --binary
 # UMG-RP
-python scripts/process_nnunet_data/nnunet_preprocess_internal_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> -l edit_v3 --binary
+python scripts/process_data/prepare_data.py -i <INPUT_DIR> -o <OUTPUT_DIR> --dataset umg_rp -l edit_v3 --binary
 ```
 
-For HCMS, `--binary` replaces the combination of the inner and outer photoreceptor segments, because that step has no effect on a binary label.
-
-The scripts do not create a `dataset.json`.
+The script does not create a `dataset.json`.
 Write it manually with two classes:
 ```json
 {
@@ -94,19 +97,22 @@ The fine-tuning networks of stage 3 use the splits in `doc/train_splits`. See [T
 
 1. Copy the B-scans of a split into a new dataset:
    ```bash
-   python scripts/process_nnunet_data/create_retrain_data.py -i "$nnUNet_raw/Dataset006_OCT-2d-finetune-all" -o "$nnUNet_raw/Dataset007_OCT-2d-finetune-n100" -j doc/train_splits/train_splits_n100.json
+   python scripts/process_data/split_data.py -i "$nnUNet_raw/Dataset006_OCT-2d-finetune-all" -o "$nnUNet_raw/Dataset007_OCT-2d-finetune-n100" -j doc/train_splits/train_splits_n100.json
    ```
+   The script finds a case by its standard name or by its legacy name, so the split file and the dataset can use different names.
+   It prints the cases of the split that have no file.
+   It writes `splits_final.json` into the new dataset. This file contains the folds of the split file with the case names of the new dataset.
 2. Plan and preprocess the new dataset:
    ```bash
    nnUNetv2_plan_and_preprocess -d 007 --verify_dataset_integrity
    ```
-3. Copy the JSON file to `$nnUNet_preprocessed/Dataset007_OCT-2d-finetune-n100/splits_final.json`.
+3. Copy `splits_final.json` of the new dataset to `$nnUNet_preprocessed/Dataset007_OCT-2d-finetune-n100/`.
    nnU-Net then uses this split for fold 0.
 
 To make new splits, use `create_train_val_splits_for_finetuning`.
 Write them into a new folder. With the same random seed, the function gives the same splits as the files in `doc/train_splits`.
 ```python
-from oct_tools.train_utils import create_train_val_splits_for_finetuning
+from oct_tools.data_processing import create_train_val_splits_for_finetuning
 
 create_train_val_splits_for_finetuning("new_splits", "doc/train_splits/train_splits_iterative_all.json")
 ```

@@ -28,10 +28,11 @@ oct_tools/
 ├── postprocessing.py           # Post-processing steps of a segmentation
 ├── refine_annotations.py       # Clean-up of manual annotations, layer IDs, binarization
 ├── data_reader.py              # Reader for all TIF, H5 and VOL input
+├── data_processing.py          # Training data: dataset readers, nnU-Net and H5 output, splits
 ├── heyex_vol.py                # Heidelberg Heyex VOL reader, VOL -> TIF (oct_tools.convert_vol)
 ├── metric_utils.py             # Thickness, length, area and ETDRS-like metrics
 ├── eval_segmentation.py        # Precision, recall, F1 score and symmetric best Dice
-├── train_utils.py              # OCT-SAM training, model export, split generation
+├── train_utils.py              # OCT-SAM training, model export
 ├── analysis/                   # Evaluation of experiments
 └── napari_widgets/             # Widgets of both napari apps
 ```
@@ -48,12 +49,12 @@ nnU-Net is not a Python dependency. `oct_tools/apply_nnunet.py` runs the nnU-Net
 ## Data flow
 
 1. Heyex VOL tomogram -> `oct_tools.convert_vol` -> TIF.
-2. Manual annotation in napari -> `scripts/process_train_data/training_data_cycles.py` -> H5 with `image` and `labels/original`.
-3. `scripts/process_train_data/edit_annotations.py` -> `labels/edit_v1`, `edit_v2`, `edit_v3`. `edit_v3` is the training label.
+2. Manual annotation in napari -> `scripts/process_data/convert_annotations.py` -> H5 with `image` and `labels/original`.
+3. `scripts/process_data/edit_annotations.py` -> `labels/edit_v1`, `edit_v2`, `edit_v3`. `edit_v3` is the training label.
 4. Conversion for each model:
-   - nnU-Net: `scripts/process_nnunet_data/nnunet_preprocess_{external,internal}_data.py` -> NIfTI `imagesTr` and `labelsTr`.
-   - OCT-SAM: `scripts/process_train_data/preprocess_external_data.py` -> H5. UMG-RP H5 files need no conversion.
-5. Splits: `doc/train_splits/*.json` and `scripts/process_nnunet_data/create_retrain_data.py`.
+   - nnU-Net: `scripts/process_data/prepare_data.py` -> NIfTI `imagesTr` and `labelsTr`.
+   - OCT-SAM: `scripts/process_data/prepare_data.py --format h5` -> H5. UMG-RP H5 files need no conversion.
+5. Splits: `doc/train_splits/*.json` and `scripts/process_data/split_data.py`.
 6. Training: `scripts/training/` for OCT-SAM. `nnUNetv2_plan_and_preprocess` and `nnUNetv2_train` for nnU-Net.
 7. Inference: `oct_tools.apply_sam` or `oct_tools.apply_nnunet`.
 8. Evaluation: `oct_tools.eval_segmentation`, `scripts/oct-sam/eval_sam.py`, `scripts/oct-sam/eval_iterative_prompting.py`.
@@ -64,8 +65,7 @@ nnU-Net is not a Python dependency. `oct_tools/apply_nnunet.py` runs the nnU-Net
 
 | Path | Content |
 |---|---|
-| `scripts/process_train_data/` | Makes and checks the H5 training data. See [training_data.md](training_data.md). |
-| `scripts/process_nnunet_data/` | Converts the data for nnU-Net and copies split subsets. See [nnunet_training.md](nnunet_training.md). |
+| `scripts/process_data/` | Makes, checks and converts the training data, and copies split subsets. See [training_data.md](training_data.md). |
 | `scripts/training/` | Trains OCT-SAM. See [oct-sam_training.md](oct-sam_training.md). |
 | `scripts/oct-sam/` | Evaluates OCT-SAM: `eval_sam.py` for a folder of B-scans, `eval_iterative_prompting.py` for prompt-based correction. |
 | `scripts/mouse/annotate.py` | Corrects mouse segmentations in napari. See [2d_mouse.md](2d_mouse.md). |
@@ -123,7 +123,7 @@ The file names use internal model names. See [oct-sam_training.md](oct-sam_train
 - Read every TIF, H5 or VOL input with `oct_tools.data_reader`. `read_volume` returns `(z, y, x)`.
 
 - UMG-RP H5 files: `RP<id>_<year>_<eye>_z<slice>.h5`.
-- nnU-Net case names have a dataset prefix: `11` and `12` for HCMS, `20` for Duke DME, `30` for UMG-RP. `RP012_2023_OD_z08.h5` becomes `oct_30012_2023_OD_008`.
+- The training data of nnU-Net and OCT-SAM has standard names `<dataset>_<id>_z<slice>`, for example `hcms_hc_01_z00`, `duke_01_z10` and `umgrp_012_2023_OD_z08`. `--legacy_names` writes the earlier names, for example `oct_30012_2023_OD_008`. `data_processing.standard_name` converts them. See [B-scan names](training_data.md#b-scan-names).
 - nnU-Net image files end with `_0000.nii.gz`. Label files do not.
 - `oct_tools.interactive` names each B-scan `<image name>_<z>`. In the output folder, the segmentation is `<name>.tif`, the B-scan is `bscans/<name>.tif` and the embedding is `embeddings/<name>.zarr`.
 
