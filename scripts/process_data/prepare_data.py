@@ -27,11 +27,15 @@ def main():
                         "See doc/training_data.md.")
 
     args = parser.parse_args()
+    if args.keep_is_os and args.dataset != "hcms":
+        parser.error("--keep_is_os applies only to --dataset hcms.")
 
     samples = read_dataset(args.dataset, args.input_dir, label_key=args.label_key, merge_is_os=not args.keep_is_os)
     count = prepare_dataset(
         samples, args.output_dir, args.format, SPACING[args.dataset], binary=args.binary, legacy_names=args.legacy_names
     )
+    if count == 0:
+        raise ValueError(f"{args.input_dir} has no B-scans of {args.dataset}. Check -i and, for UMG-RP, -l.")
     print(f"Wrote {count} B-scans to {args.output_dir}.")
 
 

@@ -208,7 +208,10 @@ def read_hcms(input_dir: str, merge_is_os: bool = True) -> Iterator[Sample]:
         data = read_volume(tomo)
         labels = _surfaces_to_label(control_pts, data.shape)
         for z in range(len(data)):
-            label = merge_photoreceptor_segments(labels[z]) if merge_is_os else labels[z]
+            try:
+                label = merge_photoreceptor_segments(labels[z]) if merge_is_os else labels[z]
+            except ValueError as error:
+                raise ValueError(f"{tomo}, B-scan {z}: {error}") from error
             standard = _hcms_name(name[:2], name[2:4], z)
             yield Sample(standard, legacy_nnunet_name(standard), f"{name}_{z:03}", data[z], label)
 
@@ -310,8 +313,9 @@ def read_umg_rp(input_dir: str, label_key: str = "edit_v3") -> Iterator[Sample]:
         One sample for each B-scan, with image and label as uint8.
     """
     paths = sorted(glob(os.path.join(input_dir, "*.h5")))
-    for path in tqdm(paths, desc="UMG-RP B-scans"):
-        source_name = umg_rp_source_name(os.path.splitext(os.path.basename(path))[0])
+    # Convert all names first, so that an unknown name stops the conversion before it writes a file.
+    source_names = [umg_rp_source_name(os.path.splitext(os.path.basename(path))[0]) for path in paths]
+    for path, source_name in tqdm(zip(paths, source_names), total=len(paths), desc="UMG-RP B-scans"):
         if source_name in UMG_RP_EXCLUDED:
             print(f"Skipping {source_name}.")
             continue
@@ -372,7 +376,18 @@ def write_nnunet_case(
 
 
 def write_h5_sample(path: str, image: np.ndarray, label: np.ndarray, label_key: str = "masks") -> None:
-    """Write one B-scan as an H5 file with the datasets "image" and `label_key`. An existing file is replaced."""
+    """Write one B-scan as an H5 file with the datasets "image" and `label_key`.
+
+    An existing file is replaced only if it holds no other datasets. This protects annotated H5 files.
+
+    Raises:
+        ValueError: If `path` exists and holds other datasets.
+    """
+    if os.path.exists(path):
+        with h5py.File(path, "r") as f:
+            other = sorted(set(f.keys()) - {"image", label_key.split("/")[0]})
+        if other:
+            raise ValueError(f"{path} exists and holds the datasets {other}. Choose another output folder.")
     with h5py.File(path, "w") as f:
         f.create_dataset("image", data=image, compression="gzip")
         f.create_dataset(label_key, data=label, compression="gzip")
@@ -399,28 +414,50 @@ def prepare_dataset(
 
     Returns:
         The number of B-scans.
+
+    Raises:
+        ValueError: If `output_dir` holds a B-scan with another name, or if two samples have the same name.
+            One folder must not mix standard names and legacy names, because then it holds B-scans twice.
     """
     if output_format not in ("nnunet", "h5"):
         raise ValueError(f"Unknown output format {output_format}. Choose 'nnunet' or 'h5'.")
+    nnunet = output_format == "nnunet"
     os.makedirs(output_dir, exist_ok=True)
-    count = 0
+    if nnunet:
+        existing = _case_index([os.path.join(output_dir, "imagesTr"), os.path.join(output_dir, "labelsTr")], ".nii.gz")
+    else:
+        existing = _case_index([output_dir], ".h5")
+
+    written = set()
     for sample in samples:
-        label = binarize_layer_label(sample.label) if binary else sample.label
-        if output_format == "nnunet":
+        if nnunet:
             name = sample.legacy_nnunet_name if legacy_names else sample.name
-            write_nnunet_case(output_dir, name, sample.image, label, spacing)
         else:
             name = sample.legacy_h5_name if legacy_names else sample.name
+        if name in written:
+            raise ValueError(f"Two B-scans have the name {name}.")
+        # The legacy H5 name of Duke DME has no standard name, so check every name of the sample.
+        for alias in (sample.name, sample.legacy_nnunet_name, sample.legacy_h5_name):
+            other = existing.get(_match_key(alias), name)
+            if other != name:
+                raise ValueError(f"{output_dir} holds the B-scan {name} with the name {other}. Use a new folder.")
+
+        label = binarize_layer_label(sample.label) if binary else sample.label
+        if nnunet:
+            write_nnunet_case(output_dir, name, sample.image, label, spacing)
+        else:
             write_h5_sample(os.path.join(output_dir, f"{name}.h5"), sample.image, label)
-        count += 1
-    return count
+        written.add(name)
+    return len(written)
 
 
 def read_split(json_file: str, fold: int = 0) -> Tuple[List[str], List[str]]:
     """Read the training and the validation names of one fold of a split file in `doc/train_splits`."""
     with open(json_file) as f:
-        split = json.load(f)[fold]
-    return split["train"], split["val"]
+        folds = json.load(f)
+    if not 0 <= fold < len(folds):
+        raise ValueError(f"{json_file} has {len(folds)} folds. Fold {fold} does not exist.")
+    return folds[fold]["train"], folds[fold]["val"]
 
 
 def _case_of_file(filename: str) -> str:
@@ -435,10 +472,23 @@ def _match_key(name: str) -> str:
         return name
 
 
-def _nnunet_cases(folder: str) -> Dict[str, str]:
-    """Map the match key of each NIfTI case in a folder to the case name."""
-    cases = [_case_of_file(entry.name) for entry in os.scandir(folder) if entry.name.endswith(".nii.gz")]
-    return {_match_key(case): case for case in cases}
+def _case_index(folders: Sequence[str], extension: str = "") -> Dict[str, str]:
+    """Map the match key of each case in the folders to the case name. A missing folder has no cases.
+
+    Raises:
+        ValueError: If the folders hold one B-scan with two names.
+    """
+    cases = {}
+    for folder in folders:
+        if not os.path.isdir(folder):
+            continue
+        for entry in sorted(os.scandir(folder), key=lambda e: e.name):
+            if entry.is_file() and entry.name.endswith(extension):
+                case = _case_of_file(entry.name)
+                other = cases.setdefault(_match_key(case), case)
+                if other != case:
+                    raise ValueError(f"{folder} holds the B-scan {other} also with the name {case}.")
+    return cases
 
 
 def copy_cases(names: Sequence[str], input_dir: str, output_dir: str) -> List[str]:
@@ -456,16 +506,17 @@ def copy_cases(names: Sequence[str], input_dir: str, output_dir: str) -> List[st
 
     Returns:
         The names that have no file in `input_dir`.
+
+    Raises:
+        ValueError: If `input_dir` holds one B-scan with two names.
     """
+    cases = _case_index([input_dir])
     wanted = {_match_key(name): name for name in names}
-    found = set()
     os.makedirs(output_dir, exist_ok=True)
     for entry in sorted(os.scandir(input_dir), key=lambda e: e.name):
-        key = _match_key(_case_of_file(entry.name))
-        if entry.is_file() and key in wanted:
+        if entry.is_file() and _match_key(_case_of_file(entry.name)) in wanted:
             shutil.copy2(entry.path, os.path.join(output_dir, entry.name))
-            found.add(key)
-    return sorted(wanted[key] for key in wanted.keys() - found)
+    return sorted(name for key, name in wanted.items() if key not in cases)
 
 
 def split_nnunet_dataset(input_dir: str, output_dir: str, json_file: str, fold: int = 0) -> List[str]:
@@ -482,19 +533,31 @@ def split_nnunet_dataset(input_dir: str, output_dir: str, json_file: str, fold: 
 
     Returns:
         The names without an image or a label.
+
+    Raises:
+        ValueError: If `output_dir` already holds cases.
     """
     train, val = read_split(json_file, fold)
+    for folder in ("imagesTr", "labelsTr"):
+        path = os.path.join(output_dir, folder)
+        if os.path.isdir(path) and os.listdir(path):
+            raise ValueError(f"{path} is not empty. Choose a new dataset folder.")
     missing = set()
     for folder in ("imagesTr", "labelsTr"):
         missing.update(copy_cases(train + val, os.path.join(input_dir, folder), os.path.join(output_dir, folder)))
 
-    cases = _nnunet_cases(os.path.join(output_dir, "labelsTr"))
+    cases = _case_index([os.path.join(output_dir, "labelsTr")], ".nii.gz")
     with open(json_file) as f:
         folds = json.load(f)
-    splits = [
-        {mode: [cases[key] for key in map(_match_key, names[mode]) if key in cases] for mode in ("train", "val")}
-        for names in folds
-    ]
+    splits = []
+    for index, names in enumerate(folds):
+        split = {}
+        for mode in ("train", "val"):
+            split[mode] = [cases[key] for key in map(_match_key, names[mode]) if key in cases]
+            lost = len(names[mode]) - len(split[mode])
+            if lost:
+                print(f"Warning: {lost} {mode} cases of fold {index} have no file. splits_final.json omits them.")
+        splits.append(split)
     with open(os.path.join(output_dir, "splits_final.json"), "w") as f:
         json.dump(splits, f, indent="\t", separators=(",", ": "))
     return sorted(missing)
@@ -551,7 +614,7 @@ def split_semantic_data(
         for name in names:
             split[case_source(name)][mode].append(name)
 
-    cases = _nnunet_cases(os.path.join(nnunet_dir, "imagesTr"))
+    cases = _case_index([os.path.join(nnunet_dir, "imagesTr")], ".nii.gz")
     missing = []
     for dataset, modes in split.items():
         for mode, names in modes.items():

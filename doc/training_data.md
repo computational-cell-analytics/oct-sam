@@ -113,6 +113,10 @@ With the option `--legacy_names`, the conversion writes the names of the earlier
 `standard_name` in `oct_tools/data_processing.py` converts a legacy name to the standard name.
 It cannot convert the legacy H5 names of Duke DME.
 
+Do not mix standard names and legacy names in one folder. Otherwise, the folder holds B-scans twice.
+The conversion stops if the output folder holds a B-scan with another name.
+It also stops if an output H5 file exists and holds other datasets than `image` and `masks`, for example the annotations of a UMG-RP file.
+
 ## Data conversion
 
 - For nnU-Net, see [Convert the data](nnunet_training.md#convert-the-data).

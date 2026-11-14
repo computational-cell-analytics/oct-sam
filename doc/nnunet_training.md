@@ -101,6 +101,7 @@ The fine-tuning networks of stage 3 use the splits in `doc/train_splits`. See [T
    ```
    The script finds a case by its standard name or by its legacy name, so the split file and the dataset can use different names.
    It prints the cases of the split that have no file.
+   The folders `imagesTr` and `labelsTr` of the new dataset must be empty.
    It writes `splits_final.json` into the new dataset. This file contains the folds of the split file with the case names of the new dataset.
 2. Plan and preprocess the new dataset:
    ```bash

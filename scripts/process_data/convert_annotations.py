@@ -23,7 +23,7 @@ def main():
     os.makedirs(args.output, exist_ok=True)
 
     for label_path in label_paths:
-        image_path = label_path.replace("_committed_objects", "")
+        image_path = label_path[:-len("_committed_objects.tif")] + ".tif"
         name = os.path.splitext(os.path.basename(image_path))[0]
         output_path = os.path.join(args.output, f"{name}.h5")
         # Later steps add the edited labels to the same file, so the script does not replace it.

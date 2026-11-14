@@ -22,7 +22,8 @@ def edit_annotations(input_dir: str, output_dir: Optional[str] = None, label_ver
     """Edit the manual annotations in "labels/original" and write them to "labels/<label_version>".
 
     The steps fill holes, remove isolated fragments, fill the gaps between the layers and restrict the
-    labels to the image area. edit_v2 and edit_v3 also assign the layer IDs 1-7.
+    labels to the image area. edit_v2 and edit_v3 also assign the layer IDs 1-7. If no column of a label
+    contains every layer, the layer IDs are unknown and the file gets no "labels/<label_version>".
     An existing "labels/<label_version>" is not replaced.
     The file `layer_overview.json` in the output folder lists the files for each number of layers in the
     original annotation.
@@ -39,6 +40,7 @@ def edit_annotations(input_dir: str, output_dir: Optional[str] = None, label_ver
 
     h5_names = sorted(entry.name for entry in os.scandir(input_dir) if entry.name.lower().endswith(".h5"))
     layer_dict = {}
+    skipped = []
 
     for h5_name in h5_names:
         path = os.path.join(input_dir, h5_name)
@@ -55,6 +57,10 @@ def edit_annotations(input_dir: str, output_dir: Optional[str] = None, label_ver
             label = restrict_label_to_image(label, image)
         if "assign_layer_id" in steps:
             label = assign_layer_id(label)
+            if label is None:
+                print(f"Skipping {h5_name}. No column contains every layer.")
+                skipped.append(h5_name)
+                continue
 
         with h5py.File(os.path.join(output_dir, h5_name), "a") as f:
             if f"labels/{label_version}" not in f:
@@ -63,6 +69,8 @@ def edit_annotations(input_dir: str, output_dir: Optional[str] = None, label_ver
     layer_dict = {key: sorted(names) for key, names in sorted(layer_dict.items())}
     with open(os.path.join(output_dir, "layer_overview.json"), "w") as f:
         json.dump(layer_dict, f, indent='\t', separators=(',', ': '))
+    if skipped:
+        print(f"Warning: {len(skipped)} files have no labels/{label_version}: {skipped}")
 
 
 def main():

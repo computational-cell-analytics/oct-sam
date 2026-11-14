@@ -1,7 +1,10 @@
+import importlib.util
 import json
 import os
 import tempfile
 import unittest
+from glob import glob
+from unittest import mock
 
 import h5py
 import nibabel as nib
@@ -10,11 +13,13 @@ from scipy.io import savemat
 
 from oct_tools.data_processing import (
     Sample, _load_duke_data, _surfaces_to_label, case_source, copy_cases, create_train_val_splits_for_finetuning,
-    legacy_nnunet_name, merge_photoreceptor_segments, prepare_dataset, read_duke_dme, read_umg_rp,
+    legacy_nnunet_name, merge_photoreceptor_segments, prepare_dataset, read_duke_dme, read_split, read_umg_rp,
     split_nnunet_dataset, split_sam_data, split_semantic_data, standard_name, umg_rp_source_name,
 )
 
 SPLIT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "doc", "train_splits")
+EDIT_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts", "process_data",
+                           "edit_annotations.py")
 
 
 def _write_split(path, train, val):
@@ -129,6 +134,22 @@ class TestLabelsAndNames(unittest.TestCase):
             case_source("oct_40001_000")
 
 
+class TestSplitFiles(unittest.TestCase):
+    def test_names(self):
+        paths = sorted(glob(os.path.join(SPLIT_DIR, "*.json")))
+        self.assertTrue(paths)
+        for path in paths:
+            with open(path) as f:
+                folds = json.load(f)
+            for fold in folds:
+                for names in fold.values():
+                    standard = [standard_name(name) for name in names]
+                    self.assertEqual(len(set(standard)), len(names), path)
+                    for name, std in zip(names, standard):
+                        source = umg_rp_source_name(std) if std.startswith("umgrp_") else None
+                        self.assertIn(name, (std, legacy_nnunet_name(std), source), path)
+
+
 class TestReadUmgRp(unittest.TestCase):
     def test_skips(self):
         label = np.zeros((8, 16), dtype=np.int64)
@@ -192,6 +213,35 @@ class TestPrepareDataset(unittest.TestCase):
                 self.assertEqual(f["image"][0, 0], 9)
                 self.assertEqual(f["masks"][:].max(), 3)
 
+    def test_h5_keeps_annotations(self):
+        label = np.zeros((8, 16), dtype=np.uint8)
+        label[2:4] = 1
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = os.path.join(tmp_dir, "RP012_2023_OD_z08.h5")
+            with h5py.File(path, "w") as f:
+                f.create_dataset("image", data=np.full((8, 16), 3, dtype=np.uint8))
+                f.create_dataset("labels/edit_v3", data=label)
+
+            with self.assertRaises(ValueError):
+                prepare_dataset(read_umg_rp(tmp_dir), tmp_dir, "h5", (3.87, 5.88), legacy_names=True)
+            with self.assertRaises(ValueError):
+                prepare_dataset(read_umg_rp(tmp_dir), tmp_dir, "h5", (3.87, 5.88))
+
+            self.assertEqual(os.listdir(tmp_dir), ["RP012_2023_OD_z08.h5"])
+            with h5py.File(path, "r") as f:
+                self.assertEqual(sorted(f.keys()), ["image", "labels"])
+
+    def test_mixed_names(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prepare_dataset(self._samples(), tmp_dir, "nnunet", (3.87, 5.8), legacy_names=True)
+            with self.assertRaises(ValueError):
+                prepare_dataset(self._samples(), tmp_dir, "nnunet", (3.87, 5.8))
+            self.assertEqual(sorted(os.listdir(os.path.join(tmp_dir, "labelsTr"))),
+                             ["oct_11001_000.nii.gz", "oct_11001_001.nii.gz"])
+
+            with self.assertRaises(ValueError):
+                prepare_dataset(self._samples()[:1] * 2, os.path.join(tmp_dir, "twice"), "h5", (3.87, 5.8))
+
     def test_unknown_format(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaises(ValueError):
@@ -213,6 +263,26 @@ class TestSplits(unittest.TestCase):
             self.assertEqual(missing, ["oct_11001_002"])
             self.assertEqual(sorted(os.listdir(output_dir)),
                              ["RP012_2023_OD_z08.h5", "oct_11001_000.nii.gz", "oct_11001_000_0000.nii.gz"])
+
+    def test_copy_cases_one_bscan_with_two_names(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = os.path.join(tmp_dir, "input")
+            os.makedirs(input_dir)
+            for name in ("oct_11001_000.nii.gz", "hcms_hc_01_z00.nii.gz"):
+                open(os.path.join(input_dir, name), "w").close()
+
+            output_dir = os.path.join(tmp_dir, "output")
+            with self.assertRaises(ValueError):
+                copy_cases(["oct_11001_000"], input_dir, output_dir)
+            self.assertFalse(os.path.exists(output_dir))
+
+    def test_read_split_fold(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            json_file = os.path.join(tmp_dir, "split.json")
+            _write_split(json_file, ["a"], ["b"])
+            self.assertEqual(read_split(json_file), (["a"], ["b"]))
+            with self.assertRaises(ValueError):
+                read_split(json_file, fold=1)
 
     def test_split_sam_data(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -273,6 +343,18 @@ class TestSplits(unittest.TestCase):
                     {"train": ["hcms_hc_01_z01"], "val": ["hcms_hc_01_z00"]},
                 ])
 
+    def test_split_nnunet_dataset_needs_new_folder(self):
+        image = np.zeros((8, 16), dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = os.path.join(tmp_dir, "input")
+            _write_nnunet_case(input_dir, "hcms_hc_01_z00", image, image)
+            json_file = os.path.join(tmp_dir, "split.json")
+            _write_split(json_file, ["oct_11001_000"], [])
+
+            with self.assertRaises(ValueError):
+                split_nnunet_dataset(input_dir, input_dir, json_file)
+            self.assertEqual(os.listdir(os.path.join(input_dir, "labelsTr")), ["hcms_hc_01_z00.nii.gz"])
+
     def _split_semantic_data(self, hcms_case, duke_case):
         image = np.full((8, 16), 7, dtype=np.uint8)
         label = np.zeros((8, 16), dtype=np.uint8)
@@ -317,6 +399,33 @@ class TestSplits(unittest.TestCase):
             for name in names:
                 with open(os.path.join(tmp_dir, name)) as f, open(os.path.join(SPLIT_DIR, name)) as g:
                     self.assertEqual(json.load(f), json.load(g), name)
+
+
+class TestEditAnnotations(unittest.TestCase):
+    def test_skips_unknown_layer_order(self):
+        spec = importlib.util.spec_from_file_location("edit_annotations", EDIT_SCRIPT)
+        edit = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(edit)
+
+        label = np.zeros((16, 32), dtype=np.uint32)
+        label[3:6] = 1
+        label[8:11] = 2
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            for name in ("a.h5", "b.h5"):
+                with h5py.File(os.path.join(tmp_dir, name), "w") as f:
+                    f.create_dataset("image", data=np.full((16, 32), 50, dtype=np.uint8))
+                    f.create_dataset("labels/original", data=label)
+
+            # assign_layer_id finds no layer order for a.h5.
+            with mock.patch.object(edit, "assign_layer_id", side_effect=[None, label]):
+                edit.edit_annotations(tmp_dir, label_version="edit_v3")
+
+            with h5py.File(os.path.join(tmp_dir, "a.h5"), "r") as f:
+                self.assertNotIn("labels/edit_v3", f)
+            with h5py.File(os.path.join(tmp_dir, "b.h5"), "r") as f:
+                np.testing.assert_array_equal(f["labels/edit_v3"][:], label)
+            with open(os.path.join(tmp_dir, "layer_overview.json")) as f:
+                self.assertEqual(json.load(f), {"2": ["a.h5", "b.h5"]})
 
 
 if __name__ == "__main__":
