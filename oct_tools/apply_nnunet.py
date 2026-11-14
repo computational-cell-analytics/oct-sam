@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from oct_tools.data_reader import IMAGE_KEYS, read_volume
+from oct_tools.data_reader import IMAGE_KEYS, nifti_affine, read_nifti, read_volume
 
 
 def _convert_to_nnunet_format(
@@ -37,9 +37,7 @@ def _convert_to_nnunet_format(
 
     file_paths = sorted(e.path for e in os.scandir(input_folder) if e.name.endswith(f".{file_format}"))
 
-    affine = np.eye(4)
-    affine[0, 0] = pixel_spacing[0]
-    affine[1, 1] = pixel_spacing[1]
+    affine = nifti_affine(pixel_spacing)
 
     os.makedirs(output_folder, exist_ok=True)
     print(f"Converting {len(file_paths)} files from {file_format} to NIfTI.")
@@ -78,8 +76,7 @@ def _convert_nifti_to_tif(
 
     for ff in file_paths:
         base_name = os.path.basename(ff).split(".nii.gz")[0]
-        # get_fdata() always returns float64; dataobj keeps the stored dtype, e.g. uint8 for nnU-Net labels.
-        arr = np.asanyarray(nib.load(ff).dataobj)
+        arr = read_nifti(ff)
         if label_data:
             arr = arr.astype(np.uint32)
         imageio.imwrite(os.path.join(output_folder, f"{base_name}.tif"), arr)
@@ -155,10 +152,7 @@ def apply_model_nnunet(
 
         if single_file:
             # A stack gives one prediction for each B-scan, sorted by the zero-padded z index.
-            predictions = [
-                np.asanyarray(nib.load(path).dataobj)
-                for path in sorted(glob(os.path.join(nifti_segmentations, "*.nii.gz")))
-            ]
+            predictions = [read_nifti(path) for path in sorted(glob(os.path.join(nifti_segmentations, "*.nii.gz")))]
             segmentation = predictions[0] if len(predictions) == 1 else np.stack(predictions)
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
             imageio.imwrite(output_path, segmentation.astype(np.uint32))
