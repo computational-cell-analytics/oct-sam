@@ -1,8 +1,9 @@
 import os
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 import h5py
 import imageio.v3 as imageio
+import nibabel as nib
 import numpy as np
 import tifffile
 
@@ -85,3 +86,16 @@ def read_bscan(path: str, z: Optional[int] = None, keys: Sequence[str] = IMAGE_K
     if not 0 <= z < len(volume):
         raise ValueError(f"{path} holds {len(volume)} B-scans. B-scan {z} does not exist.")
     return volume[z]
+
+
+def nifti_affine(spacing: Tuple[float, float]) -> np.ndarray:
+    """Return the NIfTI affine of a 2D B-scan with the pixel spacing (y, x)."""
+    affine = np.eye(4)
+    affine[0, 0], affine[1, 1] = spacing
+    return affine
+
+
+def read_nifti(path: str) -> np.ndarray:
+    """Read a NIfTI file with its stored dtype."""
+    # get_fdata() always returns float64. dataobj keeps the stored dtype, e.g. uint8 for nnU-Net labels.
+    return np.asanyarray(nib.load(path).dataobj)

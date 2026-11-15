@@ -24,20 +24,30 @@ OCT-SAM reads H5 files with the keys `image` and a label key.
 
 Public datasets (see [training_data.md](training_data.md) for the downloads):
 ```bash
-python scripts/process_train_data/preprocess_external_data.py -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR>/hcms --dataset hcms
-python scripts/process_train_data/preprocess_external_data.py -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR>/duke_dme --dataset duke_dme
+python scripts/process_data/prepare_data.py --format h5 --keep_is_os -i /path/to/HCMS_DATA/OCT_Manual_Delineations-2018_June_29/ -o <OUTPUT_DIR>/hcms --dataset hcms
+python scripts/process_data/prepare_data.py --format h5 -i /path/to/DUKE_DME_DATA/duke_dme_2015_BOE_Chiu2/2015_BOE_Chiu/ -o <OUTPUT_DIR>/duke_dme --dataset duke_dme
 ```
 The output H5 files contain the label in the key `masks`.
+The files have the standard names, for example `hcms_hc_01_z00.h5`.
+With `--legacy_names`, the files have the names of the pre-training data of the published models, for example `hc01_spectralis_macula_v1_s1_R_000.h5`.
+See [B-scan names](training_data.md#b-scan-names).
+`--keep_is_os` keeps the 8 HCMS layers. The published models were pre-trained with these 8 layers.
+Without the option, the HCMS labels have the 7 layers of the models. See [Mapping to the 7 layers](training_data.md#mapping-to-the-7-layers).
 
 The UMG-RP H5 files need no conversion. The training reads `labels/edit_v3`. See [UMG-RP](training_data.md#umg-rp).
 
 For the fine-tuning of stage 3, copy the B-scans of a split into a folder `train_n<N>` and a folder `val`:
 ```bash
-python scripts/process_nnunet_data/create_retrain_data.py --sam -i <UMG_RP_H5_DIR> -o split_data -j doc/train_splits/train_splits_sam_n001.json
+python scripts/process_data/split_data.py --layout sam -i <UMG_RP_H5_DIR> -o split_data -j doc/train_splits/train_splits_sam_n001.json
 ```
-`create_train_val_splits_for_finetuning(..., output_sam=True)` in `oct_tools/train_utils.py` makes new split files with the UMG-RP H5 names.
+`create_train_val_splits_for_finetuning(..., output_sam=True)` in `oct_tools/data_processing.py` makes new split files with the UMG-RP H5 names.
 
-For the semantic variant, `scripts/process_train_data/create_semantic_training_data.py` makes the training data from the nnU-Net dataset and a split file.
+For the semantic variant, make the training data from the nnU-Net dataset, the UMG-RP H5 files and a split file:
+```bash
+python scripts/process_data/split_data.py --layout semantic -i <NNUNET_DATASET_DIR> --umg_dir <UMG_RP_H5_DIR> -o <OUTPUT_DIR> -j doc/train_splits/train_splits_nnunet_all.json
+```
+The output has the folders `<dataset>_train` and `<dataset>_val` for `hcms`, `duke_dme` and `umg_rp`.
+The split file and the nnU-Net dataset can use standard names or legacy names. The output files keep the names of the input files.
 
 ## Train
 
