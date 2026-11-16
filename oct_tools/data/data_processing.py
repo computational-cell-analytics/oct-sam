@@ -11,8 +11,8 @@ import numpy as np
 from scipy.io import loadmat
 from tqdm import tqdm
 
-from oct_tools.data_reader import nifti_affine, read_bscan, read_nifti, read_volume
-from oct_tools.refine_annotations import binarize_layer_label
+from oct_tools.data.data_reader import nifti_affine, read_bscan, read_nifti, read_volume
+from oct_tools.data.refine_annotations import binarize_layer_label
 
 DATASETS = ("hcms", "duke_dme", "umg_rp")
 # Pixel spacing (y, x) in um that the conversion writes into the NIfTI files. See doc/training_data.md.

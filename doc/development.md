@@ -18,33 +18,43 @@ flake8 .
 
 ```
 oct_tools/
-├── cli.py                      # All console_scripts entry points (argparse only)
-├── layer_information.py        # Layer names, label IDs 1-7, napari color maps
-├── apply_oct_sam.py            # Batch OCT-SAM inference
-├── precompute_segmentation.py  # SAM prompt derivation, batched inference, mask NMS
-├── interactive_segmentation.py # napari µSAM annotator (oct_tools.interactive)
-├── measure_segmentation.py     # napari measurement viewer (oct_tools.measure)
-├── apply_nnunet.py             # TIF/H5 <-> NIfTI, nnUNetv2_predict and nnUNetv2_train subprocesses
-├── postprocessing.py           # Post-processing steps of a segmentation
-├── refine_annotations.py       # Clean-up of manual annotations, layer IDs, binarization
-├── data_reader.py              # Reader for all TIF, H5 and VOL input
-├── data_processing.py          # Training data: dataset readers, nnU-Net and H5 output, splits
-├── heyex_vol.py                # Heidelberg Heyex VOL reader, VOL -> TIF (oct_tools.convert_vol)
-├── metric_utils.py             # Thickness, length, area and ETDRS-like metrics
-├── eval_segmentation.py        # Precision, recall, F1 score and symmetric best Dice
-├── train_utils.py              # OCT-SAM training, model export
-├── analysis/                   # Evaluation of experiments
-└── napari_widgets/             # Widgets of both napari apps
+├── cli.py                            # All console_scripts entry points (argparse only)
+├── layer_information.py              # Layer names, label IDs 1-7, napari color maps
+├── version.py
+├── analysis/                         # Evaluation
+│   ├── eval_segmentation.py          # Precision, recall, F1 score and symmetric best Dice
+│   ├── eval_iterative_prompting.py   # Iterative-prompting experiments
+│   └── eval_thickness_measurement.py # Thickness against manual measurements
+├── data/                             # Data input, output and training-data preparation
+│   ├── data_reader.py                # Reader for all TIF, H5 and VOL input
+│   ├── heyex_vol.py                  # Heidelberg Heyex VOL reader, VOL -> TIF (oct_tools.convert_vol)
+│   ├── data_processing.py            # Training data: dataset readers, nnU-Net and H5 output, splits
+│   ├── refine_annotations.py         # Clean-up of manual annotations, layer IDs, binarization
+│   └── export_overlay.py             # ImageJ TIF or RGB overlay (oct_tools.export_annotations)
+├── segmentation/                     # Inference
+│   ├── apply_oct_sam.py              # Batch OCT-SAM inference
+│   ├── precompute_segmentation.py    # SAM prompt derivation, batched inference, mask NMS
+│   ├── interactive_segmentation.py   # napari µSAM annotator (oct_tools.interactive)
+│   └── apply_nnunet.py               # TIF/H5 <-> NIfTI, nnUNetv2_predict subprocess
+├── postprocessing/
+│   └── postprocessing.py             # Post-processing steps of a segmentation
+├── training/
+│   ├── train_utils.py                # OCT-SAM training, model export
+│   └── retrain_nnunet.py             # nnU-Net fine-tuning, nnUNetv2_train subprocesses
+├── measurements/
+│   ├── metric_utils.py               # Thickness, length, area and ETDRS-like metrics
+│   └── measure_segmentation.py       # napari measurement viewer (oct_tools.measure)
+└── napari_widgets/                   # Widgets of both napari apps
 ```
 
-`oct_tools/analysis/` and `oct_tools/napari_widgets/` have no `__init__.py`. Python imports them as namespace packages.
+The subfolders of `oct_tools/` have no `__init__.py`. Python imports them as namespace packages.
 `setup.py` uses `find_namespace_packages`, so a non-editable install includes them.
 
 Each command of `setup.py` has one function in `oct_tools/cli.py`.
 The function makes an argparse parser and calls the implementation module.
 Register a new command in `setup.py`.
 
-nnU-Net is not a Python dependency. `oct_tools/apply_nnunet.py` runs the nnU-Net commands in the separate `nnunet` environment with `subprocess`.
+nnU-Net is not a Python dependency. `oct_tools/segmentation/apply_nnunet.py` and `oct_tools/training/retrain_nnunet.py` run the nnU-Net commands in the separate `nnunet` environment with `subprocess`.
 
 ## Data flow
 
@@ -93,7 +103,7 @@ The file names use internal model names. See [oct-sam_training.md](oct-sam_train
 
 ### Voxel size
 
-`VOXEL_SIZE` in `oct_tools/metric_utils.py` is in µm, in the order `(z, y, x)`.
+`VOXEL_SIZE` in `oct_tools/measurements/metric_utils.py` is in µm, in the order `(z, y, x)`.
 2D code uses `VOXEL_SIZE[1:]`, so in a `spacing` argument:
 - `spacing[0]` is the axial pixel size. A thickness is the number of pixels times `spacing[0]`.
 - `spacing[1]` is the lateral pixel size. The ETDRS ring widths use `spacing[1]`.
@@ -120,7 +130,7 @@ The file names use internal model names. See [oct-sam_training.md](oct-sam_train
 | TSV, XLSX | Measurement tables |
 | JSON | Evaluation results and splits |
 
-- Read every TIF, H5 or VOL input with `oct_tools.data_reader`. `read_volume` returns `(z, y, x)`.
+- Read every TIF, H5 or VOL input with `oct_tools.data.data_reader`. `read_volume` returns `(z, y, x)`.
 
 - UMG-RP H5 files: `RP<id>_<year>_<eye>_z<slice>.h5`.
 - The training data of nnU-Net and OCT-SAM has standard names `<dataset>_<id>_z<slice>`, for example `hcms_hc_01_z00`, `duke_01_z10` and `umgrp_012_2023_OD_z08`. `--legacy_names` writes the earlier names, for example `oct_30012_2023_OD_008`. `data_processing.standard_name` converts them. See [B-scan names](training_data.md#b-scan-names).

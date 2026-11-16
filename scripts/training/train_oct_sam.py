@@ -6,7 +6,7 @@ import torch_em
 from sklearn.model_selection import train_test_split
 from torch.utils.data import ConcatDataset
 
-from oct_tools.train_utils import export_model, raw_trafo, train_oct_sam_model
+from oct_tools.training.train_utils import export_model, raw_trafo, train_oct_sam_model
 
 ROOT_DME = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/duke_dme"
 ROOT_HCMS = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/pretrain_data/hcms"

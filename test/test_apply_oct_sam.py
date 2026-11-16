@@ -8,7 +8,7 @@ import h5py
 import imageio.v3 as imageio
 import numpy as np
 
-from oct_tools import apply_oct_sam
+from oct_tools.segmentation import apply_oct_sam
 
 
 class TestApplyModelSam2d(unittest.TestCase):

@@ -7,7 +7,7 @@ import nibabel as nib
 import numpy as np
 import tifffile
 
-from oct_tools.heyex_vol import read_heyex_vol
+from oct_tools.data.heyex_vol import read_heyex_vol
 
 IMAGE_KEYS = ("image",)
 # Inference output first, then the refined and the original manual annotation.

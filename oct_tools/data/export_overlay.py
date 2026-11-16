@@ -5,7 +5,7 @@ import numpy as np
 import tifffile
 from imageio.v3 import imwrite
 
-from oct_tools.data_reader import SEGMENTATION_KEYS, read_volume
+from oct_tools.data.data_reader import SEGMENTATION_KEYS, read_volume
 from oct_tools.layer_information import _WARNING_COLORS_BRIGHT, LAYER_COLORS, LAYER_COLORS_CUSTOM
 
 OVERLAY_ALPHA = 0.4

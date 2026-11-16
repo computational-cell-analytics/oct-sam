@@ -5,7 +5,7 @@ from glob import glob
 import torch_em
 from micro_sam.training import train_sam_for_configuration
 
-from oct_tools.train_utils import raw_trafo, export_model
+from oct_tools.training.train_utils import raw_trafo, export_model
 
 
 def _get_loaders(train_dir, val_dir, patch_shape, batch_size):

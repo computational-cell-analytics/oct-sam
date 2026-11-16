@@ -4,8 +4,8 @@ from typing import List
 
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
-from oct_tools.apply_oct_sam import apply_model_sam_2d, calc_accuracy
-from oct_tools.data_reader import read_bscan
+from oct_tools.segmentation.apply_oct_sam import apply_model_sam_2d, calc_accuracy
+from oct_tools.data.data_reader import read_bscan
 
 
 def eval_model_sam(

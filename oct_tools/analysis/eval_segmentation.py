@@ -8,7 +8,7 @@ import numpy as np
 from elf.evaluation import matching
 from elf.evaluation.dice import symmetric_best_dice_score
 
-from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan
+from oct_tools.data.data_reader import SEGMENTATION_KEYS, read_bscan
 
 
 def eval_segmentation_2d(

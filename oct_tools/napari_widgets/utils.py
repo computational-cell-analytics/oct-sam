@@ -6,7 +6,7 @@ import napari
 import numpy as np
 import pandas as pd
 
-from oct_tools.metric_utils import run_measurement, get_etdrs_mask
+from oct_tools.measurements.metric_utils import run_measurement, get_etdrs_mask
 from oct_tools.layer_information import identify_layers_naively
 
 MEASUREMENT_FILE = "measurements.xlsx"

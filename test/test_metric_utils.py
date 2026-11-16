@@ -1,4 +1,4 @@
-"""Tests for oct_tools.metric_utils.
+"""Tests for oct_tools.measurements.metric_utils.
 
 The tests pin the spacing convention: the first spacing value is the vertical pitch, across the
 retinal layers, and the second is the horizontal pitch, along them. A swapped axis order changes
@@ -14,7 +14,7 @@ import imageio.v3 as imageio
 import numpy as np
 import pandas as pd
 
-from oct_tools.metric_utils import (
+from oct_tools.measurements.metric_utils import (
     VOXEL_SIZE, binary_thickness, calculate_metrics, measure_binary_thickness, run_measurement,
 )
 
@@ -147,7 +147,7 @@ class TestTotalCentralFovealThickness(unittest.TestCase):
         self.assertEqual(table[self.column].nunique(), 1)
 
     def test_notification_reports_the_span(self):
-        from oct_tools.metric_utils import get_etdrs_mask
+        from oct_tools.measurements.metric_utils import get_etdrs_mask
         seg = _make_segmentation()
         seg[seg == 2] = 0
         _, notification = get_etdrs_mask(seg, fovea_point=[0, self.fovea_column])

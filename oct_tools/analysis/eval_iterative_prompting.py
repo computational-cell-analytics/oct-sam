@@ -5,7 +5,7 @@ import numpy as np
 
 import pandas as pd
 
-from oct_tools.data_reader import read_bscan
+from oct_tools.data.data_reader import read_bscan
 
 
 def create_individual_tif_data(
