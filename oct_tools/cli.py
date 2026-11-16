@@ -10,7 +10,8 @@ from oct_tools.segmentation.interactive_segmentation import run_annotator
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.measurements.metric_utils import VOXEL_SIZE, calculate_metrics, measure_binary_thickness
 from oct_tools.segmentation.apply_oct_sam import apply_model_sam_2d
-from oct_tools.segmentation.apply_nnunet import apply_model_nnunet, retrain_model_nnunet
+from oct_tools.segmentation.apply_nnunet import apply_model_nnunet
+from oct_tools.training.retrain_nnunet import retrain_model_nnunet
 from oct_tools.analysis.eval_segmentation import eval_segmentation_2d
 from oct_tools.data.export_overlay import export_overlay
 from oct_tools.data.heyex_vol import convert_vol_to_tif
