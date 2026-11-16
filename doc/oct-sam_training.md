@@ -40,7 +40,7 @@ For the fine-tuning of stage 3, copy the B-scans of a split into a folder `train
 ```bash
 python scripts/process_data/split_data.py --layout sam -i <UMG_RP_H5_DIR> -o split_data -j doc/train_splits/train_splits_sam_n001.json
 ```
-`create_train_val_splits_for_finetuning(..., output_sam=True)` in `oct_tools/data_processing.py` makes new split files with the UMG-RP H5 names.
+`create_train_val_splits_for_finetuning(..., output_sam=True)` in `oct_tools/data/data_processing.py` makes new split files with the UMG-RP H5 names.
 
 For the semantic variant, make the training data from the nnU-Net dataset, the UMG-RP H5 files and a split file:
 ```bash

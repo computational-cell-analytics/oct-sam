@@ -110,7 +110,7 @@ With the option `--legacy_names`, the conversion writes the names of the earlier
 - The legacy H5 name of Duke DME counts only the 11 annotated B-scans of a volume. For example, `Subject_01_z000` is B-scan 10 of the volume, with the standard name `duke_01_z10`.
 - The UMG-RP H5 files with the annotations keep the names `RP<id>_<year>_<eye>_z<slice>.h5`.
 
-`standard_name` in `oct_tools/data_processing.py` converts a legacy name to the standard name.
+`standard_name` in `oct_tools/data/data_processing.py` converts a legacy name to the standard name.
 It cannot convert the legacy H5 names of Duke DME.
 
 Do not mix standard names and legacy names in one folder. Otherwise, the folder holds B-scans twice.
@@ -137,4 +137,4 @@ Each file contains a list of folds. Each fold has a `train` and a `val` list of 
 `<N>` is 001, 005, 010, 025, 050 or 100.
 `scripts/process_data/split_data.py` finds a B-scan by its standard name or by its legacy name.
 Thus each split file works with data that has standard names or legacy names.
-`create_train_val_splits_for_finetuning` in `oct_tools/data_processing.py` made the `n<N>` files from `train_splits_iterative_all.json`.
+`create_train_val_splits_for_finetuning` in `oct_tools/data/data_processing.py` made the `n<N>` files from `train_splits_iterative_all.json`.

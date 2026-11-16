@@ -113,7 +113,7 @@ The fine-tuning networks of stage 3 use the splits in `doc/train_splits`. See [T
 To make new splits, use `create_train_val_splits_for_finetuning`.
 Write them into a new folder. With the same random seed, the function gives the same splits as the files in `doc/train_splits`.
 ```python
-from oct_tools.data_processing import create_train_val_splits_for_finetuning
+from oct_tools.data.data_processing import create_train_val_splits_for_finetuning
 
 create_train_val_splits_for_finetuning("new_splits", "doc/train_splits/train_splits_iterative_all.json")
 ```
