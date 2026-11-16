@@ -7,7 +7,7 @@ import imageio.v3 as imageio
 import nibabel as nib
 import numpy as np
 
-from oct_tools.segmentation.apply_nnunet import _convert_nifti_to_tif, _convert_to_nnunet_format, apply_model_nnunet
+from oct_tools.segmentation.apply_nnunet import _convert_nifti_to_tif, apply_model_nnunet, convert_to_nnunet_format
 
 
 class TestConvertNiftiToTif(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestConvertToNnunetFormat(unittest.TestCase):
             imageio.imwrite(os.path.join(input_dir, "rgb.tif"), np.stack([gray] * 3, axis=-1))
             imageio.imwrite(os.path.join(input_dir, "stack.tif"), np.stack([gray, gray]))
 
-            _convert_to_nnunet_format(input_dir, output_dir)
+            convert_to_nnunet_format(input_dir, output_dir)
 
             self.assertEqual(
                 sorted(os.listdir(output_dir)),
@@ -55,7 +55,7 @@ class TestConvertToNnunetFormat(unittest.TestCase):
             with open(os.path.join(input_dir, "notes.tif.txt"), "w") as f:
                 f.write("not an image")
 
-            _convert_to_nnunet_format(input_dir, output_dir)
+            convert_to_nnunet_format(input_dir, output_dir)
 
             self.assertEqual(sorted(os.listdir(output_dir)), ["a_0000.nii.gz", "b_0000.nii.gz"])
 

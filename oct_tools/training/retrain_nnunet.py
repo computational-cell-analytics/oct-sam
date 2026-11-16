@@ -8,14 +8,14 @@ from typing import Union
 
 import torch
 
-from oct_tools.segmentation.apply_nnunet import _convert_to_nnunet_format
+from oct_tools.segmentation.apply_nnunet import convert_to_nnunet_format
 
 
 def _create_dataset(image_dir: str, label_dir: str, dataset_dir: str, pretrained_json: dict, label_key: str) -> int:
     images_tr = os.path.join(dataset_dir, "imagesTr")
     labels_tr = os.path.join(dataset_dir, "labelsTr")
-    _convert_to_nnunet_format(image_dir, images_tr)
-    _convert_to_nnunet_format(
+    convert_to_nnunet_format(image_dir, images_tr)
+    convert_to_nnunet_format(
         label_dir, labels_tr,
         keys=(f"labels/{label_key}",),
         label_ids=sorted(pretrained_json["labels"].values()),

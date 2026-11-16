@@ -14,7 +14,7 @@ from tqdm import tqdm
 from oct_tools.data.data_reader import IMAGE_KEYS, nifti_affine, read_nifti, read_volume
 
 
-def _convert_to_nnunet_format(
+def convert_to_nnunet_format(
     input_folder: str,
     output_folder: str,
     keys: Sequence[str] = IMAGE_KEYS,
@@ -22,6 +22,19 @@ def _convert_to_nnunet_format(
     file_format: Optional[str] = None,
     label_ids: Optional[List[int]] = None,
 ) -> None:
+    """Convert the TIF, H5 or VOL files of a folder to nnU-Net NIfTI files.
+
+    A stack gives one file for each B-scan, `<name>_z<NNN>`. The data is cast to `uint8`.
+
+    Args:
+        input_folder: Folder with the input files.
+        output_folder: Folder for the NIfTI files.
+        keys: H5 dataset keys, tried in order.
+        pixel_spacing: Pixel size (y, x) in um for the NIfTI affine.
+        file_format: Extension of the input files, without the dot. If None, the most frequent extension.
+        label_ids: Label IDs of the model. Set it for label data, which gets no `_0000` suffix.
+            An ID outside `label_ids` raises a ValueError. For `[0, 1]`, all IDs above 0 become 1.
+    """
     if file_format is None:
         file_formats = [
             os.path.splitext(e.name)[1][1:]
@@ -131,7 +144,7 @@ def apply_model_nnunet(
             os.makedirs(input_dir)
             shutil.copy(input_path, os.path.join(input_dir, f"bscan{extension}"))
 
-        _convert_to_nnunet_format(input_dir, nifti_images)
+        convert_to_nnunet_format(input_dir, nifti_images)
 
         subprocess.run(
             [
