@@ -1,6 +1,6 @@
 import argparse
 
-from oct_tools.data_processing import DATASETS, SPACING, prepare_dataset, read_dataset
+from oct_tools.data.data_processing import DATASETS, SPACING, prepare_dataset, read_dataset
 
 
 def main():

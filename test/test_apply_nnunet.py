@@ -9,7 +9,7 @@ import imageio.v3 as imageio
 import nibabel as nib
 import numpy as np
 
-from oct_tools.apply_nnunet import (
+from oct_tools.segmentation.apply_nnunet import (
     _convert_nifti_to_tif, _convert_to_nnunet_format, _create_dataset, apply_model_nnunet, retrain_model_nnunet,
 )
 

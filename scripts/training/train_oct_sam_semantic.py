@@ -5,7 +5,7 @@ from glob import glob
 import torch_em
 from torch.utils.data import ConcatDataset
 
-from oct_tools.train_utils import export_model, raw_trafo, train_oct_sam_model
+from oct_tools.training.train_utils import export_model, raw_trafo, train_oct_sam_model
 
 ROOT_DIR = "/mnt/vast-nhr/projects/nim00007/data/mace/oct-data/semantic_training_medicosam"
 

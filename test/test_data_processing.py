@@ -11,7 +11,7 @@ import nibabel as nib
 import numpy as np
 from scipy.io import savemat
 
-from oct_tools.data_processing import (
+from oct_tools.data.data_processing import (
     Sample, _load_duke_data, _surfaces_to_label, case_source, copy_cases, create_train_val_splits_for_finetuning,
     legacy_nnunet_name, merge_photoreceptor_segments, prepare_dataset, read_duke_dme, read_split, read_umg_rp,
     split_nnunet_dataset, split_sam_data, split_semantic_data, standard_name, umg_rp_source_name,

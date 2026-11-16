@@ -10,10 +10,10 @@ import pandas as pd
 from skimage.measure import regionprops
 from skimage.morphology import skeletonize
 
-from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan
+from oct_tools.data.data_reader import SEGMENTATION_KEYS, read_bscan
 
 # This is the information about the voxel / pixel size extracted from the VOL header of one
-# tomogram (see oct_tools.heyex_vol.read_vol_header). The unit is micrometer. This has to be double checked!
+# tomogram (see oct_tools.data.heyex_vol.read_vol_header). The unit is micrometer. This has to be double checked!
 VOXEL_SIZE = (121.41720950603485, 3.87166976, 5.8814)
 
 

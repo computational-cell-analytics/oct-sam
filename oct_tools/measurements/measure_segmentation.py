@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 import napari
 
-from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan, read_volume
+from oct_tools.data.data_reader import SEGMENTATION_KEYS, read_bscan, read_volume
 from oct_tools.layer_information import get_layer_colormap
 from oct_tools.napari_widgets.colormap_widget import ColormapWidget
 from oct_tools.napari_widgets.table_widget import MeasurementTableWidget

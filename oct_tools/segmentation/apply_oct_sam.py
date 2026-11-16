@@ -17,9 +17,9 @@ try:
 except ImportError:
     from micro_sam.instance_segmentation import get_instance_segmentation_generator as get_amg
 
-from oct_tools.data_reader import read_volume
-from oct_tools.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
-from oct_tools.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
+from oct_tools.data.data_reader import read_volume
+from oct_tools.postprocessing.postprocessing import postprocess_segmentation, DEFAULT_POSTPROCESS
+from oct_tools.segmentation.precompute_segmentation import _derive_prompts_sam, _segment_from_prompts
 
 
 def _segment_image(

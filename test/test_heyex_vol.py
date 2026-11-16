@@ -1,4 +1,4 @@
-"""Tests for oct_tools.heyex_vol.
+"""Tests for oct_tools.data.heyex_vol.
 
 The synthetic tests build a VOL file in memory, so they need no external data. The comparison
 against the converted HCMS data is skipped when that data set is not available.
@@ -12,7 +12,7 @@ import unittest
 import imageio.v3 as imageio
 import numpy as np
 
-from oct_tools.heyex_vol import convert_vol_to_tif, read_heyex_vol, read_vol_header, vol_intensity_transform
+from oct_tools.data.heyex_vol import convert_vol_to_tif, read_heyex_vol, read_vol_header, vol_intensity_transform
 
 FILE_HEADER_SIZE = 2048
 

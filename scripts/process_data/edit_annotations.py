@@ -6,9 +6,9 @@ from typing import Optional
 import h5py
 import numpy as np
 
-from oct_tools.data_reader import read_bscan
-from oct_tools.postprocessing import fill_gaps_watershed
-from oct_tools.refine_annotations import assign_layer_id, cleanup_label, restrict_label_to_image
+from oct_tools.data.data_reader import read_bscan
+from oct_tools.postprocessing.postprocessing import fill_gaps_watershed
+from oct_tools.data.refine_annotations import assign_layer_id, cleanup_label, restrict_label_to_image
 
 # edit_v2 and edit_v3 have the same steps. edit_v3 is the label for training.
 EDIT_STEPS = {

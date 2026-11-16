@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from oct_tools.data_reader import IMAGE_KEYS, nifti_affine, read_nifti, read_volume
+from oct_tools.data.data_reader import IMAGE_KEYS, nifti_affine, read_nifti, read_volume
 
 
 def _convert_to_nnunet_format(

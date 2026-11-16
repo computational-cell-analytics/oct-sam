@@ -9,8 +9,8 @@ import imageio.v3 as imageio
 import numpy as np
 import tifffile
 
-from oct_tools.data_reader import SEGMENTATION_KEYS, read_bscan, read_volume
-from oct_tools.heyex_vol import read_heyex_vol
+from oct_tools.data.data_reader import SEGMENTATION_KEYS, read_bscan, read_volume
+from oct_tools.data.heyex_vol import read_heyex_vol
 from test_heyex_vol import _write_vol
 
 

@@ -16,7 +16,7 @@ from napari.layers import Shapes
 from typing import Optional
 import matplotlib.pyplot as plt
 
-from oct_tools.metric_utils import VOXEL_SIZE
+from oct_tools.measurements.metric_utils import VOXEL_SIZE
 
 
 def df_to_png_bytes(df: pd.DataFrame, *, dpi: int = 200, fontsize: int = 10) -> bytes:

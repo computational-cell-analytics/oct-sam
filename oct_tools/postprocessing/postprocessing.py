@@ -4,7 +4,7 @@ import numpy as np
 from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
 
-from oct_tools.refine_annotations import assign_layer_id as _assign_layer_id
+from oct_tools.data.refine_annotations import assign_layer_id as _assign_layer_id
 
 # Default post-processing chain. "assign_layer_id" must stay last: it derives the layer IDs from
 # the spatial order of the segments, so merging and filtering have to run first.

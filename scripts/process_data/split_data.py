@@ -1,6 +1,6 @@
 import argparse
 
-from oct_tools.data_processing import split_nnunet_dataset, split_sam_data, split_semantic_data
+from oct_tools.data.data_processing import split_nnunet_dataset, split_sam_data, split_semantic_data
 
 
 def main():

@@ -5,7 +5,7 @@ from glob import glob
 import napari
 from tqdm import tqdm
 
-from oct_tools.data_reader import read_bscan
+from oct_tools.data.data_reader import read_bscan
 
 
 def main():

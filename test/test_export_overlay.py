@@ -6,7 +6,7 @@ import imageio.v3 as imageio
 import numpy as np
 import tifffile
 
-from oct_tools.export_overlay import export_overlay
+from oct_tools.data.export_overlay import export_overlay
 from oct_tools.layer_information import LAYER_COLORS_CUSTOM
 
 DEPTH, HEIGHT, WIDTH = 3, 40, 60

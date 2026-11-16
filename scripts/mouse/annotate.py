@@ -21,7 +21,7 @@ def collect_bscans(image_dir, label_dir, slice_dir):
         data = imageio.imread(image_path)
         label_path = os.path.join(label_dir, f"{name}.tif")
 
-        # A last axis of 3 is one RGB B-scan, as in oct_tools.apply_nnunet._convert_to_nnunet_format.
+        # A last axis of 3 is one RGB B-scan, as in oct_tools.segmentation.apply_nnunet._convert_to_nnunet_format.
         if data.ndim != 3 or data.shape[-1] == 3:
             images.append(image_path)
             labels.append(label_path)
